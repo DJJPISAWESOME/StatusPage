@@ -1,0 +1,493 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Command Center Status Board</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #050b17;
+      --surface: #0e1a2f;
+      --surface-2: #12213a;
+      --border: #223250;
+      --text: #edf3ff;
+      --muted: #94a8c8;
+      --ok: #22c55e;
+      --warn: #f59e0b;
+      --bad: #ef4444;
+      --info: #38bdf8;
+      --shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+      --header-h: 112px;
+      --footer-h: 76px;
+      --radius: 16px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      color: var(--text);
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at 10% 10%, rgba(56, 189, 248, .16), transparent 42%),
+        radial-gradient(circle at 90% 5%, rgba(59, 130, 246, .18), transparent 40%),
+        linear-gradient(180deg, #061024 0%, #050b17 100%);
+      overflow: hidden;
+      padding: 14px;
+    }
+
+    .shell {
+      display: grid;
+      grid-template-rows: var(--header-h) 1fr var(--footer-h);
+      height: calc(100vh - 28px);
+      gap: 14px;
+      max-width: 1800px;
+      margin: 0 auto;
+    }
+
+    .topbar {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: linear-gradient(180deg, rgba(18, 33, 58, .8), rgba(14, 26, 47, .9));
+      box-shadow: var(--shadow);
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      align-items: center;
+      gap: 14px;
+      padding: 14px 18px;
+    }
+
+    .title h1 { margin: 0; font-size: clamp(1.2rem, 1.2vw + .8rem, 2rem); }
+    .title p { margin: 6px 0 0; color: var(--muted); font-size: .9rem; }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid var(--border);
+      background: rgba(8, 18, 35, .7);
+      padding: 9px 12px;
+      border-radius: 999px;
+      font-size: .85rem;
+      white-space: nowrap;
+    }
+
+    .dot { width: 10px; height: 10px; border-radius: 50%; box-shadow: 0 0 0 0 currentColor; animation: pulse 1.8s infinite; }
+
+    .board-wrap {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: linear-gradient(180deg, rgba(18, 33, 58, .5), rgba(10, 18, 33, .7));
+      overflow: hidden;
+      position: relative;
+    }
+
+    .board {
+      position: absolute; inset: 0;
+      padding: 14px;
+      display: grid;
+      gap: 14px;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(8px);
+      transition: opacity .4s ease, transform .4s ease;
+      grid-template-columns: repeat(var(--cols, 3), minmax(0, 1fr));
+      grid-template-rows: repeat(var(--rows, 2), minmax(0, 1fr));
+    }
+
+    .board.active { opacity: 1; pointer-events: auto; transform: translateY(0); }
+
+    .card {
+      background: linear-gradient(170deg, rgba(18, 33, 58, .96), rgba(10, 20, 36, .96));
+      border: 1px solid #284069;
+      border-left: 5px solid var(--ok);
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+      padding: 14px;
+      display: grid;
+      grid-template-rows: auto auto 1fr auto;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    .card.bad { border-left-color: var(--bad); }
+    .card.warn { border-left-color: var(--warn); }
+    .card.maint { border-left-color: var(--info); }
+
+    .head { display: flex; justify-content: space-between; gap: 8px; align-items: start; }
+    .name { font-size: clamp(1rem, .6vw + .8rem, 1.4rem); margin: 0; line-height: 1.2; }
+
+    .badge {
+      border-radius: 999px;
+      font-size: .7rem;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      font-weight: 700;
+      padding: 5px 8px;
+      border: 1px solid;
+    }
+
+    .k-ok { color: var(--ok); background: rgba(34, 197, 94, .12); border-color: rgba(34, 197, 94, .4); }
+    .k-warn { color: var(--warn); background: rgba(245, 158, 11, .14); border-color: rgba(245, 158, 11, .45); }
+    .k-bad { color: var(--bad); background: rgba(239, 68, 68, .14); border-color: rgba(239, 68, 68, .45); }
+    .k-maint { color: var(--info); background: rgba(56, 189, 248, .12); border-color: rgba(56, 189, 248, .45); }
+
+    .meta { margin: 8px 0; color: var(--muted); font-size: .76rem; }
+
+    .event {
+      background: rgba(5, 12, 24, .65);
+      border: 1px solid #233758;
+      border-radius: 10px;
+      padding: 10px;
+      font-size: .78rem;
+      overflow: hidden;
+    }
+
+    .event h4 { margin: 0 0 5px; font-size: .82rem; }
+    .event p { margin: 0; color: #c8d7f4; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+
+    .link { margin-top: 8px; font-size: .8rem; color: #8fc7ff; text-decoration: none; }
+    .link:hover { text-decoration: underline; }
+
+    .bottombar {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: rgba(9, 17, 33, .9);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      gap: 10px;
+      font-size: .85rem;
+      color: var(--muted);
+    }
+
+    .pager { display: flex; gap: 6px; }
+    .pager button {
+      width: 28px; height: 28px; border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      cursor: pointer;
+    }
+    .pager button.active { background: #2563eb; border-color: #2563eb; }
+
+    .loading, .error {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      color: var(--muted);
+      font-size: 1rem;
+    }
+
+    @media (max-width: 980px) {
+      :root { --header-h: 132px; --footer-h: 88px; }
+      .topbar { grid-template-columns: 1fr; }
+      .bottombar { flex-direction: column; justify-content: center; padding: 8px; }
+    }
+
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 currentColor; }
+      100% { box-shadow: 0 0 0 10px transparent; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      * { animation: none !important; transition: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div class="title">
+        <h1>Heartbeat Command Center</h1>
+        <p>Digital signage status board for critical services</p>
+      </div>
+      <div class="chip" id="overall"><span class="dot" style="color:var(--ok)"></span><strong>All Systems Operational</strong></div>
+      <div class="chip" id="clock"></div>
+    </header>
+
+    <section class="board-wrap" id="board-wrap">
+      <div class="loading" id="loading">Loading service health…</div>
+    </section>
+
+    <footer class="bottombar">
+      <div id="rotation-info">Auto-rotate: every 60s</div>
+      <div class="pager" id="pager"></div>
+      <div id="last-refresh">Last refresh: --</div>
+    </footer>
+  </main>
+
+  <script>
+    const services = [
+      { name: 'i-Ready', statusApiUrl: 'https://i-ready.status.io/', incidentsApiUrl: 'https://i-ready.status.io/', homepageUrl: 'https://i-ready.status.io/', platform: 'statusio' },
+      { name: 'HMH', statusApiUrl: 'https://status.hmhco.com/api/v2/status.json', incidentsApiUrl: 'https://status.hmhco.com/api/v2/incidents.json', homepageUrl: 'https://status.hmhco.com' },
+      { name: 'Follett Software', statusApiUrl: 'https://status.follettsoftware.com/rest/systemstatus', homepageUrl: 'https://status.follettsoftware.com', platform: 'follett' },
+      { name: 'IncidentIQ', statusApiUrl: 'https://status.incidentiq.com/api/v2/status.json', incidentsApiUrl: 'https://status.incidentiq.com/api/v2/incidents.json' },
+      { name: 'Clever', statusApiUrl: 'https://status.clever.com/api/v2/status.json', incidentsApiUrl: 'https://status.clever.com/api/v2/incidents.json' },
+      { name: 'Seesaw', statusApiUrl: 'https://status.seesaw.me/api/v2/status.json', incidentsApiUrl: 'https://status.seesaw.me/api/v2/incidents.json' },
+      { name: 'Jamf', statusApiUrl: 'https://status.jamf.com/api/v2/status.json', incidentsApiUrl: 'https://status.jamf.com/api/v2/incidents.json' },
+      { name: 'Meraki', statusApiUrl: 'https://status.meraki.net/api/v2/status.json', incidentsApiUrl: 'https://status.meraki.net/api/v2/incidents.json' },
+      { name: 'Duo', statusApiUrl: 'https://status.duo.com/api/v2/status.json', incidentsApiUrl: 'https://status.duo.com/api/v2/incidents.json' },
+      { name: 'Imagine Learning', statusApiUrl: 'https://status.imaginelearning.com/api/v2/status.json', incidentsApiUrl: 'https://status.imaginelearning.com/api/v2/incidents.json' },
+      { name: 'Blackboard', statusApiUrl: 'https://status.blackboard.com/api/v2/status.json', incidentsApiUrl: 'https://status.blackboard.com/api/v2/incidents.json' },
+      { name: 'FinalSite', statusApiUrl: 'https://status.finalsite.com/api/v2/status.json', incidentsApiUrl: 'https://status.finalsite.com/api/v2/incidents.json' },
+      { name: 'Cloudflare', statusApiUrl: 'https://www.cloudflarestatus.com/api/v2/status.json', incidentsApiUrl: 'https://www.cloudflarestatus.com/api/v2/incidents.json' },
+      { name: 'DNSFilter', statusApiUrl: 'https://status.dnsfilter.com/api/v2/status.json', incidentsApiUrl: 'https://status.dnsfilter.com/api/v2/incidents.json', homepageUrl: 'https://status.dnsfilter.com' },
+      { name: 'SecureW2', statusApiUrl: 'https://status.securew2.com/api/v1/status', incidentsApiUrl: 'https://status.securew2.com/api/v1/notices', homepageUrl: 'https://status.securew2.com', platform: 'securew2' },
+      { name: 'Adobe Creative Cloud', homepageUrl: 'https://status.adobe.com/cloud/creative_cloud', platform: 'adobe' }
+    ];
+
+    const REFRESH_MS = 120000;
+    const ROTATE_MS = 60000;
+    const CACHE_KEY = 'status-cache-v1';
+    let currentPage = 0;
+    let pages = [];
+    let rotateTimer;
+    let refreshTimer;
+
+    const priority = { major: 1, minor: 2, maintenance: 3, unknown: 4, none: 5 };
+    const label = { none: 'Operational', minor: 'Degraded', major: 'Outage', maintenance: 'Maintenance', unknown: 'Unknown' };
+
+    function dim() {
+      const w = window.innerWidth;
+      if (w < 900) return { cols: 1, rows: 3 };
+      if (w < 1300) return { cols: 2, rows: 2 };
+      if (w < 1700) return { cols: 3, rows: 2 };
+      return { cols: 4, rows: 2 };
+    }
+
+    function cls(indicator) {
+      if (indicator === 'major') return ['bad', 'k-bad'];
+      if (indicator === 'minor') return ['warn', 'k-warn'];
+      if (indicator === 'maintenance') return ['maint', 'k-maint'];
+      return ['', 'k-ok'];
+    }
+
+    async function safeFetch(url, timeout = 9000) {
+      const controller = new AbortController();
+      const id = setTimeout(() => controller.abort(), timeout);
+      try {
+        const res = await fetch(url, { signal: controller.signal, headers: { 'x-requested-with': 'fetch' } });
+        if (!res.ok) throw new Error(String(res.status));
+        return await res.text();
+      } finally {
+        clearTimeout(id);
+      }
+    }
+
+    async function jsonWithFallback(url) {
+      const wrappers = [
+        u => u,
+        u => 'https://corsproxy.io/?' + encodeURIComponent(u),
+        u => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u)
+      ];
+      let last;
+      for (const wrap of wrappers) {
+        try {
+          const text = await safeFetch(wrap(url));
+          return JSON.parse(text.replace(/^\uFEFF/, ''));
+        } catch (e) {
+          last = e;
+        }
+      }
+      throw last;
+    }
+
+    async function fetchService(service) {
+      try {
+        if (service.platform === 'adobe') return { ...service, indicator: 'none', incidents: [], lastUpdated: new Date().toLocaleString() };
+
+        if (service.platform === 'follett') {
+          const data = await jsonWithFallback(service.statusApiUrl);
+          let indicator = 'none';
+          if (data.generalStatus === 'issues') indicator = 'minor';
+          else if (data.generalStatus === 'maintenance') indicator = 'maintenance';
+          else if (data.generalStatus && data.generalStatus !== 'ok') indicator = 'major';
+          const incidents = [];
+          (data.statuses || []).forEach(s => {
+            if (s.systemStatus && s.systemStatus !== 'ok') incidents.push({ name: s.systemName || 'System issue', status: s.systemStatus, description: (s.statusMessage || 'Issue detected').replace(/<[^>]+>/g, '') });
+          });
+          return { ...service, indicator, incidents: incidents.slice(0, 2), lastUpdated: new Date().toLocaleString() };
+        }
+
+        if (service.platform === 'securew2') {
+          const [statusData, noticesData] = await Promise.all([jsonWithFallback(service.statusApiUrl), jsonWithFallback(service.incidentsApiUrl)]);
+          const st = (statusData?.page?.state || '').toLowerCase();
+          let indicator = st === 'degraded' ? 'minor' : st === 'under_maintenance' ? 'maintenance' : st && st !== 'operational' ? 'major' : 'none';
+          const incidents = (noticesData?.notices || []).slice(0, 3).map(n => ({
+            name: n.subject || 'Notice',
+            status: n.state || 'ongoing',
+            description: String(n.latest_update?.content || '').replace(/<[^>]+>/g, '').trim() || 'See status page for details.'
+          }));
+          return { ...service, indicator, incidents, lastUpdated: new Date().toLocaleString() };
+        }
+
+        if (service.platform === 'statusio') {
+          const html = await safeFetch(service.statusApiUrl);
+          const indicator = /All Systems Operational/i.test(html) ? 'none' : /Outage|Disruption|Investigating/i.test(html) ? 'major' : /Degraded/i.test(html) ? 'minor' : /Maintenance/i.test(html) ? 'maintenance' : 'unknown';
+          return { ...service, indicator, incidents: [], lastUpdated: new Date().toLocaleString() };
+        }
+
+        const [statusData, incidentsData] = await Promise.all([
+          jsonWithFallback(service.statusApiUrl),
+          jsonWithFallback(service.incidentsApiUrl)
+        ]);
+
+        let indicator = statusData?.status?.indicator || 'unknown';
+        const incidents = (incidentsData?.incidents || []).map(i => ({
+          name: i.name || 'Incident',
+          status: i.status || 'unknown',
+          description: (i.description || i.incident_updates?.[0]?.body || 'See status page for details.').replace(/<[^>]+>/g, '')
+        })).slice(0, 2);
+
+        const hasActive = incidentsData?.incidents?.some(i => ['investigating','identified','monitoring'].includes((i.status || '').toLowerCase()));
+        if (indicator === 'none' && hasActive) indicator = 'minor';
+
+        return { ...service, indicator, incidents, lastUpdated: new Date(statusData?.page?.updated_at || Date.now()).toLocaleString() };
+      } catch {
+        return {
+          ...service,
+          indicator: 'unknown',
+          incidents: [{ name: 'Status unavailable', status: 'investigating', description: 'Could not fetch live status right now. Showing fallback.' }],
+          lastUpdated: '--'
+        };
+      }
+    }
+
+    function renderCards(data) {
+      const wrap = document.getElementById('board-wrap');
+      const pager = document.getElementById('pager');
+      const { cols, rows } = dim();
+      const perPage = cols * rows;
+      pages = Array.from({ length: Math.ceil(data.length / perPage) }, (_, i) => data.slice(i * perPage, (i + 1) * perPage));
+      currentPage = Math.min(currentPage, pages.length - 1);
+
+      wrap.querySelectorAll('.board').forEach(el => el.remove());
+      pager.innerHTML = '';
+
+      pages.forEach((group, i) => {
+        const board = document.createElement('div');
+        board.className = `board ${i === currentPage ? 'active' : ''}`;
+        board.style.setProperty('--cols', cols);
+        board.style.setProperty('--rows', rows);
+
+        group.forEach(s => {
+          const [cardClass, badgeClass] = cls(s.indicator);
+          const e = s.incidents[0];
+          const card = document.createElement('article');
+          card.className = `card ${cardClass}`;
+          card.innerHTML = `
+            <div class="head"><h2 class="name">${s.name}</h2><span class="badge ${badgeClass}">${label[s.indicator] || 'Unknown'}</span></div>
+            <div class="meta">Updated ${s.lastUpdated}</div>
+            <div class="event">${e ? `<h4>${e.name}</h4><p>${e.description}</p>` : '<h4>No active incidents</h4><p>Everything is running normally.</p>'}</div>
+            ${s.homepageUrl ? `<a class="link" href="${s.homepageUrl}" target="_blank" rel="noopener">Open vendor status ↗</a>` : ''}
+          `;
+          board.appendChild(card);
+        });
+
+        wrap.appendChild(board);
+
+        const b = document.createElement('button');
+        b.textContent = String(i + 1);
+        b.className = i === currentPage ? 'active' : '';
+        b.onclick = () => {
+          showPage(i);
+          restartRotation();
+        };
+        pager.appendChild(b);
+      });
+    }
+
+    function showPage(i) {
+      currentPage = i;
+      document.querySelectorAll('.board').forEach((el, idx) => el.classList.toggle('active', idx === i));
+      document.querySelectorAll('.pager button').forEach((el, idx) => el.classList.toggle('active', idx === i));
+      document.getElementById('rotation-info').textContent = `Page ${i + 1}/${pages.length} • Auto-rotate: every 60s`;
+    }
+
+    function restartRotation() {
+      clearInterval(rotateTimer);
+      if (pages.length <= 1) return;
+      rotateTimer = setInterval(() => showPage((currentPage + 1) % pages.length), ROTATE_MS);
+    }
+
+    function updateOverall(data) {
+      const overall = document.getElementById('overall');
+      const hasBad = data.some(s => s.indicator === 'major');
+      const hasWarn = data.some(s => s.indicator === 'minor' || s.indicator === 'maintenance');
+      if (hasBad) overall.innerHTML = '<span class="dot" style="color:var(--bad)"></span><strong>Active Service Disruption</strong>';
+      else if (hasWarn) overall.innerHTML = '<span class="dot" style="color:var(--warn)"></span><strong>Degraded / Maintenance</strong>';
+      else overall.innerHTML = '<span class="dot" style="color:var(--ok)"></span><strong>All Systems Operational</strong>';
+    }
+
+    function tickClock() {
+      document.getElementById('clock').textContent = new Date().toLocaleString();
+    }
+
+    function saveCache(data) {
+      localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), data }));
+    }
+
+    function readCache() {
+      try {
+        const cached = JSON.parse(localStorage.getItem(CACHE_KEY));
+        if (!cached?.data) return null;
+        return cached.data;
+      } catch {
+        return null;
+      }
+    }
+
+    async function refresh() {
+      const loading = document.getElementById('loading');
+      loading.style.display = 'grid';
+      const results = await Promise.all(services.map(fetchService));
+      results.sort((a, b) => (priority[a.indicator] || 9) - (priority[b.indicator] || 9));
+      renderCards(results);
+      updateOverall(results);
+      saveCache(results);
+      document.getElementById('last-refresh').textContent = `Last refresh: ${new Date().toLocaleTimeString()}`;
+      loading.style.display = 'none';
+      showPage(currentPage);
+      restartRotation();
+    }
+
+    function boot() {
+      const cached = readCache();
+      if (cached) {
+        renderCards(cached);
+        updateOverall(cached);
+        document.getElementById('loading').style.display = 'none';
+        showPage(currentPage);
+        restartRotation();
+      }
+
+      tickClock();
+      setInterval(tickClock, 1000);
+      refresh();
+
+      clearInterval(refreshTimer);
+      refreshTimer = setInterval(() => {
+        if (!document.hidden) refresh();
+      }, REFRESH_MS);
+
+      window.addEventListener('resize', () => {
+        const data = readCache();
+        if (data) {
+          renderCards(data);
+          showPage(0);
+          restartRotation();
+        }
+      });
+    }
+
+    boot();
+  </script>
+</body>
+</html>
