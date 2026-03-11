@@ -20,6 +20,7 @@
       --text: #f4f4f5;
       --sub: #a1a1aa;
       --muted: #52525b;
+      --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
       --font: 'Inter', system-ui, sans-serif;
     }
     *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
@@ -28,13 +29,28 @@
       background:var(--bg); color:var(--text);
       font-family:var(--font); -webkit-font-smoothing:antialiased;
     }
+    body::before {
+      content:'';
+      position:fixed;
+      inset:-35vmax;
+      pointer-events:none;
+      background:
+        radial-gradient(circle at 10% 12%, rgba(59,130,246,0.12), transparent 42%),
+        radial-gradient(circle at 90% 85%, rgba(124,58,237,0.12), transparent 42%),
+        radial-gradient(circle at 50% 50%, rgba(14,165,233,0.05), transparent 55%);
+      animation:auroraDrift 26s ease-in-out infinite alternate;
+      z-index:0;
+    }
     .shell { height:100vh; display:flex; flex-direction:column; padding:20px 24px 16px; gap:16px; }
+    .shell > * { position:relative; z-index:1; }
     .hdr { display:flex; align-items:center; justify-content:space-between; flex-shrink:0; gap:20px; }
     .brand { display:flex; align-items:center; gap:12px; }
     .brand-icon {
       width:40px; height:40px; border-radius:10px; flex-shrink:0;
       background:linear-gradient(135deg,#1d4ed8,#7c3aed);
       display:flex; align-items:center; justify-content:center;
+      box-shadow:0 10px 30px rgba(59,130,246,0.25);
+      animation:iconFloat 6s ease-in-out infinite;
     }
     .brand-icon svg { width:20px; height:20px; }
     .brand-name { font-size:17px; font-weight:800; letter-spacing:-0.03em; }
@@ -67,27 +83,28 @@
       letter-spacing:0.03em;
       text-transform:uppercase;
       cursor:pointer;
-      transition:all 0.2s ease;
+      transition:all 0.25s var(--ease-out);
       white-space:nowrap;
     }
-    .test-btn:hover { background:rgba(59,130,246,0.2); color:#dbeafe; border-color:rgba(96,165,250,0.6); }
+    .test-btn:hover { background:rgba(59,130,246,0.2); color:#dbeafe; border-color:rgba(96,165,250,0.6); transform:translateY(-1px); box-shadow:0 10px 20px rgba(37,99,235,0.22); }
     .test-btn:active { transform:translateY(1px); }
     .divider { height:1px; background:var(--border); flex-shrink:0; }
     .grid-wrap { flex:1; min-height:0; overflow:hidden; position:relative; }
     .page {
       position:absolute; inset:0; display:grid; gap:12px; align-content:start;
       opacity:0; pointer-events:none;
-      transition:opacity 0.55s ease, transform 0.55s ease;
+      transition:opacity 0.55s var(--ease-out), transform 0.55s var(--ease-out), filter 0.55s var(--ease-out);
       transform:translateY(12px);
+      filter:blur(4px);
     }
-    .page.active { opacity:1; pointer-events:auto; position:relative; transform:translateY(0); }
+    .page.active { opacity:1; pointer-events:auto; position:relative; transform:translateY(0); filter:blur(0); }
     .card {
       background:var(--card); border:1px solid var(--border); border-radius:16px;
       padding:20px 22px; display:flex; flex-direction:column; position:relative; overflow:hidden;
-      transition:border-color 0.3s, box-shadow 0.3s; cursor:pointer; animation:cardIn 0.35s ease both;
+      transition:border-color 0.35s var(--ease-out), box-shadow 0.35s var(--ease-out), transform 0.35s var(--ease-out), background 0.35s var(--ease-out); cursor:pointer; animation:cardIn 0.45s var(--ease-out) both;
     }
-    @keyframes cardIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
-    .card:hover { border-color:rgba(255,255,255,0.14); }
+    @keyframes cardIn { from{opacity:0;transform:translateY(16px) scale(0.985)} to{opacity:1;transform:translateY(0) scale(1)} }
+    .card:hover { border-color:rgba(255,255,255,0.14); transform:translateY(-4px); box-shadow:0 18px 32px rgba(0,0,0,0.32); }
     .card::before {
       content:''; position:absolute; left:0; top:16px; bottom:16px; width:3px;
       border-radius:0 3px 3px 0; background:var(--ok); opacity:0.7;
@@ -164,6 +181,7 @@
       pointer-events:none;
     }
     .status-banner {
+      position:relative;
       border-radius:16px;
       border:2px solid transparent;
       background:rgba(9,9,11,0.96);
@@ -172,14 +190,23 @@
       display:none;
       opacity:0;
       transform:translateY(-14px) scale(0.99);
-      transition:opacity 0.28s ease, transform 0.28s ease;
+      transition:opacity 0.36s var(--ease-out), transform 0.36s var(--ease-out);
+    }
+    .status-banner::after {
+      content:'';
+      position:absolute;
+      inset:-160% 35% auto -55%;
+      height:280%;
+      background:linear-gradient(120deg, transparent 0%, rgba(255,255,255,0.08) 45%, transparent 65%);
+      transform:rotate(8deg);
+      animation:bannerSheen 2.8s ease-out 1;
     }
     .status-banner.show { display:block; opacity:1; transform:translateY(0) scale(1); }
     .status-banner.degraded { border-color:rgba(245,158,11,0.78); }
     .status-banner.outage { border-color:rgba(239,68,68,0.86); animation:outagePulse 0.95s ease-in-out infinite; }
     .status-banner.restored { border-color:rgba(34,197,94,0.72); }
-    .status-banner-main { display:flex; align-items:center; gap:14px; padding:18px 20px; }
-    .status-banner-icon { font-size:32px; line-height:1; }
+    .status-banner-main { display:flex; align-items:center; gap:14px; padding:18px 20px; animation:bannerContentIn 0.4s var(--ease-out); }
+    .status-banner-icon { font-size:32px; line-height:1; animation:bannerIconPulse 1.8s ease-in-out infinite; transform-origin:50% 60%; }
     .status-banner-text { min-width:0; }
     .status-banner-heading {
       font-size:14px;
@@ -205,6 +232,33 @@
     @keyframes outagePulse {
       0%, 100% { box-shadow:0 18px 48px rgba(0,0,0,0.55), 0 0 0 0 rgba(239,68,68,0.42); }
       50% { box-shadow:0 18px 48px rgba(0,0,0,0.55), 0 0 0 14px rgba(239,68,68,0); }
+    }
+    @keyframes auroraDrift {
+      0% { transform:translate3d(-2%, -1%, 0) scale(1); }
+      100% { transform:translate3d(2%, 1%, 0) scale(1.05); }
+    }
+    @keyframes iconFloat {
+      0%,100% { transform:translateY(0); }
+      50% { transform:translateY(-2px); }
+    }
+    @keyframes bannerSheen {
+      from { transform:translateX(-65%) rotate(8deg); opacity:0; }
+      20% { opacity:1; }
+      to { transform:translateX(135%) rotate(8deg); opacity:0; }
+    }
+    @keyframes bannerContentIn {
+      from { opacity:0; transform:translateY(8px); }
+      to { opacity:1; transform:translateY(0); }
+    }
+    @keyframes bannerIconPulse {
+      0%,100% { transform:scale(1); }
+      50% { transform:scale(1.08); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation:none !important; transition:none !important; }
+      body::before { display:none; }
+      .page, .page.active, .status-banner { filter:none !important; transform:none !important; }
     }
 
     @media (max-height: 720px) {
