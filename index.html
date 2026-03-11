@@ -514,7 +514,7 @@ function mkCard(svc, delay){
     </div>
     <div class="card-meta">
       <div class="meta-updated"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Updated ${svc.updated}</div>
-      <div class="meta-tag">${svc.ind==='none' ? '100% uptime' : svc.ind==='maintenance' ? 'Scheduled' : 'Investigating'}</div>
+      <div class="meta-tag">${svc.ind==='none' ? 'Operational' : svc.ind==='maintenance' ? 'Scheduled' : svc.ind==='minor' ? 'Degraded' : 'Outage'}</div>
     </div>`;
   return d;
 }
@@ -558,7 +558,9 @@ function updateStats(data){
   else if(wn>0){ pill.className='pill warn'; txt.textContent='Degraded Performance'; }
   else { pill.className='pill'; txt.textContent='All Systems Operational'; }
 
-  document.getElementById('f-meta').textContent='Last updated '+new Date().toLocaleTimeString('en-US',{hour12:true,hour:'numeric',minute:'2-digit'});
+  const total=Math.max(1,data.length);
+  const uptimeNow=((ok+mt)/total*100).toFixed(1);
+  document.getElementById('f-meta').textContent='Last updated '+new Date().toLocaleTimeString('en-US',{hour12:true,hour:'numeric',minute:'2-digit'})+' · Uptime now '+uptimeNow+'%';
 }
 
 async function init(){
