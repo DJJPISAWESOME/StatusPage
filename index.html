@@ -1,1059 +1,211 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Service Status</title>
-  <!-- PR refresh: republishing full dashboard changes -->
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>BWRSD Multi-Tool</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <style>
-    :root {
-      --ok: #22c55e;
-      --warn: #f59e0b;
-      --bad: #ef4444;
-      --maint: #3b82f6;
-      --bg: #09090b;
-      --card: #111113;
-      --border: rgba(255,255,255,0.07);
-      --text: #f4f4f5;
-      --sub: #a1a1aa;
-      --muted: #52525b;
-      --font: 'Inter', system-ui, sans-serif;
+    :root{
+      --accent:#2563eb;--accent-2:#1d4ed8;--bg:#f4f6fb;--panel:#fff;--text:#111827;--muted:#6b7280;--line:#e5e7eb;
+      --ok:#16a34a;--warn:#d97706;--danger:#dc2626;
     }
-    *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
-    html, body {
-      height:100%; overflow:hidden;
-      background:var(--bg); color:var(--text);
-      font-family:var(--font); -webkit-font-smoothing:antialiased;
-    }
-    body::before,
-    body::after {
-      content:'';
-      position:fixed;
-      pointer-events:none;
-      z-index:0;
-      filter:blur(60px);
-      opacity:0.22;
-      animation:ambientFloat 18s ease-in-out infinite;
-    }
-    body::before {
-      width:44vw;
-      height:44vw;
-      top:-18vw;
-      left:-10vw;
-      background:radial-gradient(circle, rgba(59,130,246,0.42), transparent 65%);
-    }
-    body::after {
-      width:40vw;
-      height:40vw;
-      right:-14vw;
-      bottom:-16vw;
-      background:radial-gradient(circle, rgba(124,58,237,0.3), transparent 70%);
-      animation-delay:-7s;
-    }
-    @keyframes ambientFloat {
-      0%, 100% { transform:translate3d(0, 0, 0) scale(1); }
-      50% { transform:translate3d(0, -12px, 0) scale(1.08); }
-    }
-    .shell { height:100vh; display:flex; flex-direction:column; padding:20px 24px 16px; gap:16px; position:relative; z-index:1; animation:shellIn 0.75s cubic-bezier(.22,1,.36,1) both; }
-    @keyframes shellIn { from { opacity:0; transform:translateY(10px) scale(.995); } to { opacity:1; transform:translateY(0) scale(1); } }
-    .hdr {
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      flex-shrink:0;
-      gap:20px;
-      padding:12px 14px;
-      border-radius:16px;
-      border:1px solid rgba(255,255,255,0.08);
-      background:linear-gradient(165deg, rgba(255,255,255,0.045), rgba(255,255,255,0.02));
-      backdrop-filter:blur(10px);
-      box-shadow:0 10px 24px rgba(0,0,0,0.24);
-    }
-    .brand { display:flex; align-items:center; gap:12px; }
-    .brand-icon {
-      width:40px; height:40px; border-radius:10px; flex-shrink:0;
-      background:linear-gradient(135deg,#1d4ed8,#7c3aed);
-      display:flex; align-items:center; justify-content:center;
-      box-shadow:0 8px 16px rgba(37,99,235,0.3);
-    }
-    .brand-icon svg { width:20px; height:20px; }
-    .brand-name { font-size:17px; font-weight:800; letter-spacing:-0.03em; }
-    .brand-sub { font-size:12px; color:var(--sub); margin-top:2px; }
-    .pill {
-      display:inline-flex; align-items:center; gap:9px;
-      padding:8px 18px; border-radius:100px; font-size:13.5px; font-weight:600;
-      background:linear-gradient(120deg, rgba(34,197,94,0.14), rgba(34,197,94,0.06)); border:1px solid rgba(34,197,94,0.24); color:var(--ok);
-      transition:all 0.4s; white-space:nowrap;
-      box-shadow:inset 0 1px 0 rgba(255,255,255,0.08);
-    }
-    .pill.warn { background:rgba(245,158,11,0.08); border-color:rgba(245,158,11,0.22); color:var(--warn); }
-    .pill.bad { background:rgba(239,68,68,0.08); border-color:rgba(239,68,68,0.28); color:var(--bad); animation:ring 1.8s infinite; }
-    @keyframes ring { 0%,100%{ box-shadow:0 0 0 0 rgba(239,68,68,0.35); } 50%{ box-shadow:0 0 0 8px rgba(239,68,68,0); } }
-    .pill-dot { width:7px; height:7px; border-radius:50%; background:currentColor; animation:blink 2s ease-in-out infinite; }
-    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
-    .hdr-right { display:flex; align-items:center; gap:24px; }
-    .stats { display:flex; align-items:center; gap:18px; }
-    .stat { display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--sub); }
-    .sdot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
-    .stat strong { color:var(--text); font-weight:700; font-size:14px; }
-    .clock {
-      font-size:15px;
-      font-weight:600;
-      color:var(--sub);
-      font-variant-numeric:tabular-nums;
-      letter-spacing:0.02em;
-      display:inline-flex;
-      align-items:baseline;
-      gap:2px;
-      padding:6px 11px;
-      border-radius:999px;
-      border:1px solid rgba(255,255,255,0.12);
-      background:linear-gradient(145deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02));
-      text-shadow:0 0 16px rgba(59,130,246,0.2);
-      box-shadow:inset 0 1px 0 rgba(255,255,255,0.08);
-    }
-    .clock .clock-unit {
-      display:inline-flex;
-      align-items:flex-start;
-      justify-content:center;
-      min-width:1.15em;
-      height:1.1em;
-      overflow:hidden;
-    }
-    .clock .clock-num {
-      display:block;
-      line-height:1.1;
-      transform:translateY(0);
-    }
-    .clock .clock-num.slide-up { animation:clockDigitUp 0.32s cubic-bezier(.22,1,.36,1); }
-    .clock .clock-num.slide-down { animation:clockDigitDown 0.32s cubic-bezier(.22,1,.36,1); }
-    .clock .clock-sep {
-      color:rgba(244,244,245,0.62);
-      min-width:6px;
-      text-align:center;
-    }
-    .clock .clock-meridiem {
-      font-size:10px;
-      letter-spacing:0.08em;
-      margin-left:6px;
-      color:rgba(161,161,170,0.9);
-    }
-    @keyframes clockDigitUp { from { transform:translateY(105%); opacity:0; } to { transform:translateY(0); opacity:1; } }
-    @keyframes clockDigitDown { from { transform:translateY(-105%); opacity:0; } to { transform:translateY(0); opacity:1; } }
-    .test-btn {
-      border:1px solid rgba(59,130,246,0.45);
-      background:rgba(59,130,246,0.12);
-      color:#bfdbfe;
-      border-radius:10px;
-      padding:8px 12px;
-      font-size:12px;
-      font-weight:700;
-      letter-spacing:0.03em;
-      text-transform:uppercase;
-      cursor:pointer;
-      transition:all 0.2s ease;
-      white-space:nowrap;
-    }
-    .test-btn:hover { background:rgba(59,130,246,0.2); color:#dbeafe; border-color:rgba(96,165,250,0.6); }
-    .test-btn:active { transform:translateY(1px); }
-    .divider { height:1px; background:var(--border); flex-shrink:0; }
-    .grid-wrap { flex:1; min-height:0; overflow:hidden; position:relative; }
-    .page {
-      position:absolute; inset:0; display:grid; gap:12px; align-content:start;
-      opacity:0; pointer-events:none;
-      transform:translateX(36px) scale(0.995);
-      filter:blur(3px);
-    }
-    .page.active { opacity:1; pointer-events:auto; position:relative; transform:translateX(0) scale(1); filter:blur(0); }
-    .page.enter-next { animation:pageInNext 0.55s cubic-bezier(.22,1,.36,1) both; }
-    .page.leave-next { animation:pageOutNext 0.55s cubic-bezier(.22,1,.36,1) both; }
-    .page.enter-prev { animation:pageInPrev 0.55s cubic-bezier(.22,1,.36,1) both; }
-    .page.leave-prev { animation:pageOutPrev 0.55s cubic-bezier(.22,1,.36,1) both; }
-    @keyframes pageInNext { from { opacity:0; transform:translateX(44px) scale(0.99); filter:blur(4px); } to { opacity:1; transform:translateX(0) scale(1); filter:blur(0);} }
-    @keyframes pageOutNext { from { opacity:1; transform:translateX(0) scale(1); filter:blur(0);} to { opacity:0; transform:translateX(-44px) scale(0.99); filter:blur(4px);} }
-    @keyframes pageInPrev { from { opacity:0; transform:translateX(-44px) scale(0.99); filter:blur(4px);} to { opacity:1; transform:translateX(0) scale(1); filter:blur(0);} }
-    @keyframes pageOutPrev { from { opacity:1; transform:translateX(0) scale(1); filter:blur(0);} to { opacity:0; transform:translateX(44px) scale(0.99); filter:blur(4px);} }
-    .card.tile-in { animation:tileIn 0.5s cubic-bezier(.22,1,.36,1) both; animation-delay:var(--tile-delay, 0ms); }
-    .card.tile-out { animation:tileOut 0.34s cubic-bezier(.4,0,.2,1) both; animation-delay:calc(var(--tile-delay, 0ms) * 0.4); }
-    @keyframes tileIn { from { opacity:0; transform:translateY(18px) scale(0.98); filter:blur(3px); } to { opacity:1; transform:translateY(0) scale(1); filter:blur(0);} }
-    @keyframes tileOut { from { opacity:1; transform:translateY(0) scale(1); filter:blur(0);} to { opacity:0; transform:translateY(-12px) scale(0.985); filter:blur(2px);} }
-    .card {
-      background:linear-gradient(170deg, rgba(255,255,255,0.02), transparent 44%), var(--card);
-      border:1px solid var(--border); border-radius:16px;
-      padding:20px 22px; display:flex; flex-direction:column; position:relative; overflow:hidden;
-      transition:border-color 0.3s, box-shadow 0.35s ease, transform 0.35s cubic-bezier(.22,1,.36,1); cursor:pointer; animation:cardIn 0.5s cubic-bezier(.22,1,.36,1) both;
-      will-change:transform;
-    }
-    @keyframes cardIn { from{opacity:0;transform:translateY(14px) scale(.985)} to{opacity:1;transform:translateY(0) scale(1)} }
-    .card:hover { border-color:rgba(255,255,255,0.17); transform:translateY(-4px); box-shadow:0 16px 26px rgba(0,0,0,0.34); }
-    .card::before {
-      content:''; position:absolute; left:0; top:16px; bottom:16px; width:3px;
-      border-radius:0 3px 3px 0; background:var(--ok); opacity:0.7;
-    }
-    .card::after {
-      content:'';
-      position:absolute;
-      inset:-1px;
-      background:linear-gradient(105deg, transparent 20%, rgba(255,255,255,0.08) 40%, transparent 60%);
-      transform:translateX(-120%);
-      transition:transform 0.8s ease;
-      pointer-events:none;
-    }
-    .card:hover::after { transform:translateX(120%); }
-    .card.cw::before { background:var(--warn); opacity:0.8; }
-    .card.cb::before { background:var(--bad); opacity:0.9; }
-    .card.cm::before { background:var(--maint); opacity:0.8; }
-    .card.cb { border-color:rgba(239,68,68,0.16); background:linear-gradient(160deg, #111113, rgba(239,68,68,0.04)); box-shadow:0 0 32px rgba(239,68,68,0.08); }
-    .card.cw { border-color:rgba(245,158,11,0.13); }
-    .card-top { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:14px; }
-    .card-title-row { display:flex; align-items:center; gap:12px; min-width:0; }
-    .c-icon {
-      width:44px; height:44px; border-radius:11px; flex-shrink:0;
-      display:flex; align-items:center; justify-content:center; font-size:20px;
-    }
-    .c-icon.ok { background:rgba(34,197,94,0.1); color:var(--ok); }
-    .c-icon.warn { background:rgba(245,158,11,0.1); color:var(--warn); }
-    .c-icon.bad { background:rgba(239,68,68,0.1); color:var(--bad); }
-    .c-icon.maint { background:rgba(59,130,246,0.1); color:var(--maint); }
-    .c-logo { width:24px; height:24px; border-radius:6px; object-fit:contain; background:rgba(255,255,255,0.92); padding:2px; }
-    .c-fallback { font-size:18px; font-weight:700; line-height:1; }
-    .c-name { font-size:17px; font-weight:700; letter-spacing:-0.02em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:1.2; }
-    .c-url { font-size:11px; color:var(--muted); margin-top:3px; text-decoration:none; display:inline-flex; align-items:center; gap:4px; transition:color 0.2s; }
-    .c-url:hover { color:var(--sub); }
-    .c-badge {
-      flex-shrink:0; font-size:12px; font-weight:600; letter-spacing:0.03em; text-transform:uppercase;
-      padding:5px 12px; border-radius:7px; margin-top:2px;
-    }
-    .c-badge.ok { background:rgba(34,197,94,0.1); color:var(--ok); border:1px solid rgba(34,197,94,0.2); }
-    .c-badge.warn { background:rgba(245,158,11,0.1); color:var(--warn); border:1px solid rgba(245,158,11,0.22); }
-    .c-badge.bad { background:rgba(239,68,68,0.1); color:var(--bad); border:1px solid rgba(239,68,68,0.22); }
-    .c-badge.maint { background:rgba(59,130,246,0.1); color:var(--maint); border:1px solid rgba(59,130,246,0.22); }
-    .card-div { height:1px; background:var(--border); margin-bottom:14px; }
-    .inc-block { border-radius:10px; padding:12px 14px; margin-bottom:12px; display:flex; flex-direction:column; flex:1; min-height:0; }
-    .inc-block.ok-block { background:rgba(34,197,94,0.05); border:1px solid rgba(34,197,94,0.1); }
-    .inc-block.bad-block { background:rgba(239,68,68,0.06); border:1px solid rgba(239,68,68,0.15); }
-    .inc-block.warn-block { background:rgba(245,158,11,0.06); border:1px solid rgba(245,158,11,0.15); }
-    .inc-block.maint-block { background:rgba(59,130,246,0.06); border:1px solid rgba(59,130,246,0.15); }
-    .inc-label { font-size:10.5px; font-weight:600; letter-spacing:0.06em; text-transform:uppercase; color:var(--muted); margin-bottom:6px; display:flex; align-items:center; gap:5px; }
-    .inc-label-dot { width:5px; height:5px; border-radius:50%; background:currentColor; }
-    .inc-title { font-size:14px; font-weight:600; color:var(--text); line-height:1.35; margin-bottom:4px; }
-    .inc-body { font-size:12.5px; color:var(--sub); line-height:1.5; display:-webkit-box; -webkit-line-clamp:var(--body-lines, 4); -webkit-box-orient:vertical; overflow:hidden; overflow-wrap:anywhere; min-height:0; }
-    .card-meta { display:flex; align-items:center; justify-content:space-between; margin-top:auto; }
-    .meta-updated { font-size:11.5px; color:var(--muted); display:flex; align-items:center; gap:5px; }
-    .meta-updated svg { width:12px; height:12px; opacity:0.6; }
-    .meta-tag { font-size:10.5px; font-weight:500; color:var(--muted); padding:2px 7px; border-radius:4px; background:rgba(255,255,255,0.04); border:1px solid var(--border); }
-
-    .card.compact .inc-title { font-size:13px; margin-bottom:3px; }
-    .card.compact .inc-body { font-size:11.5px; --body-lines:3; }
-    .card.compact .meta-updated { font-size:10.5px; }
-    .card.compact .meta-tag { font-size:10px; }
-    .footer { display:flex; align-items:center; justify-content:space-between; flex-shrink:0; gap:16px; }
-    .f-left { display:flex; align-items:center; gap:20px; }
-    .f-meta { font-size:12px; color:var(--muted); }
-    .pdots { display:flex; align-items:center; gap:6px; }
-    .pdot { width:6px; height:6px; border-radius:50%; background:rgba(255,255,255,0.15); cursor:pointer; transition:all 0.3s; }
-    .pdot.active { background:#fff; transform:scale(1.35); }
-    .prog-track { width:200px; height:2px; background:rgba(255,255,255,0.07); border-radius:1px; overflow:hidden; }
-    .prog-fill { height:100%; width:0%; background:linear-gradient(90deg,#3b82f6,#8b5cf6); transition:width 0.4s linear; }
-    .loading { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; }
-    .spinner { width:32px; height:32px; border:2.5px solid rgba(255,255,255,0.07); border-top-color:#3b82f6; border-radius:50%; animation:spin 0.8s linear infinite; }
-    @keyframes spin { to { transform:rotate(360deg); } }
-    .load-t { font-size:13px; color:var(--muted); }
-    .status-banner-wrap {
-      position:fixed;
-      top:18px;
-      left:50%;
-      transform:translateX(-50%);
-      width:min(1080px, calc(100vw - 28px));
-      z-index:45;
-      pointer-events:none;
-    }
-    .status-banner {
-      border-radius:16px;
-      border:1px solid transparent;
-      background:linear-gradient(165deg, rgba(24,24,27,0.97), rgba(9,9,11,0.93));
-      backdrop-filter:blur(10px);
-      box-shadow:0 18px 48px rgba(0,0,0,0.55);
-      overflow:hidden;
-      opacity:0;
-      visibility:hidden;
-      transform:translateY(-14px) scale(0.99);
-      transition:opacity 0.36s cubic-bezier(.22,1,.36,1), transform 0.36s cubic-bezier(.22,1,.36,1), visibility 0.36s;
-    }
-    .status-banner.show { opacity:1; visibility:visible; transform:translateY(0) scale(1); animation:bannerPop 0.42s cubic-bezier(.22,1,.36,1); }
-    .status-banner::before {
-      content:'';
-      position:absolute;
-      inset:0;
-      background:linear-gradient(105deg, transparent 22%, rgba(255,255,255,0.09) 50%, transparent 78%);
-      transform:translateX(-130%);
-      opacity:0;
-      pointer-events:none;
-    }
-    .status-banner.show::before {
-      opacity:1;
-      animation:bannerShine 0.75s ease;
-    }
-    .status-banner.degraded { border-color:rgba(245,158,11,0.78); }
-    .status-banner.outage { border-color:rgba(239,68,68,0.86); animation:outagePulse 0.95s ease-in-out infinite; }
-    .status-banner.restored { border-color:rgba(34,197,94,0.72); }
-    .status-banner-main { display:flex; align-items:center; gap:14px; padding:18px 20px; animation:bannerContentIn 0.45s cubic-bezier(.22,1,.36,1); }
-    .status-banner-icon { font-size:32px; line-height:1; animation:iconBounce 1.4s ease-in-out infinite; }
-    .status-banner-text { min-width:0; }
-    .status-banner-heading {
-      font-size:14px;
-      letter-spacing:0.09em;
-      text-transform:uppercase;
-      font-weight:800;
-      margin-bottom:2px;
-    }
-    .status-banner-title { font-size:26px; font-weight:800; letter-spacing:-0.02em; line-height:1.1; }
-    .status-banner-sub { font-size:15px; color:var(--sub); margin-top:4px; }
-    .status-banner.degraded .status-banner-heading { color:#fcd34d; }
-    .status-banner.outage .status-banner-heading { color:#fecaca; }
-    .status-banner.restored .status-banner-heading { color:#86efac; }
-    .status-banner-time {
-      height:5px;
-      transform-origin:left;
-      animation:bannerLife 30s linear forwards;
-    }
-    .status-banner.degraded .status-banner-time { background:linear-gradient(90deg,#f59e0b,#f97316); }
-    .status-banner.outage .status-banner-time { background:linear-gradient(90deg,#ef4444,#dc2626); }
-    .status-banner.restored .status-banner-time { background:linear-gradient(90deg,#22c55e,#14b8a6); }
-    @keyframes bannerLife { from { transform:scaleX(1); } to { transform:scaleX(0); } }
-    @keyframes bannerPop { from { opacity:0; transform:translateY(-14px) scale(0.985); } to { opacity:1; transform:translateY(0) scale(1); } }
-    @keyframes bannerShine { from { transform:translateX(-130%); } to { transform:translateX(130%); } }
-    @keyframes bannerContentIn {
-      from { opacity:0; transform:translateY(-6px); }
-      to { opacity:1; transform:translateY(0); }
-    }
-    @keyframes iconBounce {
-      0%, 100% { transform:translateY(0) scale(1); }
-      50% { transform:translateY(-2px) scale(1.04); }
-    }
-    @keyframes outagePulse {
-      0%, 100% { box-shadow:0 18px 48px rgba(0,0,0,0.55), 0 0 0 0 rgba(239,68,68,0.42); }
-      50% { box-shadow:0 18px 48px rgba(0,0,0,0.55), 0 0 0 14px rgba(239,68,68,0); }
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-      *, *::before, *::after {
-        animation:none !important;
-        transition:none !important;
-      }
-    }
-
-    @media (max-height: 720px) {
-      .shell { padding:14px 16px 10px; gap:10px; }
-      .hdr { gap:12px; }
-      .brand-sub, .stats, .f-meta { display:none; }
-      .test-btn { padding:6px 9px; font-size:11px; }
-      .card { padding:14px 16px; }
-      .card-top { margin-bottom:10px; }
-      .card-div { margin-bottom:10px; }
-      .inc-block { padding:10px 12px; margin-bottom:8px; }
-      .inc-body { font-size:11.5px; --body-lines:3; }
-      .status-banner-main { padding:12px 14px; }
-      .status-banner-icon { font-size:24px; }
-      .status-banner-title { font-size:20px; }
-      .status-banner-sub { font-size:13px; }
-    }
+    :root[data-theme="dark"]{--bg:#0b1020;--panel:#121a2b;--text:#e5e7eb;--muted:#9ca3af;--line:#273142;}
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,sans-serif}
+    .appbar{height:64px;display:flex;align-items:center;padding:0 16px;gap:12px;background:linear-gradient(90deg,var(--accent),var(--accent-2));color:#fff;position:sticky;top:0;z-index:50}
+    .shell{display:grid;grid-template-columns:260px 1fr;gap:16px;padding:16px}
+    @media (max-width: 992px){.shell{grid-template-columns:1fr}.sidebar{position:static!important}}
+    .sidebar,.cardx{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:0 8px 25px rgba(0,0,0,.06)}
+    .sidebar{position:sticky;top:80px;align-self:start;padding:10px}
+    .btn-tab{width:100%;border:none;background:transparent;padding:10px 12px;border-radius:10px;text-align:left;color:var(--text);font-weight:600}
+    .btn-tab:hover{background:rgba(37,99,235,.1)}
+    .btn-tab.active{background:rgba(37,99,235,.17);color:var(--accent)}
+    .content{display:flex;flex-direction:column;gap:16px}
+    .cardx{padding:18px}
+    .tool.d-none{display:none!important}
+    .section-title{font-size:1.1rem;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+    .dot{width:9px;height:9px;border-radius:999px;background:var(--accent)}
+    .btn-accent{border:none;background:linear-gradient(180deg,var(--accent),var(--accent-2));color:#fff;padding:10px 14px;border-radius:10px;font-weight:600}
+    .btn-soft{border:1px solid var(--line);background:var(--panel);color:var(--text);padding:10px 14px;border-radius:10px;font-weight:600}
+    .appbar .btn-soft{background:rgba(255,255,255,.15);color:#fff;border:none}
+    .form-control,.form-select{background:var(--panel);color:var(--text);border-color:var(--line)}
+    .chip{padding:8px 10px;border:1px solid var(--line);border-radius:12px;background:var(--panel);display:flex;justify-content:space-between;align-items:center;gap:8px}
+    .chip.done{background:rgba(22,163,74,.18);border-color:rgba(22,163,74,.5)}
+    .list{display:flex;flex-direction:column;gap:8px;max-height:280px;overflow:auto}
+    .drop-zone{padding:20px;border:2px dashed #93c5fd;border-radius:12px;text-align:center;cursor:pointer}
+    .palette{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:flex-start;justify-content:center;padding-top:12vh;z-index:100}
+    .palette.open{display:flex}
+    .palette-box{width:min(640px,92vw);padding:10px;border-radius:14px;background:var(--panel);border:1px solid var(--line)}
+    .palette ul{list-style:none;padding:0;margin:8px 0 0;max-height:300px;overflow:auto}
+    .palette li{padding:10px;border-radius:8px;cursor:pointer}
+    .palette li:hover{background:rgba(37,99,235,.14)}
   </style>
 </head>
 <body>
-<div class="shell">
-  <div class="hdr">
-    <div class="brand">
-      <div class="brand-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
-        </svg>
-      </div>
-      <div>
-        <div class="brand-name">Service Status</div>
-        <div class="brand-sub">Live monitoring · auto-refresh every 2 min</div>
-      </div>
-    </div>
-    <div class="pill" id="pill"><span class="pill-dot"></span><span id="pill-txt">Loading…</span></div>
-    <div class="hdr-right">
-      <div class="stats">
-        <div class="stat"><span class="sdot" style="background:var(--ok)"></span><strong id="n-ok">—</strong>&nbsp;Operational</div>
-        <div class="stat"><span class="sdot" style="background:var(--warn)"></span><strong id="n-warn">—</strong>&nbsp;Degraded</div>
-        <div class="stat"><span class="sdot" style="background:var(--bad)"></span><strong id="n-bad">—</strong>&nbsp;Down</div>
-        <div class="stat"><span class="sdot" style="background:var(--maint)"></span><strong id="n-maint">—</strong>&nbsp;Maintenance</div>
-      </div>
-      <button class="test-btn" id="test-alert-btn" type="button" title="Test notification banner and sounds">Test Alerts</button>
-      <div class="clock" id="clock">--:--:--</div>
-    </div>
+<header class="appbar">
+  <button id="cmdK" class="btn-soft">⌘K</button>
+  <strong>BWRSD Multi-Tool</strong>
+  <span class="opacity-75">• Advanced Edition</span>
+  <div class="ms-auto d-flex gap-2">
+    <button id="themeToggle" class="btn-soft">Toggle Theme</button>
   </div>
-  <div class="divider"></div>
-  <div class="grid-wrap" id="grid-wrap">
-    <div class="loading" id="loading-el">
-      <div class="spinner"></div>
-      <div class="load-t">Fetching service status…</div>
+</header>
+<main class="shell">
+  <aside class="sidebar">
+    <div class="fw-bold px-2 pb-2">Tools</div>
+    <nav id="navTabs" class="d-flex flex-column gap-1">
+      <button class="btn-tab active" data-target="csv">CSV Downloader</button>
+      <button class="btn-tab" data-target="formatter">SASID Formatter</button>
+      <button class="btn-tab" data-target="aspen">Aspen Query</button>
+      <button class="btn-tab" data-target="tracker">SASID Tracker</button>
+      <button class="btn-tab" data-target="network">Ping / Trace</button>
+      <button class="btn-tab" data-target="dns">DNS Lookup</button>
+      <button class="btn-tab" data-target="whois">WHOIS</button>
+      <button class="btn-tab" data-target="pg">Passwords</button>
+      <button class="btn-tab" data-target="base64">Base64 Tool</button>
+      <button class="btn-tab" data-target="json">JSON Formatter</button>
+      <button class="btn-tab" data-target="text">Text Tools</button>
+    </nav>
+  </aside>
+  <section class="content">
+    <div class="cardx tool" id="csv">
+      <div class="section-title"><span class="dot"></span>CSV Downloader</div>
+      <textarea id="csvInput" class="form-control" rows="6" placeholder="Name,Age\nJohn,30"></textarea>
+      <div class="d-flex gap-2 mt-3">
+        <button id="downloadBtn" class="btn-accent" disabled>Download CSV</button>
+        <button id="sendToFormatterBtn" class="btn-soft" disabled>Send to Formatter</button>
+      </div>
     </div>
-  </div>
-  <div class="footer">
-    <div class="f-left">
-      <div class="f-meta" id="f-meta"></div>
+
+    <div class="cardx tool d-none" id="formatter">
+      <div class="section-title"><span class="dot"></span>SASID Formatter</div>
+      <div id="dropZoneFormatter" class="drop-zone">Drop CSV/TSV/XLSX or click<input id="fileFormatter" type="file" class="d-none" accept=".csv,.tsv,.xls,.xlsx,.txt" multiple></div>
+      <div id="errorFormatter" class="text-danger fw-semibold mt-2 d-none"></div>
+      <div class="table-responsive mt-3"><table id="previewFormatter" class="table table-sm table-bordered"></table></div>
+      <div class="d-flex gap-2">
+        <button id="excelBtn" class="btn-accent d-none">Download XLS</button>
+        <button id="sendLasidsBtn" class="btn-soft">Send LASIDs to Tracker</button>
+      </div>
     </div>
-    <div class="pdots" id="pdots"></div>
-    <div class="prog-track" id="prog-track" style="display:none"><div class="prog-fill" id="prog-fill"></div></div>
-  </div>
-</div>
-<div class="status-banner-wrap" aria-live="assertive" aria-atomic="true"><div class="status-banner" id="status-banner"></div></div>
+
+    <div class="cardx tool d-none" id="aspen">
+      <div class="section-title"><span class="dot"></span>Aspen Query Formatter</div>
+      <div class="row g-3"><div class="col-lg-6"><textarea id="inputAspen" class="form-control" rows="10"></textarea><div class="mt-2"><input type="radio" name="idType" value="LASID" checked> LASID <input type="radio" name="idType" value="SASID" class="ms-2"> SASID</div><button id="formatAspenBtn" class="btn-accent mt-2">Format</button></div><div class="col-lg-6"><textarea id="outputAspen" class="form-control" rows="12" readonly></textarea><button id="copyAspenBtn" class="btn-soft mt-2">Copy</button></div></div>
+    </div>
+
+    <div class="cardx tool d-none" id="tracker">
+      <div class="section-title"><span class="dot"></span>SASID Tracker</div>
+      <div class="row g-3"><div class="col-lg-6"><textarea id="inputLasids" class="form-control" rows="7" placeholder="One LASID per line"></textarea><div class="d-flex gap-2 mt-2"><button id="saveLasidsBtn" class="btn-accent">Save</button><button id="clearLasidsBtn" class="btn-soft">Clear</button></div></div><div class="col-lg-6"><div class="fw-semibold mb-2">Saved</div><div id="savedLasids" class="list"></div></div></div>
+      <div class="row g-3 mt-2"><div class="col-lg-6"><div class="fw-semibold mb-2">Pending</div><div id="pendingList" class="list"></div></div><div class="col-lg-6"><div class="fw-semibold mb-2">Received</div><div id="receivedList" class="list"></div></div></div>
+    </div>
+
+    <div class="cardx tool d-none" id="network"><div class="section-title"><span class="dot"></span>Ping / Traceroute Generator</div><div class="row g-3"><div class="col-md-4"><select id="netInterface" class="form-select"><option value="oshean">OSHEAN (x3)</option><option value="i3">I3 (x4)</option></select></div><div class="col-md-4"><input type="radio" name="netCmdType" value="ping" checked> Ping <input type="radio" name="netCmdType" value="traceroute" class="ms-2"> Traceroute</div><div class="col-md-4"><input id="netTarget" class="form-control" placeholder="8.8.8.8"></div></div><div class="d-flex gap-2 mt-2"><button id="networkGenerateBtn" class="btn-accent">Generate</button><button id="netCopyBtn" class="btn-soft" disabled>Copy</button></div><textarea id="netOutput" class="form-control mt-2" rows="3" readonly></textarea></div>
+
+    <div class="cardx tool d-none" id="dns"><div class="section-title"><span class="dot"></span>DNS Lookup</div><div class="row g-3"><div class="col-md-6"><input id="dnsInput" class="form-control" placeholder="example.com"></div><div class="col-md-3"><select id="dnsType" class="form-select"><option>A</option><option>AAAA</option><option>CNAME</option><option>MX</option><option>TXT</option><option>NS</option><option>SOA</option><option>SRV</option></select></div><div class="col-md-3"><button id="dnsLookupBtn" class="btn-accent w-100">Lookup</button></div></div><textarea id="dnsOutput" class="form-control mt-2" rows="6" readonly></textarea></div>
+
+    <div class="cardx tool d-none" id="whois"><div class="section-title"><span class="dot"></span>WHOIS (RDAP)</div><div class="d-flex gap-2"><input id="whoisInput" class="form-control" placeholder="example.com or 8.8.8.8"><button id="whoisLookupBtn" class="btn-accent">Lookup</button></div><pre id="whoisOutput" class="form-control mt-2" style="min-height:180px;white-space:pre-wrap"></pre></div>
+
+    <div class="cardx tool d-none" id="pg"><div class="section-title"><span class="dot"></span>Password Generator</div><div class="row g-3"><div class="col-md-3"><input id="pg-count" type="number" min="1" max="5000" value="1" class="form-control"></div><div class="col-md-3"><select id="pg-casing" class="form-select"><option value="title">TitleCase</option><option value="lower">lowercase</option></select></div><div class="col-md-3"><select id="pg-digits" class="form-select"><option value="2">2 digits</option><option value="3">3 digits</option></select></div><div class="col-md-3"><button id="pg-generate-btn" class="btn-accent w-100">Generate</button></div></div><div class="d-flex gap-2 mt-2"><button id="pg-copy-btn" class="btn-soft" disabled>Copy</button><button id="pg-csv-btn" class="btn-soft" disabled>Download CSV</button></div><div id="pg-error" class="text-danger mt-2"></div><div id="pg-result-single" class="form-control mt-2 text-center fw-bold"></div><div id="pg-list" class="mt-2" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px"></div></div>
+
+    <div class="cardx tool d-none" id="base64"><div class="section-title"><span class="dot"></span>Base64 Tool</div><textarea id="base64-input" class="form-control" rows="4"></textarea><div class="d-flex gap-2 mt-2"><button id="base64-encode-btn" class="btn-accent">Encode</button><button id="base64-decode-btn" class="btn-accent">Decode</button><button id="base64-copy-btn" class="btn-soft" disabled>Copy</button></div><textarea id="base64-output" class="form-control mt-2" rows="4" readonly></textarea></div>
+
+    <div class="cardx tool d-none" id="json"><div class="section-title"><span class="dot"></span>JSON Formatter</div><textarea id="json-input" class="form-control" rows="8"></textarea><div class="d-flex gap-2 mt-2"><button id="json-format-btn" class="btn-accent">Format</button><button id="json-copy-btn" class="btn-soft" disabled>Copy</button><button id="json-clear-btn" class="btn-soft">Clear</button></div><textarea id="json-output" class="form-control mt-2" rows="8" readonly></textarea></div>
+
+    <div class="cardx tool d-none" id="text"><div class="section-title"><span class="dot"></span>Text Tools</div><textarea id="text-input" class="form-control" rows="5"></textarea><div class="d-flex gap-2 mt-2"><button id="text-upper-btn" class="btn-accent">UPPERCASE</button><button id="text-lower-btn" class="btn-accent">lowercase</button><button id="text-reverse-btn" class="btn-accent">Reverse</button><button id="text-count-btn" class="btn-accent">Count</button><button id="text-clear-btn" class="btn-soft">Clear</button></div><textarea id="text-output" class="form-control mt-2" rows="5" readonly></textarea></div>
+
+    <footer class="text-center text-secondary py-2">© 2026 BWRSD Multi-Tool</footer>
+  </section>
+</main>
+
+<div class="palette" id="palette"><div class="palette-box"><input id="paletteInput" class="form-control" placeholder="Jump to a tool"><ul id="paletteList"></ul></div></div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-(function tick(){
-  const e=document.getElementById('clock');
-  const now=new Date();
-  let h=now.getHours();
-  const m=String(now.getMinutes()).padStart(2,'0');
-  const sec=String(now.getSeconds()).padStart(2,'0');
-  const ampm=h>=12?'PM':'AM';
-  h=h%12 || 12;
-  const hh=String(h).padStart(2,'0');
-  const next=[hh,m,sec,ampm];
-
-  if(!e.dataset.ready){
-    e.innerHTML=`<span class="clock-unit"><span class="clock-num" data-part="0">${hh}</span></span><span class="clock-sep">:</span><span class="clock-unit"><span class="clock-num" data-part="1">${m}</span></span><span class="clock-sep">:</span><span class="clock-unit"><span class="clock-num" data-part="2">${sec}</span></span><span class="clock-meridiem"><span class="clock-num" data-part="3">${ampm}</span></span>`;
-    e.dataset.prev=next.join('|');
-    e.dataset.ready='1';
-  } else {
-    const prev=(e.dataset.prev||'').split('|');
-    e.querySelectorAll('.clock-num[data-part]').forEach((node)=>{
-      const i=Number(node.dataset.part);
-      const nextVal=next[i];
-      if(node.textContent!==nextVal){
-        const oldVal=prev[i] ?? node.textContent ?? '0';
-        const oldNum=Number(oldVal);
-        const newNum=Number(nextVal);
-        const direction=(Number.isFinite(oldNum) && Number.isFinite(newNum) && newNum < oldNum) ? 'slide-down' : 'slide-up';
-        const clone=node.cloneNode(true);
-        clone.textContent=nextVal;
-        clone.classList.add(direction);
-        node.replaceWith(clone);
-      }
-    });
-    e.dataset.prev=next.join('|');
-  }
-
-  setTimeout(tick, 1000-now.getMilliseconds());
-})();;
-
-const SVCS=[
-  {name:'i-Ready',su:'https://i-ready.status.io/',iu:'https://i-ready.status.io/',hu:'https://i-ready.status.io/',p:'statusio'},
-  {name:'HMH',su:'https://status.hmhco.com/api/v2/status.json',iu:'https://status.hmhco.com/api/v2/incidents.json',hu:'https://status.hmhco.com'},
-  {name:'Follett',su:'https://status.follettsoftware.com/rest/systemstatus',iu:null,hu:'https://status.follettsoftware.com',p:'follett'},
-  {name:'IncidentIQ',su:'https://status.incidentiq.com/api/v2/status.json',iu:'https://status.incidentiq.com/api/v2/incidents.json',hu:'https://status.incidentiq.com'},
-  {name:'Clever',su:'https://status.clever.com/api/v2/status.json',iu:'https://status.clever.com/api/v2/incidents.json',hu:'https://status.clever.com'},
-  {name:'Seesaw',su:'https://status.seesaw.me/api/v2/status.json',iu:'https://status.seesaw.me/api/v2/incidents.json',hu:'https://status.seesaw.me'},
-  {name:'Jamf',su:'https://status.jamf.com/api/v2/status.json',iu:'https://status.jamf.com/api/v2/incidents.json',hu:'https://status.jamf.com'},
-  {name:'Meraki',su:'https://status.meraki.net/api/v2/status.json',iu:'https://status.meraki.net/api/v2/incidents.json',hu:'https://status.meraki.net'},
-  {name:'Duo',su:'https://status.duo.com/api/v2/status.json',iu:'https://status.duo.com/api/v2/incidents.json',hu:'https://status.duo.com'},
-  {name:'Imagine Learning',su:'https://status.imaginelearning.com/api/v2/status.json',iu:'https://status.imaginelearning.com/api/v2/incidents.json',hu:'https://status.imaginelearning.com'},
-  {name:'Blackboard',su:'https://status.blackboard.com/api/v2/status.json',iu:'https://status.blackboard.com/api/v2/incidents.json',hu:'https://status.blackboard.com'},
-  {name:'FinalSite',su:'https://status.finalsite.com/api/v2/status.json',iu:'https://status.finalsite.com/api/v2/incidents.json',hu:'https://status.finalsite.com'},
-  {name:'Cloudflare',su:'https://www.cloudflarestatus.com/api/v2/status.json',iu:'https://www.cloudflarestatus.com/api/v2/incidents.json',hu:'https://www.cloudflarestatus.com'},
-  {name:'DNSFilter',su:'https://status.dnsfilter.com/api/v2/status.json',iu:'https://status.dnsfilter.com/api/v2/incidents.json',hu:'https://status.dnsfilter.com'},
-  {name:'Dexcom',su:'https://status.dexcom.com/api/v2/status.json',iu:'https://status.dexcom.com/api/v2/incidents.json',hu:'https://status.dexcom.com'},
-  {name:'Adobe CC',su:'https://data.status.adobe.com/adobestatus/SnowServiceRegistry',iu:'https://data.status.adobe.com/adobestatus/StatusEvents',hu:'https://status.adobe.com/cloud/creative_cloud',p:'adobe'}
-];
-
-window._pi = window._pi || {};
-const PRI={major:1,minor:2,maintenance:3,none:4};
-const LABELS={none:'Operational',minor:'Degraded',major:'Outage',maintenance:'Maintenance'};
-
-function normalizeIndicator(ind){
-  const val=String(ind||'none').toLowerCase().trim();
-  if(['none','operational','ok','up'].includes(val)) return 'none';
-  if(['minor','degraded','warning','partial_outage','partial outage'].includes(val)) return 'minor';
-  if(['maintenance','under_maintenance','scheduled','scheduled_maintenance'].includes(val)) return 'maintenance';
-  if(['major','critical','down','outage'].includes(val)) return 'major';
-  return 'major';
-}
-
-let audioCtx;
-let audioPrimed=false;
-const CHIME_SPEECH_DELAY={
-  outage:760,
-  degraded:610,
-  restored:700
-};
-const TTS_STATUS_LABEL={
-  outage:'Outage',
-  degraded:'Degraded',
-  restored:'Operational'
-};
-const PREFERRED_TTS_VOICES=[
-  'Google US English',
-  'Google UK English Female',
-  'Microsoft Aria Online (Natural) - English (United States)',
-  'Microsoft Jenny Online (Natural) - English (United States)',
-  'Samantha'
-];
-
-function getAudioCtx(){
-  if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  return audioCtx;
-}
-
-
-async function ensureAudioReady(){
-  const c=getAudioCtx();
-  if(c.state==='suspended') await c.resume();
-  if(!audioPrimed){
-    const warmup=c.createOscillator();
-    const warmGain=c.createGain();
-    warmGain.gain.setValueAtTime(0.00001, c.currentTime);
-    warmup.frequency.setValueAtTime(440, c.currentTime);
-    warmup.connect(warmGain);
-    warmGain.connect(c.destination);
-    warmup.start(c.currentTime);
-    warmup.stop(c.currentTime+0.03);
-    audioPrimed=true;
-  }
-  return c;
-}
-
-function primeAudio(){
-  ensureAudioReady().catch(()=>{});
-}
-
-function tone(ctx, start, freq, dur=0.18, type='sine', gain=0.09){
-  const prep=0.015;
-  const startTime=Math.max(start, ctx.currentTime+prep);
-  const oscStart=Math.max(ctx.currentTime, startTime-prep);
-  const o=ctx.createOscillator();
-  const g=ctx.createGain();
-  o.type=type;
-  o.frequency.setValueAtTime(freq, oscStart);
-  g.gain.setValueAtTime(0.00001, oscStart);
-  g.gain.setValueAtTime(0, startTime);
-  g.gain.linearRampToValueAtTime(gain, startTime+0.008);
-  g.gain.exponentialRampToValueAtTime(0.0001, startTime+dur);
-  o.connect(g);
-  g.connect(ctx.destination);
-  o.start(oscStart);
-  o.stop(startTime+dur+0.02);
-}
-
-function getPreferredVoice(){
-  if(!('speechSynthesis' in window)) return null;
-  const voices=window.speechSynthesis.getVoices();
-  if(!voices.length) return null;
-  const preferred=voices.find((v)=>PREFERRED_TTS_VOICES.includes(v.name));
-  if(preferred) return preferred;
-  return voices.find((v)=>/en[-_](US|GB)/i.test(v.lang)) || voices.find((v)=>/^en/i.test(v.lang)) || null;
-}
-
-function speakBannerStatus(serviceName, kind){
-  if(!('speechSynthesis' in window)) return;
-  const status=TTS_STATUS_LABEL[kind] || 'Status Updated';
-  const utterance=new SpeechSynthesisUtterance(`${serviceName}. ${status}.`);
-  const voice=getPreferredVoice();
-  if(voice) utterance.voice=voice;
-  utterance.rate=1;
-  utterance.pitch=1;
-  utterance.volume=1;
-  window.speechSynthesis.cancel();
-  window.speechSynthesis.speak(utterance);
-}
-
-if('speechSynthesis' in window){
-  window.speechSynthesis.onvoiceschanged=()=>{ getPreferredVoice(); };
-}
-
-function chime(kind){
-  const play=(c,startAt)=>{
-    if(kind==='outage'){
-      tone(c,startAt,740,0.2,'triangle',0.16);
-      tone(c,startAt+0.01,1480,0.16,'square',0.08);
-      tone(c,startAt+0.15,622,0.24,'triangle',0.17);
-      tone(c,startAt+0.16,1244,0.18,'square',0.085);
-      tone(c,startAt+0.31,494,0.34,'triangle',0.18);
-      tone(c,startAt+0.32,988,0.26,'square',0.09);
-    } else if(kind==='degraded'){
-      tone(c,startAt,740,0.2,'triangle',0.12);
-      tone(c,startAt+0.16,622,0.25,'triangle',0.12);
-      tone(c,startAt+0.33,494,0.34,'sine',0.1);
-    } else {
-      tone(c,startAt,523,0.14,'sine',0.11);
-      tone(c,startAt+0.12,659,0.16,'sine',0.12);
-      tone(c,startAt+0.24,784,0.2,'sine',0.13);
-      tone(c,startAt+0.38,988,0.22,'triangle',0.1);
-    }
-  };
-
-  ensureAudioReady()
-    .then((c)=>play(c, c.currentTime+0.12))
-    .catch(()=>{});
-}
-
-let bannerTimer;
-let bannerSpeechTimer;
-
-function showStatusBanner(svc, kind){
-  const banner=document.getElementById('status-banner');
-  if(!banner) return;
-  const heading=kind==='outage'
-    ? 'Service Outage'
-    : kind==='degraded'
-      ? 'Service Degraded'
-      : 'Service Restored';
-  const detail=kind==='restored'
-    ? `${svc.name} is back to operational.`
-    : `${svc.name} is now ${svc.label.toLowerCase()}.`;
-  banner.className=`status-banner ${kind}`;
-  banner.innerHTML=`
-    <div class="status-banner-main">
-      <div class="status-banner-icon">${kind==='outage'?'🚨':kind==='degraded'?'⚠️':'✅'}</div>
-      <div class="status-banner-text">
-        <div class="status-banner-heading">${heading}</div>
-        <div class="status-banner-title">${svc.name}</div>
-        <div class="status-banner-sub">${detail}</div>
-      </div>
-    </div>
-    <div class="status-banner-time"></div>`;
-  requestAnimationFrame(()=>banner.classList.add('show'));
-  const speakDelay=CHIME_SPEECH_DELAY[kind] || 650;
-  clearTimeout(bannerSpeechTimer);
-  bannerSpeechTimer=setTimeout(()=>speakBannerStatus(svc.name, kind), speakDelay);
-  clearTimeout(bannerTimer);
-  bannerTimer=setTimeout(()=>{
-    banner.classList.remove('show');
-    setTimeout(()=>{ if(!banner.classList.contains('show')) banner.innerHTML=''; }, 320);
-  }, 30000);
-}
-
-
-function runAlertTest(){
-  chime('degraded');
-  showStatusBanner({name:'Test Service', label:'Degraded'}, 'degraded');
-  setTimeout(()=>{
-    chime('outage');
-    showStatusBanner({name:'Test Service', label:'Outage'}, 'outage');
-  }, 1800);
-  setTimeout(()=>{
-    chime('restored');
-    showStatusBanner({name:'Test Service', label:'Operational'}, 'restored');
-  }, 3600);
-}
-
-const PROXIES=[
-  u=>u,
-  u=>'https://api.codetabs.com/v1/proxy/?quest='+encodeURIComponent(u),
-  u=>'https://api.allorigins.win/raw?url='+encodeURIComponent(u),
-  u=>'https://cors.isomorphic-git.org/'+u
-];
-
-function proxyOrder(provider){
-  return (provider==='adobe' || provider==='follett') ? [1,0,2,3] : [0,1,2,3];
-}
-
-async function fetchWithTimeout(url, timeout=15000){
-  const controller=new AbortController();
-  const timer=setTimeout(()=>controller.abort(), timeout);
-  try {
-    return await fetch(url,{signal:controller.signal});
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
-async function getText(url, provider){
-  let err;
-  for(const idx of proxyOrder(provider)){
-    try {
-      const r=await fetchWithTimeout(PROXIES[idx](url));
-      if(!r.ok) throw new Error(String(r.status));
-      return await r.text();
-    } catch(e){ err=e; }
-  }
-  throw err;
-}
-
-async function getJson(url, provider){
-  const t=await getText(url, provider);
-  return JSON.parse(t.replace(/^﻿/,''));
-}
-
-function stripHtml(txt){
-  return String(txt||'').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();
-}
-
-function mk(name,ind,title,body,updated,url){
-  return {name,ind,label:LABELS[ind]||'Unknown',title,body,updated,url};
-}
-
-function errSvc(s){
-  return {name:s.name,ind:'major',label:'Unavailable',title:'Cannot reach status API',body:'Check the status page manually.',updated:'—',url:s.hu};
-}
-
-function adobeSeverityToIndicator(sev, impact){
-  const value=String(sev || impact || '').toLowerCase().trim();
-  if(!value || value==='none' || value==='na' || value==='n/a') return 'none';
-  if(/maint|scheduled/.test(value)) return 'maintenance';
-  if(/major|critical|sev1|sev2|outage|down/.test(value)) return 'major';
-  if(/minor|degrad|partial|sev3|sev4|performance/.test(value)) return 'minor';
-  return 'minor';
-}
-
-function isOpenAdobeStatus(status){
-  const s=String(status||'').toLowerCase().trim();
-  return !!s && !['closed','resolved','complete','completed','cancelled','canceled'].includes(s);
-}
-
-async function fetchOne(s){
-  if(s.p==='adobe'){
-    try {
-      const [registry, events]=await Promise.all([getJson(s.su, s.p), getJson(s.iu, s.p)]);
-      const ccEntry=Object.values(registry?.clouds||{}).find(c=>String(c?.name||'').toLowerCase()==='creative cloud');
-      const ccId=ccEntry?.id;
-      if(!ccId) return mk(s.name,'major','Adobe source format changed','Could not locate Creative Cloud in Adobe status registry.',new Date().toLocaleString(),s.hu);
-
-      const active=[];
-      const collectActive=(collection, kind)=>{
-        Object.values(collection||{}).forEach(item=>{
-          if(!item?.clouds || !(ccId in item.clouds)) return;
-          const hist=item.history || {};
-          const keys=Object.keys(hist).sort((a,b)=>Number(a)-Number(b));
-          const last=keys.length ? hist[keys[keys.length-1]] : null;
-          const status=last?.status || item.status;
-          if(status && !isOpenAdobeStatus(status)) return;
-          if(!status && !last) return;
-
-          const ind=kind==='maintenance'
-            ? 'maintenance'
-            : adobeSeverityToIndicator(last?.severity || item.severity, last?.customerImpact || item.customerImpact);
-
-          const title=item.headline || item.name || last?.shortDescription || last?.description || '';
-          const body=stripHtml(last?.description || last?.message || '');
-          const updatedEpoch=Number(keys[keys.length-1] || item.startedOn || 0);
-          active.push({ind, title, body, updatedEpoch});
-        });
-      };
-
-      collectActive(events?.incidentEvent?.incidents, 'incident');
-      collectActive(events?.maintenanceEvent?.maintenance, 'maintenance');
-
-      if(!active.length) return mk(s.name,'none','','',new Date().toLocaleString(),s.hu);
-
-      active.sort((a,b)=>(PRI[a.ind]||9)-(PRI[b.ind]||9));
-      const top=active[0];
-      return mk(
-        s.name,
-        top.ind,
-        top.title || (top.ind==='maintenance' ? 'Scheduled maintenance' : 'Active incident'),
-        top.body,
-        top.updatedEpoch ? new Date(top.updatedEpoch*1000).toLocaleString() : new Date().toLocaleString(),
-        s.hu
-      );
-    } catch { return errSvc(s); }
-  }
-
-  if(s.p==='follett'){
-    try {
-      const d=await getJson(s.su, s.p);
-      let ind='none';
-      if(d.generalStatus==='issues') ind='minor';
-      else if(d.generalStatus==='maintenance') ind='maintenance';
-      else if(d.generalStatus && d.generalStatus!=='ok') ind='major';
-      const msg=stripHtml(d.systemMessage||'');
-      return mk(s.name,ind,msg?'Follett Announcement':'',msg,new Date().toLocaleString(),s.hu);
-    } catch { return errSvc(s); }
-  }
-
-  if(s.p==='statusio'){
-    try {
-      const h=await getText(s.su, s.p);
-      let ind='none';
-      const statusBarMatch=h.match(/id=["']statusbar_text["'][^>]*>([^<]+)/i);
-      const statusBarText=(statusBarMatch?.[1]||'').toLowerCase();
-      if(statusBarText){
-        if(/all systems operational|operational/.test(statusBarText)) ind='none';
-        else if(/maintenance/.test(statusBarText)) ind='maintenance';
-        else if(/degraded|partial/.test(statusBarText)) ind='minor';
-        else if(/outage|critical|down/.test(statusBarText)) ind='major';
-      } else {
-        const statusCode=h.match(/return\s+status\s*===\s*(\d+)/i);
-        ind = statusCode ? (Number(statusCode[1])>=500 ? 'major' : Number(statusCode[1])>=300 ? 'minor' : Number(statusCode[1])===200 ? 'maintenance' : 'none') : 'none';
-      }
-      return mk(s.name,ind,'','',new Date().toLocaleString(),s.hu);
-    } catch { return errSvc(s); }
-  }
-
-  try {
-    const [sd,id]=await Promise.all([
-      getJson(s.su, s.p),
-      s.iu ? getJson(s.iu, s.p).catch(()=>({incidents:[]})) : Promise.resolve({incidents:[]})
-    ]);
-    let ind=normalizeIndicator(sd?.status?.indicator||'none');
-    const updated=sd?.page?.updated_at ? new Date(sd.page.updated_at).toLocaleString() : new Date().toLocaleString();
-    const active=(id?.incidents||[]).filter(x=>['investigating','identified','monitoring'].includes((x.status||'').toLowerCase()));
-    let title='', body='';
-    if(active.length){
-      const a=active[0];
-      if(ind==='none'){
-        const impact=normalizeIndicator(a.impact||'none');
-        if(impact!=='none') ind=impact;
-      }
-      title=a.name||'';
-      let desc=stripHtml(a.description||'');
-      if(!desc && a.incident_updates?.[0]?.body) desc=stripHtml(a.incident_updates[0].body);
-      body=desc;
-    }
-    return mk(s.name,ind,title,body,updated,s.hu);
-  } catch { return errSvc(s); }
-}
-
-const ICONS={none:'✓',minor:'⚠',major:'✕',maintenance:'⚙'};
-const LOGO_DOMAINS={
-  'i-Ready':'curriculumassociates.com',
-  'HMH':'hmhco.com',
-  'Follett':'follettsoftware.com',
-  'IncidentIQ':'incidentiq.com',
-  'Clever':'clever.com',
-  'Seesaw':'seesaw.me',
-  'Jamf':'jamf.com',
-  'Meraki':'meraki.com',
-  'Duo':'duo.com',
-  'Imagine Learning':'imaginelearning.com',
-  'Blackboard':'blackboard.com',
-  'FinalSite':'finalsite.com',
-  'Cloudflare':'cloudflare.com',
-  'DNSFilter':'dnsfilter.com',
-  'Adobe CC':'adobe.com'
-};
-const CC={none:'',minor:'cw',major:'cb',maintenance:'cm'};
-const IC={none:'ok',minor:'warn',major:'bad',maintenance:'maint'};
-const BLOCK_CLS={none:'ok-block',minor:'warn-block',major:'bad-block',maintenance:'maint-block'};
-const LABEL_COLOR={none:'var(--ok)',minor:'var(--warn)',major:'var(--bad)',maintenance:'var(--maint)'};
-
-function logoSources(svc){
-  const sources=[];
-  const companyDomain=LOGO_DOMAINS[svc.name] || '';
-  const statusHost=(svc.url||'').replace(/^https?:\/\//,'').replace(/\/$/,'');
-
-  if(companyDomain){
-    sources.push(`https://logo.clearbit.com/${companyDomain}`);
-    sources.push(`https://icons.duckduckgo.com/ip3/${companyDomain}.ico`);
-    sources.push(`https://www.google.com/s2/favicons?domain=${encodeURIComponent(companyDomain)}&sz=64`);
-  }
-  if(statusHost){
-    sources.push(`https://icons.duckduckgo.com/ip3/${statusHost}.ico`);
-    sources.push(`https://www.google.com/s2/favicons?domain=${encodeURIComponent(statusHost)}&sz=64`);
-  }
-  return [...new Set(sources.filter(Boolean))];
-}
-
-function nextLogo(img){
-  const sources=(img.dataset.sources||'').split('|').filter(Boolean);
-  const idx=Number(img.dataset.idx||'0')+1;
-  if(idx>=sources.length){
-    img.style.display='none';
-    if(img.nextElementSibling) img.nextElementSibling.style.display='inline';
-    return;
-  }
-  img.dataset.idx=String(idx);
-  img.src=sources[idx];
-}
-
-function mkCard(svc, delay){
-  const d=document.createElement('div');
-  d.className=`card ${CC[svc.ind]||''}`;
-  d.style.animationDelay=delay+'ms';
-  d.style.setProperty('--tile-delay', delay+'ms');
-  if(svc.url) d.addEventListener('click',()=>window.open(svc.url,'_blank','noopener'));
-
-  const color=LABEL_COLOR[svc.ind]||'var(--sub)';
-  const blockCls=BLOCK_CLS[svc.ind]||'ok-block';
-  const incTitle=svc.ind==='none' ? 'No incidents reported' : (svc.title||svc.label);
-  const incBody=svc.ind==='none' ? 'All systems are operating normally.' : (svc.body||'See the status page for full details.');
-  const urlHost=svc.url ? svc.url.replace(/^https?:\/\//,'').replace(/\/$/,'') : '';
-  const logos=logoSources(svc);
-  const fallback=(svc.name||'?').trim().charAt(0).toUpperCase();
-
-  d.innerHTML=`
-    <div class="card-top">
-      <div class="card-title-row">
-        <div class="c-icon ${IC[svc.ind]||'ok'}">${logos.length ? `<img class="c-logo" src="${logos[0]}" data-sources="${logos.join('|')}" data-idx="0" alt="${svc.name} logo" onerror="nextLogo(this)">` : ""}<span class="c-fallback" style="display:${logos.length?'none':'inline'}">${fallback || ICONS[svc.ind] || "?"}</span></div>
-        <div class="c-name-block">
-          <div class="c-name">${svc.name}</div>
-          ${urlHost ? `<a class="c-url" href="${svc.url}" target="_blank" rel="noopener" onclick="event.stopPropagation()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="10" height="10"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg>${urlHost}</a>` : ''}
-        </div>
-      </div>
-      <div class="c-badge ${IC[svc.ind]||'ok'}">${svc.label}</div>
-    </div>
-    <div class="card-div"></div>
-    <div class="inc-block ${blockCls}">
-      <div class="inc-label" style="color:${color}"><span class="inc-label-dot" style="background:${color}"></span>${svc.ind==='none'?'Current Status':'Active Incident'}</div>
-      <div class="inc-title">${incTitle}</div>
-      <div class="inc-body">${incBody}</div>
-    </div>
-    <div class="card-meta">
-      <div class="meta-updated"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Updated ${svc.updated}</div>
-      <div class="meta-tag">${svc.ind==='none' ? '100% uptime' : svc.ind==='maintenance' ? 'Scheduled' : 'Investigating'}</div>
-    </div>`;
-  return d;
-}
-
-let cur=0, rTimer=null, pTimer=null, pStart=0, pageAnimTimer=null, pageAnimating=false;
-const ROT_MS=60000;
-
-function goPage(idx){
-  const pages=[...document.querySelectorAll('.page')];
-  if(!pages.length) return;
-  if(pageAnimating) return;
-  idx=((idx%pages.length)+pages.length)%pages.length;
-
-  [...document.querySelectorAll('.pdot')].forEach((d,i)=>d.classList.toggle('active',i===idx));
-
-  if(idx===cur){
-    resetProg();
-    return;
-  }
-
-  pageAnimating=true;
-  const prev=cur;
-  const forward=(idx>prev) || (prev===pages.length-1 && idx===0);
-  const outgoing=pages[prev];
-  const incoming=pages[idx];
-  const enterCls=forward?'enter-next':'enter-prev';
-  const leaveCls=forward?'leave-next':'leave-prev';
-
-  clearTimeout(pageAnimTimer);
-  pages.forEach(p=>p.classList.remove('enter-next','enter-prev','leave-next','leave-prev'));
-  outgoing.classList.add(leaveCls);
-
-  incoming.classList.add('active', enterCls);
-  incoming.querySelectorAll('.card').forEach(card=>{
-    card.classList.remove('tile-in','tile-out');
-    card.classList.add('tile-in');
-  });
-
-  pageAnimTimer=setTimeout(()=>{
-    outgoing.classList.remove('active', leaveCls);
-    outgoing.querySelectorAll('.card').forEach(card=>card.classList.remove('tile-in','tile-out'));
-    incoming.classList.remove(enterCls);
-    incoming.querySelectorAll('.card').forEach(card=>card.classList.remove('tile-in','tile-out'));
-    pageAnimating=false;
-  }, 620);
-
-  cur=idx;
-  resetProg();
-}
-
-function resetProg(){
-  clearInterval(pTimer);
-  const fill=document.getElementById('prog-fill');
-  pStart=Date.now();
-  fill.style.width='0%';
-  pTimer=setInterval(()=>{ fill.style.width=Math.min(100,(Date.now()-pStart)/ROT_MS*100)+'%'; },300);
-}
-
-function startRot(n){
-  clearInterval(rTimer);
-  if(n>1) rTimer=setInterval(()=>goPage((cur+1)%n),ROT_MS);
-}
-
-function updateStats(data){
-  const ok=data.filter(s=>s.ind==='none').length;
-  const wn=data.filter(s=>s.ind==='minor').length;
-  const bd=data.filter(s=>s.ind==='major').length;
-  const mt=data.filter(s=>s.ind==='maintenance').length;
-  document.getElementById('n-ok').textContent=ok;
-  document.getElementById('n-warn').textContent=wn;
-  document.getElementById('n-bad').textContent=bd;
-  document.getElementById('n-maint').textContent=mt;
-
-  const pill=document.getElementById('pill');
-  const txt=document.getElementById('pill-txt');
-  if(bd>0){ pill.className='pill bad'; txt.textContent=bd===1?'1 Service Down':`${bd} Services Down`; }
-  else if(wn>0){ pill.className='pill warn'; txt.textContent='Degraded Performance'; }
-  else { pill.className='pill'; txt.textContent='All Systems Operational'; }
-
-  document.getElementById('f-meta').textContent='Last updated '+new Date().toLocaleTimeString('en-US',{hour12:true,hour:'numeric',minute:'2-digit'});
-}
-
-async function init(){
-  const wrap=document.getElementById('grid-wrap');
-  const dotsEl=document.getElementById('pdots');
-
-  const results=await Promise.all(SVCS.map((s,i)=>new Promise(res=>setTimeout(()=>fetchOne(s).then(res).catch(()=>res(errSvc(s))), i*120))));
-  results.sort((a,b)=>(PRI[a.ind]||9)-(PRI[b.ind]||9));
-
-  results.forEach(s=>{
-    const prev=window._pi[s.name];
-    if(prev && prev==='none' && s.ind!=='none'){
-      const kind=s.ind==='major' ? 'outage' : 'degraded';
-      chime(kind);
-      showStatusBanner(s,kind);
-    } else if(prev && prev!=='none' && s.ind==='none'){
-      chime('restored');
-      showStatusBanner(s,'restored');
-    }
-    window._pi[s.name]=s.ind;
-  });
-  updateStats(results);
-
-  const W=wrap.clientWidth || 1280;
-  const H=wrap.clientHeight || 640;
-  const GAP=12;
-  const cols=W>=1600 ? 4 : W>=960 ? 3 : 2;
-  const desiredRows=W>=960 ? 2 : 1;
-  const minCardHeight=W>=1600 ? 320 : W>=960 ? 260 : 220;
-  const maxRowsThatFit=Math.max(1, Math.floor((H + GAP) / (minCardHeight + GAP)));
-  const maxRowsByCount=Math.max(1, Math.ceil(results.length/cols));
-  const rows=Math.min(desiredRows, maxRowsThatFit, maxRowsByCount);
-  const CARD_H=Math.floor((H - GAP*(rows-1))/rows);
-  const compactCards=CARD_H<290;
-  const perPage=cols*rows;
-  const totalPages=Math.ceil(results.length/perPage);
-
-  clearInterval(rTimer); clearInterval(pTimer);
-  wrap.innerHTML=''; dotsEl.innerHTML=''; cur=0;
-
-  for(let p=0;p<totalPages;p++){
-    const slice=results.slice(p*perPage,(p+1)*perPage);
-    const pg=document.createElement('div');
-    pg.className=`page ${p===0?'active':''}`;
-    const c=(p===totalPages-1 && slice.length<cols) ? slice.length : cols;
-    pg.style.gridTemplateColumns=`repeat(${c}, 1fr)`;
-    pg.style.gridAutoRows=CARD_H+'px';
-    slice.forEach((s,i)=>{
-      const card=mkCard(s,i*30);
-      if(compactCards) card.classList.add('compact');
-      pg.appendChild(card);
-    });
-    wrap.appendChild(pg);
-
-    if(totalPages>1){
-      const dot=document.createElement('div');
-      dot.className=`pdot ${p===0?'active':''}`;
-      dot.title=`Page ${p+1} of ${totalPages}`;
-      dot.addEventListener('click',()=>{ clearInterval(rTimer); goPage(p); startRot(totalPages); });
-      dotsEl.appendChild(dot);
-    }
-  }
-
-  document.getElementById('prog-track').style.display=totalPages>1 ? '' : 'none';
-  startRot(totalPages);
-  if(totalPages>1) resetProg();
-}
-
-window.addEventListener('DOMContentLoaded',()=>{
-  const testBtn=document.getElementById('test-alert-btn');
-  if(testBtn) testBtn.addEventListener('click', runAlertTest);
-
-  window.addEventListener('pointerdown', primeAudio, {once:true, passive:true});
-  window.addEventListener('keydown', primeAudio, {once:true});
-
-  init();
-  setInterval(init,120000);
-});
+const $ = (s)=>document.querySelector(s);
+const $$ = (s)=>[...document.querySelectorAll(s)];
+const safeJSON=(x,d)=>{try{return JSON.parse(localStorage.getItem(x))??d}catch{return d}};
+
+const storage={get:(k,d=null)=>safeJSON(k,d),set:(k,v)=>localStorage.setItem(k,JSON.stringify(v)),getRaw:(k)=>localStorage.getItem(k),setRaw:(k,v)=>localStorage.setItem(k,v)};
+
+(function theme(){ const root=document.documentElement; const b=$('#themeToggle'); const sys=()=>matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'; const apply=t=>{root.setAttribute('data-theme',t||sys())}; apply(storage.getRaw('pref-theme')); b.onclick=()=>{const n=(root.getAttribute('data-theme')==='dark'?'light':'dark'); storage.setRaw('pref-theme',n); apply(n);};})();
+
+const nav=$('#navTabs'); const tools=$$('.tool');
+function showTool(id){tools.forEach(t=>t.classList.toggle('d-none',t.id!==id)); $$('#navTabs .btn-tab').forEach(b=>b.classList.toggle('active',b.dataset.target===id)); storage.setRaw('active-tool',id)}
+nav.addEventListener('click',e=>{const b=e.target.closest('.btn-tab'); if(b) showTool(b.dataset.target)});
+showTool(storage.getRaw('active-tool')||'csv');
+
+// command palette
+const toolNames=[['csv','CSV Downloader'],['formatter','SASID Formatter'],['aspen','Aspen Query'],['tracker','SASID Tracker'],['network','Ping / Trace'],['dns','DNS Lookup'],['whois','WHOIS'],['pg','Passwords'],['base64','Base64 Tool'],['json','JSON Formatter'],['text','Text Tools']];
+const pal=$('#palette'), pin=$('#paletteInput'), plist=$('#paletteList');
+function renderPal(q=''){plist.innerHTML=''; toolNames.filter(([,n])=>n.toLowerCase().includes(q.toLowerCase())).forEach(([id,n])=>{const li=document.createElement('li');li.textContent=n;li.onclick=()=>{showTool(id);pal.classList.remove('open')};plist.appendChild(li);});}
+$('#cmdK').onclick=()=>{pal.classList.add('open'); renderPal(''); pin.value=''; setTimeout(()=>pin.focus(),20)};
+pin.oninput=e=>renderPal(e.target.value); pal.onclick=e=>{if(e.target===pal)pal.classList.remove('open')};
+document.addEventListener('keydown',e=>{if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'){e.preventDefault();$('#cmdK').click()} if(e.key==='Escape') pal.classList.remove('open')});
+
+function msg(t){alert(t)}
+// CSV
+const csvIn=$('#csvInput'), dl=$('#downloadBtn'), sendFmt=$('#sendToFormatterBtn');
+csvIn.oninput=()=>{const has=!!csvIn.value.trim(); dl.disabled=!has; sendFmt.disabled=!has};
+dl.onclick=()=>{const blob=new Blob([csvIn.value],{type:'text/csv;charset=utf-8'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='data_'+Date.now()+'.csv'; a.click(); URL.revokeObjectURL(a.href)};
+
+// formatter
+let formattedData=[]; const req=['LocalID','FirstName','LastName','DOB','Gender','Zip'];
+const drop=$('#dropZoneFormatter'), file=$('#fileFormatter'), err=$('#errorFormatter'), table=$('#previewFormatter');
+const excelBtn=$('#excelBtn'), sendLasidsBtn=$('#sendLasidsBtn');
+drop.onclick=()=>file.click(); drop.ondragover=e=>e.preventDefault(); drop.ondrop=e=>{e.preventDefault(); handleFiles(e.dataTransfer.files)}; file.onchange=e=>handleFiles(e.target.files);
+function showErr(m){err.textContent=m; err.classList.remove('d-none')} function clearErr(){err.classList.add('d-none')}
+function parseCSV(text){return text.split(/\r?\n/).filter(Boolean).map(r=>r.split(','))}
+function makeID(x){const n=String(x).replace(/\D/g,''); if(n.length===6)return n; if(n.length===10)return n.startsWith('96')?n:'96'+n; return n}
+function pad(z){return String(z).padStart(5,'0')}
+function transform(rec){return {LASID:makeID(rec.LocalID),DISTCODE:'96',LASTNAME:rec.LastName?.trim()||'',FIRSTNAME:rec.FirstName?.trim()||'',SEX:rec.Gender?.trim()||'',DOB:rec.DOB?.trim()||'',ZIPCODE:pad(rec.Zip?.trim()||'')}}
+function handleFiles(list){[...list].forEach(f=>{const ext=f.name.split('.').pop().toLowerCase();const rd=new FileReader();rd.onload=e=>{try{let rows=[];if(['xls','xlsx'].includes(ext)){const wb=XLSX.read(e.target.result,{type:'binary'});rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:''});const miss=req.filter(h=>!(h in (rows[0]||{})));if(miss.length)return showErr('Missing: '+miss.join(', '));formattedData=formattedData.concat(rows.map(transform));}else{const arr=parseCSV(e.target.result);const hdr=(arr[0]||[]).map(v=>v.trim());const miss=req.filter(h=>!hdr.includes(h));if(miss.length)return showErr('Missing: '+miss.join(', '));rows=arr.slice(1).map(r=>Object.fromEntries(req.map(k=>[k,r[hdr.indexOf(k)]||''])));formattedData=formattedData.concat(rows.map(transform));}clearErr();renderFmt()}catch{showErr('Error processing file')}}; if(['xls','xlsx'].includes(ext))rd.readAsBinaryString(f); else rd.readAsText(f);})}
+function renderFmt(){table.innerHTML='<thead><tr><th>LASID</th><th>DISTCODE</th><th>LASTNAME</th><th>FIRSTNAME</th><th>SEX</th><th>DOB</th><th>ZIPCODE</th></tr></thead><tbody>'+formattedData.map(r=>`<tr><td>${r.LASID}</td><td>${r.DISTCODE}</td><td>${r.LASTNAME}</td><td>${r.FIRSTNAME}</td><td>${r.SEX}</td><td>${r.DOB}</td><td>${r.ZIPCODE}</td></tr>`).join('')+'</tbody>'; excelBtn.classList.remove('d-none')}
+excelBtn.onclick=()=>{if(!formattedData.length)return msg('No data to download.'); const ws=XLSX.utils.json_to_sheet(formattedData); const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'sheet1'); XLSX.writeFile(wb,`SASID Upload ${new Date().toISOString().slice(0,10)}.xls`,{bookType:'xls'})}
+sendFmt.onclick=()=>{if(csvIn.value.trim()){const arr=parseCSV(csvIn.value.trim()); const hdr=(arr[0]||[]).map(v=>v.trim()); if(req.every(h=>hdr.includes(h))){const rows=arr.slice(1).map(r=>Object.fromEntries(req.map(k=>[k,r[hdr.indexOf(k)]||'']))); formattedData=formattedData.concat(rows.map(transform)); renderFmt(); showTool('formatter');}}};
+sendLasidsBtn.onclick=()=>{const las=formattedData.map(r=>r.LASID).filter(Boolean); trackerAdd(las); showTool('tracker'); msg('LASIDs added to tracker.');}
+
+// aspen
+$('#formatAspenBtn').onclick=()=>{const ids=$('#inputAspen').value.trim().split(/[\r\n]+/).filter(Boolean); if(!ids.length)return msg('Enter some IDs first.'); const fld=document.querySelector('input[name="idType"]:checked').value==='LASID'?'STD_ID_LOCAL':'STD_ID_STATE'; $('#outputAspen').value=`WHERE ${fld} IN (\n  ${ids.map(i=>`'${i.trim()}'`).join(',\n  ')}\n)`};
+$('#copyAspenBtn').onclick=()=>navigator.clipboard.writeText($('#outputAspen').value).then(()=>msg('Copied!')).catch(()=>msg('Copy failed'));
+
+// tracker
+let saved=storage.get('savedLasids',[]), received=storage.get('receivedLasids',[]);
+function renderTracker(){ $('#savedLasids').innerHTML=saved.length?saved.map(x=>`<div class="chip">${x}</div>`).join(''):'<div class="text-secondary">No LASIDs saved.</div>'; $('#pendingList').innerHTML=saved.length?saved.map(x=>`<div class="chip"><span>${x}</span><button class="btn-accent" data-id="${x}">Mark</button></div>`).join(''):'<div class="text-secondary">No pending.</div>'; $('#receivedList').innerHTML=received.slice(-10).length?received.slice(-10).map(x=>`<div class="chip done"><span>${x}</span><button class="btn btn-sm btn-danger" data-id="${x}">Delete</button></div>`).join(''):'<div class="text-secondary">No received.</div>'; $$('#pendingList button').forEach(b=>b.onclick=()=>markReceived(b.dataset.id)); $$('#receivedList .btn-danger').forEach(b=>b.onclick=()=>{received=received.filter(x=>x!==b.dataset.id);storage.set('receivedLasids',received);renderTracker()})}
+function trackerAdd(list){let added=false; list.forEach(id=>{if(!saved.includes(id)&&!received.includes(id)){saved.push(id);added=true}}); if(added){storage.set('savedLasids',saved); renderTracker()}}
+function markReceived(id){saved=saved.filter(x=>x!==id); received.push(id); storage.set('savedLasids',saved); storage.set('receivedLasids',received); renderTracker()}
+$('#saveLasidsBtn').onclick=()=>{const list=$('#inputLasids').value.trim().split(/[\r\n]+/).map(x=>x.trim()).filter(Boolean); if(!list.length)return msg('Enter LASIDs first.'); trackerAdd(list); $('#inputLasids').value=''};
+$('#clearLasidsBtn').onclick=()=>{saved=[]; storage.set('savedLasids',saved); renderTracker()};
+renderTracker();
+
+// network
+$('#networkGenerateBtn').onclick=()=>{const iface=$('#netInterface').value==='oshean'?'x3':'x4'; const cmd=document.querySelector('input[name="netCmdType"]:checked').value; const target=$('#netTarget').value.trim(); if(!target)return msg('Enter destination'); $('#netOutput').value=`execute ${cmd}-options source ${iface}\nexecute ${cmd} ${target}`; $('#netCopyBtn').disabled=false};
+$('#netCopyBtn').onclick=()=>navigator.clipboard.writeText($('#netOutput').value).then(()=>msg('Copied!'));
+
+// dns/whois
+$('#dnsLookupBtn').onclick=async()=>{const d=$('#dnsInput').value.trim(); if(!d)return msg('Enter domain or IP'); const t=$('#dnsType').value; const r=await fetch(`https://cloudflare-dns.com/dns-query?name=${encodeURIComponent(d)}&type=${t}`,{headers:{Accept:'application/dns-json'}}); const j=await r.json(); $('#dnsOutput').value=(j.Answer||[]).map(a=>`${a.name} ${a.ttl} IN ${a.type} ${a.data}`).join('\n')||'No records found.'};
+function prettyWhois(d){return d.ldhName?`Domain: ${d.ldhName}\nStatus: ${(d.status||[]).join(', ')}`:JSON.stringify(d,null,2)}
+$('#whoisLookupBtn').onclick=async()=>{const input=$('#whoisInput').value.trim(); if(!input)return msg('Enter domain or IP'); try{const path=/\d+\.\d+/.test(input)?`ip/${input}`:`domain/${input}`; const r=await fetch(`https://rdap.org/${path}`); const j=await r.json(); $('#whoisOutput').textContent=prettyWhois(j)}catch(e){$('#whoisOutput').textContent='Lookup failed: '+e.message}};
+
+// password
+(()=>{const words=['Blue','Red','Green','Tiger','Fox','River','Cloud','Solar','Night','Star']; let last=[]; $('#pg-generate-btn').onclick=()=>{const count=Math.max(1,Math.min(5000,parseInt($('#pg-count').value,10)||1)); const casing=$('#pg-casing').value; const d=parseInt($('#pg-digits').value,10); const make=()=>{const w1=words[Math.floor(Math.random()*words.length)], w2=words[Math.floor(Math.random()*words.length)]; const n=Math.floor(Math.random()*(d===2?90:900))+(d===2?10:100); let p=`${w1}${n}${w2}!`; if(casing==='lower')p=p.toLowerCase(); return p}; last=[...Array(count)].map(make); $('#pg-error').textContent=''; if(count===1){$('#pg-result-single').textContent=last[0]; $('#pg-list').innerHTML=''; $('#pg-csv-btn').disabled=true}else{$('#pg-result-single').textContent=''; $('#pg-list').innerHTML=last.map(x=>`<div class="form-control text-center fw-bold">${x}</div>`).join(''); $('#pg-csv-btn').disabled=false} $('#pg-copy-btn').disabled=false}; $('#pg-copy-btn').onclick=()=>navigator.clipboard.writeText(last.join('\n')).then(()=>msg('Copied!')); $('#pg-csv-btn').onclick=()=>{const blob=new Blob([['Password',...last].join('\n')],{type:'text/csv'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='passwords.csv'; a.click(); URL.revokeObjectURL(a.href)};})();
+
+// base64/json/text
+$('#base64-encode-btn').onclick=()=>{try{$('#base64-output').value=btoa($('#base64-input').value);$('#base64-copy-btn').disabled=false}catch{msg('Encoding failed')}};
+$('#base64-decode-btn').onclick=()=>{try{$('#base64-output').value=atob($('#base64-input').value);$('#base64-copy-btn').disabled=false}catch{msg('Invalid Base64')}};
+$('#base64-copy-btn').onclick=()=>navigator.clipboard.writeText($('#base64-output').value).then(()=>msg('Copied!'));
+$('#json-format-btn').onclick=()=>{try{$('#json-output').value=JSON.stringify(JSON.parse($('#json-input').value),null,2);$('#json-copy-btn').disabled=false}catch(e){msg('Invalid JSON: '+e.message)}};
+$('#json-copy-btn').onclick=()=>navigator.clipboard.writeText($('#json-output').value).then(()=>msg('Copied!'));
+$('#json-clear-btn').onclick=()=>{$('#json-input').value='';$('#json-output').value='';$('#json-copy-btn').disabled=true};
+$('#text-upper-btn').onclick=()=>$('#text-output').value=$('#text-input').value.toUpperCase();
+$('#text-lower-btn').onclick=()=>$('#text-output').value=$('#text-input').value.toLowerCase();
+$('#text-reverse-btn').onclick=()=>$('#text-output').value=[...$('#text-input').value].reverse().join('');
+$('#text-count-btn').onclick=()=>{const v=$('#text-input').value;$('#text-output').value=`Words: ${v.trim()?v.trim().split(/\s+/).length:0}\nCharacters: ${v.length}`};
+$('#text-clear-btn').onclick=()=>{$('#text-input').value='';$('#text-output').value=''};
 </script>
 </body>
 </html>
