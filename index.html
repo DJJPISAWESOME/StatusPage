@@ -496,26 +496,26 @@
 
 const SVCS=[
   // Applications & Education Platforms
-  {name:'i-Ready',su:'https://i-ready.status.io/',iu:'https://i-ready.status.io/',hu:'https://i-ready.status.io/',p:'statusio',cat:'app'},
-  {name:'HMH',su:'https://status.hmhco.com/api/v2/status.json',iu:'https://status.hmhco.com/api/v2/incidents.json',hu:'https://status.hmhco.com',cat:'app'},
-  {name:'Follett',su:'https://status.follettsoftware.com/rest/systemstatus',iu:null,hu:'https://status.follettsoftware.com',p:'follett',cat:'app'},
-  {name:'IncidentIQ',su:'https://status.incidentiq.com/api/v2/status.json',iu:'https://status.incidentiq.com/api/v2/incidents.json',hu:'https://status.incidentiq.com',cat:'app'},
-  {name:'Clever',su:'https://status.clever.com/api/v2/status.json',iu:'https://status.clever.com/api/v2/incidents.json',hu:'https://status.clever.com',cat:'app'},
-  {name:'Seesaw',su:'https://status.seesaw.me/api/v2/status.json',iu:'https://status.seesaw.me/api/v2/incidents.json',hu:'https://status.seesaw.me',cat:'app'},
-  {name:'Jamf',su:'https://status.jamf.com/api/v2/status.json',iu:'https://status.jamf.com/api/v2/incidents.json',hu:'https://status.jamf.com',cat:'app'},
-  {name:'Duo',su:'https://status.duo.com/api/v2/status.json',iu:'https://status.duo.com/api/v2/incidents.json',cu:'https://status.duo.com/api/v2/components.json',hu:'https://status.duo.com',p:'duo',cat:'app'},
-  {name:'Imagine Learning',su:'https://status.imaginelearning.com/api/v2/status.json',iu:'https://status.imaginelearning.com/api/v2/incidents.json',hu:'https://status.imaginelearning.com',cat:'app'},
-  {name:'FinalSite',su:'https://status.finalsite.com/api/v2/status.json',iu:'https://status.finalsite.com/api/v2/incidents.json',hu:'https://status.finalsite.com',cat:'app'},
-  {name:'Dexcom',su:'https://status.dexcom.com/api/v2/status.json',iu:'https://status.dexcom.com/api/v2/incidents.json',hu:'https://status.dexcom.com',cat:'app'},
-  {name:'Adobe CC',su:'https://data.status.adobe.com/adobestatus/SnowServiceRegistry',iu:'https://data.status.adobe.com/adobestatus/StatusEvents',hu:'https://status.adobe.com/cloud/creative_cloud',p:'adobe',cat:'app'},
-  {name:'Google Workspace',su:'https://www.google.com/appsstatus/json/en',hu:'https://workspace.google.com/dashboard/',p:'gworkspace',cat:'app'},
+  {name:'i-Ready',su:'https://i-ready.status.io/',iu:'https://i-ready.status.io/',hu:'https://i-ready.status.io/',p:'statusio',cat:'app',grp:'education'},
+  {name:'HMH',su:'https://status.hmhco.com/api/v2/status.json',iu:'https://status.hmhco.com/api/v2/incidents.json',hu:'https://status.hmhco.com',cat:'app',grp:'education'},
+  {name:'Follett',su:'https://status.follettsoftware.com/rest/systemstatus',iu:null,hu:'https://status.follettsoftware.com',p:'follett',cat:'app',grp:'education'},
+  {name:'IncidentIQ',su:'https://status.incidentiq.com/api/v2/status.json',iu:'https://status.incidentiq.com/api/v2/incidents.json',hu:'https://status.incidentiq.com',cat:'app',grp:'education'},
+  {name:'Clever',su:'https://status.clever.com/api/v2/status.json',iu:'https://status.clever.com/api/v2/incidents.json',hu:'https://status.clever.com',cat:'app',grp:'education'},
+  {name:'Seesaw',su:'https://status.seesaw.me/api/v2/status.json',iu:'https://status.seesaw.me/api/v2/incidents.json',hu:'https://status.seesaw.me',cat:'app',grp:'education'},
+  {name:'Jamf',su:'https://status.jamf.com/api/v2/status.json',iu:'https://status.jamf.com/api/v2/incidents.json',hu:'https://status.jamf.com',cat:'app',grp:'enterprise'},
+  {name:'Duo',su:'https://status.duo.com/api/v2/status.json',iu:'https://status.duo.com/api/v2/incidents.json',cu:'https://status.duo.com/api/v2/components.json',hu:'https://status.duo.com',p:'duo',cat:'app',grp:'enterprise'},
+  {name:'Imagine Learning',su:'https://status.imaginelearning.com/api/v2/status.json',iu:'https://status.imaginelearning.com/api/v2/incidents.json',hu:'https://status.imaginelearning.com',cat:'app',grp:'education'},
+  {name:'FinalSite',su:'https://status.finalsite.com/api/v2/status.json',iu:'https://status.finalsite.com/api/v2/incidents.json',hu:'https://status.finalsite.com',cat:'app',grp:'education'},
+  {name:'Dexcom',su:'https://status.dexcom.com/api/v2/status.json',iu:'https://status.dexcom.com/api/v2/incidents.json',hu:'https://status.dexcom.com',cat:'app',grp:'enterprise'},
+  {name:'Adobe CC',su:'https://data.status.adobe.com/adobestatus/SnowServiceRegistry',iu:'https://data.status.adobe.com/adobestatus/StatusEvents',hu:'https://status.adobe.com/cloud/creative_cloud',p:'adobe',cat:'app',grp:'enterprise'},
+  {name:'Google Workspace',su:'https://www.google.com/appsstatus/dashboard/incidents.json',hu:'https://www.google.com/appsstatus/dashboard/',p:'gworkspace',cat:'app',grp:'enterprise'},
   // Infrastructure Providers
-  {name:'Cloudflare',su:'https://www.cloudflarestatus.com/api/v2/status.json',iu:'https://www.cloudflarestatus.com/api/v2/incidents.json',hu:'https://www.cloudflarestatus.com',p:'cloudflare',cat:'infra'},
-  {name:'DNSFilter',su:'https://status.dnsfilter.com/api/v2/status.json',iu:'https://status.dnsfilter.com/api/v2/incidents.json',hu:'https://status.dnsfilter.com',cat:'infra'},
-  {name:'Meraki',su:'https://status.meraki.net/api/v2/status.json',iu:'https://status.meraki.net/api/v2/incidents.json',hu:'https://status.meraki.net',cat:'infra'},
-  {name:'AWS',su:'https://status.aws.amazon.com/data.json',hu:'https://health.aws.amazon.com/health/status',p:'aws',cat:'infra'},
-  {name:'Azure',su:'https://azure.status.microsoft/api/v2/status.json',iu:'https://azure.status.microsoft/api/v2/incidents.json',hu:'https://azure.status.microsoft/en-us/status',cat:'infra'},
-  {name:'Google Cloud',su:'https://status.cloud.google.com/incidents.json',hu:'https://status.cloud.google.com',p:'gcloud',cat:'infra'},
+  {name:'Cloudflare',su:'https://www.cloudflarestatus.com/api/v2/status.json',iu:'https://www.cloudflarestatus.com/api/v2/incidents.json',hu:'https://www.cloudflarestatus.com',p:'cloudflare',cat:'infra',grp:'network'},
+  {name:'DNSFilter',su:'https://status.dnsfilter.com/api/v2/status.json',iu:'https://status.dnsfilter.com/api/v2/incidents.json',hu:'https://status.dnsfilter.com',cat:'infra',grp:'network'},
+  {name:'Meraki',su:'https://status.meraki.net/api/v2/status.json',iu:'https://status.meraki.net/api/v2/incidents.json',hu:'https://status.meraki.net',cat:'infra',grp:'network'},
+  {name:'AWS',su:'https://status.aws.amazon.com/data.json',hu:'https://health.aws.amazon.com/health/status',p:'aws',cat:'infra',grp:'hyperscale'},
+  {name:'Azure',su:'https://azure.status.microsoft/en-us/status',hu:'https://azure.status.microsoft/en-us/status',p:'azure',cat:'infra',grp:'hyperscale'},
+  {name:'Google Cloud',su:'https://status.cloud.google.com/incidents.json',hu:'https://status.cloud.google.com',p:'gcloud',cat:'infra',grp:'hyperscale'},
 ];
 
 window._pi = window._pi || {};
@@ -743,13 +743,25 @@ async function fetchWithTimeout(url, timeout=15000){
   }
 }
 
+function decodeText(bytes){
+  if(bytes.length>=2){
+    if(bytes[0]===0xFE && bytes[1]===0xFF) return new TextDecoder('utf-16be').decode(bytes);
+    if(bytes[0]===0xFF && bytes[1]===0xFE) return new TextDecoder('utf-16le').decode(bytes);
+  }
+  if(bytes.length>=3 && bytes[0]===0xEF && bytes[1]===0xBB && bytes[2]===0xBF){
+    return new TextDecoder('utf-8').decode(bytes.slice(3));
+  }
+  return new TextDecoder('utf-8').decode(bytes);
+}
+
 async function getText(url, provider){
   let err;
   for(const idx of proxyOrder(provider)){
     try {
       const r=await fetchWithTimeout(PROXIES[idx](url));
       if(!r.ok) throw new Error(String(r.status));
-      return await r.text();
+      const buf=await r.arrayBuffer();
+      return decodeText(new Uint8Array(buf));
     } catch(e){ err=e; }
   }
   throw err;
@@ -907,6 +919,23 @@ async function fetchOne(s){
     } catch { return errSvc(s); }
   }
 
+  if(s.p==='azure'){
+    try {
+      const html=await getText(s.su, s.p);
+      const labels=[...html.matchAll(/data-label="([^"]+)"/gi)].map(m=>m[1].toLowerCase().trim());
+      const issueLabels=labels.filter(l=>l && !['good','not available'].includes(l));
+      const hasImpactedZone=/class="zone impacted"/i.test(html);
+      if(!issueLabels.length && !hasImpactedZone){
+        return mk(s.name,'none','','',new Date().toLocaleString(),s.hu);
+      }
+      const critical=issueLabels.some(l=>/critical|immediate|outage|down/.test(l));
+      const ind=critical ? 'major' : 'minor';
+      const unique=[...new Set(issueLabels.map(l=>l.replace(/\s+/g,' ')))];
+      const title=unique.length ? `Regional impact: ${unique.slice(0,3).join(', ')}` : 'Widespread Azure issue reported';
+      return mk(s.name,ind,title,'See Azure status page for full regional details.',new Date().toLocaleString(),s.hu);
+    } catch { return errSvc(s); }
+  }
+
   if(s.p==='aws'){
     try {
       const d=await getJson(s.su, s.p);
@@ -935,18 +964,16 @@ async function fetchOne(s){
 
   if(s.p==='gworkspace'){
     try {
-      const text=await getText(s.su, s.p);
-      // Google returns a JSONP-like payload; strip any leading/trailing non-JSON characters
-      const json=JSON.parse(text.replace(/^\s*[^[{]*/, '').replace(/\s*[^}\]]*$/, ''));
-      const services=Array.isArray(json) ? json : (json.status||[]);
-      const issues=services.filter(x=>{
-        const st=(x.status||'').toLowerCase();
-        return st && st!=='ok' && st!=='available' && st!=='operational' && st!=='normal';
-      });
-      if(!issues.length) return mk(s.name,'none','','',new Date().toLocaleString(),s.hu);
-      const ind=issues.some(x=>/(outage|disruption|down)/i.test(x.status||'')) ? 'major' : 'minor';
-      const names=issues.map(x=>x.name||x.service||'').filter(Boolean).join(', ');
-      return mk(s.name,ind,names ? `Issues: ${names}` : 'Service Disruption','',new Date().toLocaleString(),s.hu);
+      const incidents=await getJson(s.su, s.p);
+      const active=(incidents||[]).filter(x=>!x.end);
+      if(!active.length) return mk(s.name,'none','','',new Date().toLocaleString(),s.hu);
+      const top=active.sort((a,b)=>new Date(b.modified||b.begin)-new Date(a.modified||a.begin))[0];
+      const sev=String(top?.severity||'').toLowerCase();
+      const ind=/high|critical|major/.test(sev) ? 'major' : 'minor';
+      const title=stripHtml(String(top?.external_desc||'Google Workspace incident').replace(/[*_#`]/g,''));
+      const body=stripHtml((top?.updates||[])[0]?.text||'');
+      const updated=top?.modified ? new Date(top.modified).toLocaleString() : new Date().toLocaleString();
+      return mk(s.name,ind,title,body,updated,s.hu);
     } catch { return errSvc(s); }
   }
 
@@ -1266,11 +1293,17 @@ async function init(){
   // First page of each section has a header row, so fits fewer cards
   const perPageWithHdr=cols*Math.max(1, Math.min(desiredRows, maxRowsThatFit)-1);
 
-  // Group and sort each category independently
-  const sort=(arr)=>[...arr].sort((a,b)=>(PRI[a.ind]||9)-(PRI[b.ind]||9));
+  // Group and sort by service type for clearer organization
+  const sort=(arr)=>[...arr].sort((a,b)=>{
+    const p=(PRI[a.ind]||9)-(PRI[b.ind]||9);
+    return p!==0 ? p : a.name.localeCompare(b.name);
+  });
   const groups=[
-    {label:'Applications & Platforms', items: sort(results.filter(s=>s.cat==='app'))},
-    {label:'Infrastructure',           items: sort(results.filter(s=>s.cat==='infra'))}
+    {label:'Education & Learning Platforms', items: sort(results.filter(s=>s.grp==='education'))},
+    {label:'Enterprise Applications', items: sort(results.filter(s=>s.grp==='enterprise'))},
+    {label:'Network & Edge Infrastructure', items: sort(results.filter(s=>s.grp==='network'))},
+    {label:'Hyperscale Cloud Providers', items: sort(results.filter(s=>s.grp==='hyperscale'))},
+    {label:'Other Services', items: sort(results.filter(s=>!s.grp))}
   ].filter(g=>g.items.length);
 
   // Build flat page list
