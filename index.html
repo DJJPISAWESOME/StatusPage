@@ -19,8 +19,8 @@
       --maint: #3b82f6;
       --reroute: #14b8a6;
       --unknown: #6b7280;
-      --bg: #09090b;
-      --card: #111113;
+      --bg: #050507;
+      --card: #101014;
       --border: rgba(255,255,255,0.07);
       --text: #f4f4f5;
       --sub: #a1a1aa;
@@ -71,11 +71,11 @@
       flex-shrink:0;
       gap:20px;
       padding:12px 14px;
-      border-radius:16px;
+      border-radius:20px;
       border:1px solid rgba(255,255,255,0.08);
-      background:linear-gradient(165deg, rgba(255,255,255,0.045), rgba(255,255,255,0.02));
+      background:linear-gradient(165deg, rgba(255,255,255,0.07), rgba(255,255,255,0.015));
       backdrop-filter:blur(10px);
-      box-shadow:0 10px 24px rgba(0,0,0,0.24);
+      box-shadow:0 16px 36px rgba(0,0,0,0.34);
     }
     .brand { display:flex; align-items:center; gap:12px; }
     .brand-icon {
@@ -167,7 +167,7 @@
     .test-btn:hover { background:rgba(59,130,246,0.2); color:#dbeafe; border-color:rgba(96,165,250,0.6); }
     .test-btn:active { transform:translateY(1px); }
     .divider { height:1px; background:var(--border); flex-shrink:0; }
-    .grid-wrap { flex:1; min-height:0; overflow:hidden; position:relative; }
+    .grid-wrap { flex:1; min-height:0; overflow:hidden; position:relative; border-radius:22px; border:1px solid rgba(255,255,255,0.08); padding:14px; background:linear-gradient(150deg, rgba(255,255,255,0.035), rgba(255,255,255,0.01)); }
     .page {
       position:absolute; inset:0; display:grid; gap:12px; align-content:start;
       opacity:0; pointer-events:none;
@@ -189,7 +189,7 @@
     @keyframes tileOut { from { opacity:1; transform:translateY(0) scale(1); filter:blur(0);} to { opacity:0; transform:translateY(-12px) scale(0.985); filter:blur(2px);} }
     .card {
       background:linear-gradient(170deg, rgba(255,255,255,0.02), transparent 44%), var(--card);
-      border:1px solid var(--border); border-radius:16px;
+      border:1px solid var(--border); border-radius:18px;
       padding:20px 22px; display:flex; flex-direction:column; position:relative; overflow:hidden;
       transition:border-color 0.3s, box-shadow 0.35s ease, transform 0.35s cubic-bezier(.22,1,.36,1); cursor:pointer; animation:cardIn 0.5s cubic-bezier(.22,1,.36,1) both;
       will-change:transform;
@@ -405,10 +405,15 @@
     .section-hdr {
       grid-column: 1 / -1;
       display: flex; align-items: center; gap: 10px;
-      font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
-      color: var(--muted); padding: 0 2px; pointer-events: none; user-select: none;
+      font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+      color: #a5b4fc;
+      padding: 0 8px;
+      border-radius: 10px;
+      background: rgba(99,102,241,0.08);
+      border: 1px solid rgba(99,102,241,0.25);
+      pointer-events: none; user-select: none;
     }
-    .section-hdr::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+    .section-hdr::after { content: ''; flex: 1; height: 1px; background: linear-gradient(90deg, rgba(99,102,241,0.4), transparent); }
   </style>
 </head>
 <body>
@@ -508,14 +513,14 @@ const SVCS=[
   {name:'FinalSite',su:'https://status.finalsite.com/api/v2/status.json',iu:'https://status.finalsite.com/api/v2/incidents.json',hu:'https://status.finalsite.com',cat:'app'},
   {name:'Dexcom',su:'https://status.dexcom.com/api/v2/status.json',iu:'https://status.dexcom.com/api/v2/incidents.json',hu:'https://status.dexcom.com',cat:'app'},
   {name:'Adobe CC',su:'https://data.status.adobe.com/adobestatus/SnowServiceRegistry',iu:'https://data.status.adobe.com/adobestatus/StatusEvents',hu:'https://status.adobe.com/cloud/creative_cloud',p:'adobe',cat:'app'},
-  {name:'Google Workspace',su:'https://www.google.com/appsstatus/json/en',hu:'https://workspace.google.com/dashboard/',p:'gworkspace',cat:'app'},
+  {name:'Google Workspace',su:'https://www.google.com/appsstatus/dashboard/incidents.json',pu:'https://www.google.com/appsstatus/dashboard/products.json',hu:'https://www.google.com/appsstatus/dashboard/',p:'gworkspace',cat:'collab'},
   // Infrastructure Providers
   {name:'Cloudflare',su:'https://www.cloudflarestatus.com/api/v2/status.json',iu:'https://www.cloudflarestatus.com/api/v2/incidents.json',hu:'https://www.cloudflarestatus.com',p:'cloudflare',cat:'infra'},
   {name:'DNSFilter',su:'https://status.dnsfilter.com/api/v2/status.json',iu:'https://status.dnsfilter.com/api/v2/incidents.json',hu:'https://status.dnsfilter.com',cat:'infra'},
   {name:'Meraki',su:'https://status.meraki.net/api/v2/status.json',iu:'https://status.meraki.net/api/v2/incidents.json',hu:'https://status.meraki.net',cat:'infra'},
-  {name:'AWS',su:'https://status.aws.amazon.com/data.json',hu:'https://health.aws.amazon.com/health/status',p:'aws',cat:'infra'},
-  {name:'Azure',su:'https://azure.status.microsoft/api/v2/status.json',iu:'https://azure.status.microsoft/api/v2/incidents.json',hu:'https://azure.status.microsoft/en-us/status',cat:'infra'},
-  {name:'Google Cloud',su:'https://status.cloud.google.com/incidents.json',hu:'https://status.cloud.google.com',p:'gcloud',cat:'infra'},
+  {name:'AWS',su:'https://status.aws.amazon.com/data.json',hu:'https://health.aws.amazon.com/health/status',p:'aws',cat:'cloud'},
+  {name:'Azure',su:'https://azure.status.microsoft/en-us/status',hu:'https://azure.status.microsoft/en-us/status',p:'azure',cat:'cloud'},
+  {name:'Google Cloud',su:'https://status.cloud.google.com/incidents.json',hu:'https://status.cloud.google.com',p:'gcloud',cat:'cloud'},
 ];
 
 window._pi = window._pi || {};
@@ -760,6 +765,28 @@ async function getJson(url, provider){
   return JSON.parse(t.replace(/^﻿/,''));
 }
 
+async function getTextDecoded(url, provider){
+  let err;
+  for(const idx of proxyOrder(provider)){
+    try {
+      const r=await fetchWithTimeout(PROXIES[idx](url));
+      if(!r.ok) throw new Error(String(r.status));
+      const buf=await r.arrayBuffer();
+      const bytes=new Uint8Array(buf);
+      if(bytes.length>=2){
+        const b0=bytes[0], b1=bytes[1];
+        if(b0===0xFF && b1===0xFE) return new TextDecoder('utf-16le').decode(bytes);
+        if(b0===0xFE && b1===0xFF) return new TextDecoder('utf-16be').decode(bytes);
+      }
+      if(bytes.length>6 && bytes[1]===0 && bytes[3]===0 && bytes[5]===0){
+        return new TextDecoder('utf-16le').decode(bytes);
+      }
+      return new TextDecoder('utf-8').decode(bytes);
+    } catch(e){ err=e; }
+  }
+  throw err;
+}
+
 function stripHtml(txt){
   return String(txt||'').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();
 }
@@ -909,11 +936,13 @@ async function fetchOne(s){
 
   if(s.p==='aws'){
     try {
-      const d=await getJson(s.su, s.p);
-      const current=(d?.current||[]).filter(x=>x.status>0);
+      const text=await getTextDecoded(s.su, s.p);
+      const d=JSON.parse(text.replace(/^﻿/,''));
+      const records=Array.isArray(d) ? d : (d?.current||[]);
+      const current=(records||[]).filter(x=>Number(x.status)>0);
       if(!current.length) return mk(s.name,'none','','',new Date().toLocaleString(),s.hu);
-      const worst=current.reduce((a,b)=>b.status>a.status?b:a,current[0]);
-      const ind=worst.status>=2 ? 'major' : 'minor';
+      const worst=current.reduce((a,b)=>Number(b.status)>Number(a.status)?b:a,current[0]);
+      const ind=Number(worst.status)>=3 ? 'major' : 'minor';
       const title=worst.service_name||'AWS Issue';
       const body=stripHtml(worst.summary||worst.description||'');
       return mk(s.name,ind,title,body,new Date().toLocaleString(),s.hu);
@@ -933,22 +962,41 @@ async function fetchOne(s){
     } catch { return errSvc(s); }
   }
 
-  if(s.p==='gworkspace'){
+  if(s.p==='azure'){
     try {
-      const text=await getText(s.su, s.p);
-      // Google returns a JSONP-like payload; strip any leading/trailing non-JSON characters
-      const json=JSON.parse(text.replace(/^\s*[^[{]*/, '').replace(/\s*[^}\]]*$/, ''));
-      const services=Array.isArray(json) ? json : (json.status||[]);
-      const issues=services.filter(x=>{
-        const st=(x.status||'').toLowerCase();
-        return st && st!=='ok' && st!=='available' && st!=='operational' && st!=='normal';
-      });
-      if(!issues.length) return mk(s.name,'none','','',new Date().toLocaleString(),s.hu);
-      const ind=issues.some(x=>/(outage|disruption|down)/i.test(x.status||'')) ? 'major' : 'minor';
-      const names=issues.map(x=>x.name||x.service||'').filter(Boolean).join(', ');
-      return mk(s.name,ind,names ? `Issues: ${names}` : 'Service Disruption','',new Date().toLocaleString(),s.hu);
+      const html=await getText(s.su, s.p);
+      const currentBlock=(html.match(/<tr class="current-incident">[\s\S]*?<\/tr>/i)||[])[0]||'';
+      const plain=stripHtml(currentBlock).toLowerCase();
+      const isNoActive=/no active events|no current service availability issues|currently no active events/.test(plain);
+      if(isNoActive){
+        return mk(s.name,'none','','',new Date().toLocaleString(),s.hu);
+      }
+      const title='Azure widespread incident';
+      const body=stripHtml(currentBlock) || 'Potential Azure widespread impact. Check Azure status page for details.';
+      const ind=/immediate attention|widespread issues|critical/.test(plain) ? 'major' : 'minor';
+      return mk(s.name,ind,title,body,new Date().toLocaleString(),s.hu);
     } catch { return errSvc(s); }
   }
+
+  if(s.p==='gworkspace'){
+    try {
+      const [incidents, products]=await Promise.all([
+        getJson(s.su, s.p),
+        s.pu ? getJson(s.pu, s.p).catch(()=>[]) : Promise.resolve([])
+      ]);
+      const active=(incidents||[]).filter(x=>!x.end || x.end===null);
+      if(!active.length) return mk(s.name,'none','','',new Date().toLocaleString(),s.hu);
+      const productList=Array.isArray(products) ? products : (products?.products||[]);
+      const productMap=new Map(productList.map(p=>[String(p.id), p.title||p.product||p.name]));
+      const isMajor=active.some(x=>/(outage|disruption|down|service unavailable)/i.test((x.external_desc||'')+' '+(x.status_impact||'')));
+      const ind=isMajor ? 'major' : 'minor';
+      const names=[...new Set(active.flatMap(x=>(x.affected_products||[]).map(id=>productMap.get(String(id))).filter(Boolean)))];
+      const title=names.length ? `Issues: ${names.slice(0,4).join(', ')}${names.length>4?'…':''}` : 'Google Workspace Incident';
+      const body=stripHtml(active[0].external_desc || active[0].description || 'See Google Workspace dashboard for details.');
+      return mk(s.name,ind,title,body,new Date().toLocaleString(),s.hu);
+    } catch { return errSvc(s); }
+  }
+
 
   if(s.p==='cloudflare'){
     try {
@@ -1270,7 +1318,8 @@ async function init(){
   const sort=(arr)=>[...arr].sort((a,b)=>(PRI[a.ind]||9)-(PRI[b.ind]||9));
   const groups=[
     {label:'Applications & Platforms', items: sort(results.filter(s=>s.cat==='app'))},
-    {label:'Infrastructure',           items: sort(results.filter(s=>s.cat==='infra'))}
+    {label:'Productivity & Collaboration', items: sort(results.filter(s=>s.cat==='collab'))},
+    {label:'Cloud Infrastructure', items: sort(results.filter(s=>s.cat==='cloud' || s.cat==='infra'))}
   ].filter(g=>g.items.length);
 
   // Build flat page list
