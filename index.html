@@ -888,9 +888,9 @@ function cloudflareStatusLabel(status){
   const val=String(status||'').toLowerCase().trim();
   if(val==='operational') return 'Operational';
   if(val==='under_maintenance') return 'Maintenance';
-  if(val==='degraded_performance') return 'Partially Re-routed';
-  if(val==='partial_outage') return 'Partially Re-routed';
-  if(val==='major_outage') return 'Re-routed';
+  if(val==='degraded_performance') return 'Operational';
+  if(val==='partial_outage') return 'Operational';
+  if(val==='major_outage') return 'Operational';
   return 'Unknown';
 }
 
