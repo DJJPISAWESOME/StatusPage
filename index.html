@@ -94,6 +94,26 @@
     .pill-dot { width:6px; height:6px; border-radius:50%; background:currentColor; animation:blink 2s ease-in-out infinite; }
     @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.25} }
     .hdr-right { display:flex; align-items:center; gap:20px; }
+    .incident-pin {
+      display:none;
+      align-items:center;
+      gap:8px;
+      padding:8px 14px;
+      border-radius:10px;
+      font-size:13px;
+      font-weight:700;
+      letter-spacing:0.02em;
+      white-space:nowrap;
+      border:1px solid transparent;
+      background:rgba(34,197,94,0.08);
+      color:var(--ok);
+    }
+    .incident-pin.show { display:inline-flex; }
+    .incident-pin.major { background:rgba(239,68,68,0.12); border-color:rgba(239,68,68,0.3); color:#fecaca; }
+    .incident-pin.minor { background:rgba(245,158,11,0.12); border-color:rgba(245,158,11,0.3); color:#fcd34d; }
+    .incident-pin.maintenance { background:rgba(59,130,246,0.12); border-color:rgba(59,130,246,0.3); color:#bfdbfe; }
+    .incident-pin.rerouting { background:rgba(20,184,166,0.12); border-color:rgba(20,184,166,0.3); color:#99f6e4; }
+    .incident-pin-dot { width:8px; height:8px; border-radius:50%; background:currentColor; animation:blink 2s ease-in-out infinite; }
     .stats { display:flex; align-items:center; gap:16px; }
     .stat { display:flex; align-items:center; gap:5px; font-size:13px; color:var(--muted); }
     .sdot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
@@ -357,6 +377,35 @@
       50% { box-shadow:0 18px 48px rgba(0,0,0,0.55), 0 0 0 14px rgba(239,68,68,0); }
     }
 
+    @media (min-width: 1600px) {
+      .shell { padding:28px 30px 20px; gap:20px; }
+      .brand-name { font-size:24px; }
+      .brand-sub { font-size:15px; }
+      .pill { font-size:16px; padding:10px 18px; }
+      .incident-pin { font-size:16px; padding:10px 16px; }
+      .stat { font-size:16px; }
+      .stat strong { font-size:20px; }
+      .clock { font-size:22px; }
+      .c-name { font-size:28px; }
+      .c-badge { font-size:17px; }
+      .inc-title { font-size:24px; }
+      .inc-body { font-size:18px; }
+      .meta-updated { font-size:15px; }
+      .meta-tag { font-size:14px; }
+    }
+
+    @media (min-width: 2200px) {
+      .brand-name { font-size:28px; }
+      .pill { font-size:18px; }
+      .incident-pin { font-size:18px; }
+      .stat { font-size:18px; }
+      .stat strong { font-size:24px; }
+      .clock { font-size:26px; }
+      .c-name { font-size:32px; }
+      .inc-title { font-size:27px; }
+      .inc-body { font-size:20px; }
+    }
+
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after {
         animation:none !important;
@@ -437,6 +486,7 @@
     </div>
     <div class="pill" id="pill"><span class="pill-dot"></span><span id="pill-txt">Loading…</span></div>
     <div class="hdr-right">
+      <div class="incident-pin" id="incident-pin"></div>
       <div class="stats">
         <div class="stat"><span class="sdot" style="background:var(--ok)"></span><strong id="n-ok">—</strong>&nbsp;Operational</div>
         <div class="stat"><span class="sdot" style="background:var(--warn)"></span><strong id="n-warn">—</strong>&nbsp;Degraded</div>
@@ -1499,6 +1549,27 @@ function startRot(n){
   if(n>1) rTimer=setInterval(()=>goPage((cur+1)%n),ROT_MS);
 }
 
+function updateIncidentPin(data){
+  const pin=document.getElementById('incident-pin');
+  if(!pin) return;
+  const active=[...data]
+    .filter(s=>['major','minor','maintenance','rerouting'].includes(s.ind))
+    .sort((a,b)=>{
+      const pri=(PRI[a.ind]||9)-(PRI[b.ind]||9);
+      return pri!==0 ? pri : a.name.localeCompare(b.name);
+    });
+
+  if(!active.length){
+    pin.className='incident-pin';
+    pin.textContent='';
+    return;
+  }
+
+  const top=active[0];
+  pin.className=`incident-pin show ${top.ind}`;
+  pin.innerHTML=`<span class="incident-pin-dot"></span><span>${top.name}: ${top.label}</span>`;
+}
+
 function updateStats(data){
   const ok=data.filter(s=>s.ind==='none').length;
   const wn=data.filter(s=>s.ind==='minor').length;
@@ -1520,6 +1591,8 @@ function updateStats(data){
   const statUnknown = document.getElementById('stat-unknown');
   if(un>0) statUnknown.classList.add('show');
   else statUnknown.classList.remove('show');
+
+  updateIncidentPin(data);
 
   const pill=document.getElementById('pill');
   const txt=document.getElementById('pill-txt');
@@ -1574,7 +1647,7 @@ async function init(){
   const H=wrap.clientHeight || 640;
   const GAP=12;
   const SECTION_HDR_H=32;
-  const cols=W>=1600 ? 4 : W>=960 ? 3 : 2;
+  const cols=W>=2200 ? 3 : W>=1600 ? 4 : W>=960 ? 3 : 2;
   const rowsPerPage=2; // always 2 rows
   const CARD_H=Math.floor((H - GAP*(rowsPerPage-1)) / rowsPerPage);
   // Header pages: same row count, cards slightly shorter to fit the section label
