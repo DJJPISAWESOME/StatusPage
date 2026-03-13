@@ -1300,6 +1300,16 @@ function calcJitter(times){
 }
 function calcAvg(arr){ return (!arr||!arr.length)?null:arr.reduce((a,b)=>a+b,0)/arr.length; }
 function pct90(arr){ if(!arr||!arr.length) return null; const s=[...arr].sort((a,b)=>a-b); return s[Math.floor(s.length*0.9)]||s[s.length-1]; }
+function ipVersion(ip){
+  if(typeof ip!=='string'||!ip) return 'Unknown';
+  if(ip.includes(':')) return 'IPv6';
+  if(ip.includes('.')) return 'IPv4';
+  return 'Unknown';
+}
+function protocolAllowed(proto){
+  const normalized=String(proto||'').trim().toUpperCase();
+  return !!normalized && normalized!=='HTTP/1.1';
+}
 
 // ─── Download phase: streams bytes and fires concurrent pings ─────────────────
 async function runDownloadPhase(){
@@ -1483,8 +1493,10 @@ function updateServerInfo(meta){
     ?meta.colo
     :(meta.colo&&typeof meta.colo==='object'?(meta.colo.code||meta.colo.iata||meta.colo.name||''):String(meta.colo||''));
   const serverCity=[meta.city,coloCode].filter(Boolean).join(' / ')||'Unknown';
+  const version=ipVersion(meta.clientIp);
   el.innerHTML=`
     <div class="net-info-line"><span class="net-info-icon">🔗</span><span>Connected via <span class="net-info-val">${meta.httpProtocol||'Unknown'}</span></span></div>
+    <div class="net-info-line"><span class="net-info-icon">🧭</span><span>IP version: <span class="net-info-val">${version}</span></span></div>
     <div class="net-info-line"><span class="net-info-icon">📍</span><span>Server location: <span class="net-info-val">${serverCity}</span></span></div>
     <div class="net-info-line"><span class="net-info-icon">🏢</span><span>Your network: <span class="net-info-val">${meta.asOrganization||(meta.asn?'AS'+meta.asn:'Unknown')}</span></span></div>
     <div class="net-info-line"><span class="net-info-icon">🌐</span><span>Your IP: <span class="net-info-val">${meta.clientIp||'Unknown'}</span></span></div>`;
@@ -1567,6 +1579,13 @@ async function runFullSpeedTest(){
       updateServerInfo(meta);
       showNetMap(meta);
     }
+    const currentIpVersion=ipVersion(meta.clientIp);
+    if(currentIpVersion!=='IPv4'){
+      throw new Error('Speed test requires IPv4 connectivity');
+    }
+    if(!protocolAllowed(meta.httpProtocol)){
+      throw new Error('Speed test requires HTTP/2 or HTTP/3');
+    }
 
     // 2. Unloaded latency (20 concurrent pings, 150ms apart ≈ 5s max)
     setNetPhase('Measuring unloaded latency…');
@@ -1629,7 +1648,8 @@ async function runFullSpeedTest(){
     if(netMapInstance) setTimeout(()=>netMapInstance.invalidateSize(),200);
 
   }catch(e){
-    setNetPhase('Error — please retry','');
+    const msg=(e&&e.message)?e.message:'Error — please retry';
+    setNetPhase(msg,'');
   }finally{
     netTestRunning=false;
     if(retestBtn) retestBtn.disabled=false;
