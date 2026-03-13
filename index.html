@@ -591,18 +591,6 @@
     .net-bp-axis-tick:first-child { transform:translateX(0); }
     .net-bp-axis-tick:last-child { transform:translateX(-100%); }
 
-    /* Quality scores */
-    .net-quality { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:10px 14px; flex-shrink:0; }
-    .net-quality-title { font-size:13px; font-weight:700; color:var(--sub); text-transform:uppercase; letter-spacing:0.07em; margin-bottom:8px; display:flex; align-items:center; gap:8px; }
-    .net-quality-title::after { content:''; flex:1; height:1px; background:var(--border); }
-    .net-quality-row { display:flex; align-items:center; gap:0; }
-    .net-quality-item { flex:1; display:flex; align-items:center; gap:6px; padding:2px 0; }
-    .net-quality-sep { width:1px; height:24px; background:var(--border); flex-shrink:0; margin:0 12px; }
-    .net-quality-name { font-size:16px; color:var(--sub); white-space:nowrap; }
-    .net-quality-score { font-size:17px; font-weight:700; }
-    .net-quality-score.great { color:#22c55e; }
-    .net-quality-score.good { color:#f59e0b; }
-    .net-quality-score.poor { color:#ef4444; }
 
     /* Footer row */
     .net-footer-row { display:flex; align-items:center; justify-content:space-between; flex-shrink:0; gap:12px; }
@@ -749,13 +737,6 @@
           <div class="net-lat-section-hdr">Latency Measurements</div>
           <div class="net-bp-rows" id="net-bp-rows">
             <div class="net-placeholder"><div class="net-spinner"></div>Waiting for test…</div>
-          </div>
-        </div>
-        <!-- Network quality -->
-        <div class="net-quality">
-          <div class="net-quality-title">Network Quality Score</div>
-          <div class="net-quality-row" id="net-quality-row">
-            <div class="net-placeholder">—</div>
           </div>
         </div>
         <!-- Footer -->
@@ -1465,17 +1446,6 @@ function updateSpeedChart(svgId, samples, color){
   lb.setAttribute('y',(p90y-2).toFixed(1));
 }
 
-function calcQuality(r){
-  const lat=r.avgLatency||999, jit=r.jitter||999, loss=r.packetLoss||0;
-  const dl=r.downloadMbps||0, ul=r.uploadMbps||0;
-  const rate=(g,ok)=>g?'great':ok?'good':'poor';
-  return{
-    streaming:rate(dl>=25&&jit<20&&loss<0.5, dl>=5&&jit<50&&loss<2),
-    gaming:rate(lat<20&&jit<5&&loss<1, lat<50&&jit<15&&loss<3),
-    chatting:rate(dl>=5&&ul>=3&&lat<50, dl>=1&&ul>=1&&lat<100)
-  };
-}
-
 function updateServerInfo(meta){
   const el=document.getElementById('net-server-info');
   if(!el) return;
@@ -1549,8 +1519,6 @@ async function runFullSpeedTest(){
   });
   const bpRows=el('net-bp-rows');
   if(bpRows) bpRows.innerHTML='<div class="net-placeholder"><div class="net-spinner"></div>Running measurements…</div>';
-  const qr=el('net-quality-row');
-  if(qr) qr.innerHTML='<div class="net-placeholder">—</div>';
   clearSpeedChart('net-dl-chart'); clearSpeedChart('net-ul-chart');
   const sinfo=el('net-server-info');
   if(sinfo) sinfo.innerHTML='<div class="net-placeholder"><div class="net-spinner"></div>Connecting…</div>';
@@ -1610,15 +1578,9 @@ async function runFullSpeedTest(){
       renderNetBoxPlot(dlResult.latencies,'Latency during download','245,158,11',axisMax,26)+
       renderNetBoxPlot(ulResult.latencies,'Latency during upload','139,92,246',axisMax,20);
 
-    // 6. Quality scores
     const results={avgLatency:avgLat,jitter:jit,packetLoss:loss,downloadMbps:dlResult.mbps,uploadMbps:ulResult.mbps};
-    const q=calcQuality(results);
-    if(qr) qr.innerHTML=[['Video Streaming',q.streaming],['Online Gaming',q.gaming],['Video Chatting',q.chatting]]
-      .map(([name,score],i,arr)=>
-        `${i>0?'<div class="net-quality-sep"></div>':''}<div class="net-quality-item"><span class="net-quality-name">${name}:</span>&nbsp;<span class="net-quality-score ${score}">${score.charAt(0).toUpperCase()+score.slice(1)}</span></div>`
-      ).join('');
 
-    // 7. Timestamp + done
+    // 6. Timestamp + done
     const ts=el('net-timestamp');
     if(ts) ts.textContent='Measured at '+new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',second:'2-digit'});
     setNetPhase('Test complete',  'done');
@@ -2189,7 +2151,7 @@ function nextLogo(img){
 }
 
 // Returns the iOS-style snap size for a widget based on incident text volume.
-// Grid uses 4 rows per page so mini (no-incident) = 1 row ≈ half the old normal height.
+// Grid uses 2 rows per page so mini (no-incident) cards still use a single row.
 // Sizes: 1×1 mini (no incidents), 1×2 normal, 2×2 expanded-wide, 1×3 expanded-tall, 2×4 large.
 function getCardSize(svc, cols){
   // No incidents → mini half-size card
@@ -2475,7 +2437,7 @@ async function init(){
   const GAP=12;
   const SECTION_HDR_H=32;
   const cols=W>=1600 ? 4 : W>=960 ? 3 : 2;
-  const rowsPerPage=4; // 4 rows: mini (no-incident) cards = 1 row, normal = 2 rows, expanded = 3, large = 4
+  const rowsPerPage=2; // max 2 rows per page
   const CARD_H=Math.floor((H - GAP*(rowsPerPage-1)) / rowsPerPage);
   // Header pages: same row count, cards slightly shorter to fit the section label
   const hdrAvailH=H - SECTION_HDR_H - GAP;
