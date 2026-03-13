@@ -109,20 +109,19 @@
     .stat.unknown-stat { display: none; }
     .stat.unknown-stat.show { display: flex; }
     .clock {
-      font-size:18px;
-      font-weight:600;
-      color:var(--sub);
+      font-size:20px;
+      font-weight:700;
+      color:rgba(244,244,245,0.9);
       font-variant-numeric:tabular-nums;
-      letter-spacing:0.02em;
+      letter-spacing:0.035em;
       display:inline-flex;
       align-items:baseline;
       gap:2px;
-      padding:6px 11px;
-      border-radius:999px;
-      border:1px solid rgba(255,255,255,0.12);
-      background:linear-gradient(145deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02));
-      text-shadow:0 0 16px rgba(59,130,246,0.2);
-      box-shadow:inset 0 1px 0 rgba(255,255,255,0.08);
+      padding:0;
+      border:none;
+      background:none;
+      text-shadow:0 6px 18px rgba(59,130,246,0.18);
+      box-shadow:none;
     }
     .clock .clock-unit {
       display:inline-flex;
@@ -140,15 +139,17 @@
     .clock .clock-num.slide-up { animation:clockDigitUp 0.32s cubic-bezier(.22,1,.36,1); }
     .clock .clock-num.slide-down { animation:clockDigitDown 0.32s cubic-bezier(.22,1,.36,1); }
     .clock .clock-sep {
-      color:rgba(244,244,245,0.62);
+      color:rgba(244,244,245,0.42);
       min-width:6px;
       text-align:center;
     }
     .clock .clock-meridiem {
-      font-size:12px;
-      letter-spacing:0.08em;
-      margin-left:6px;
-      color:rgba(161,161,170,0.9);
+      font-size:11px;
+      letter-spacing:0.12em;
+      margin-left:8px;
+      color:rgba(161,161,170,0.85);
+      font-weight:600;
+      text-transform:uppercase;
     }
     @keyframes clockDigitUp { from { transform:translateY(105%); opacity:0; } to { transform:translateY(0); opacity:1; } }
     @keyframes clockDigitDown { from { transform:translateY(-105%); opacity:0; } to { transform:translateY(0); opacity:1; } }
@@ -536,6 +537,7 @@ const LABELS={none:'Operational',minor:'Degraded',major:'Outage',maintenance:'Ma
 function normalizeIndicator(ind){
   const val=String(ind||'none').toLowerCase().trim();
   if(['none','operational','ok','up'].includes(val)) return 'none';
+  if(val.includes('rerout')) return 'rerouting';
   if(['minor','degraded','warning','partial_outage','partial outage'].includes(val)) return 'minor';
   if(['maintenance','under_maintenance','scheduled','scheduled_maintenance'].includes(val)) return 'maintenance';
   if(['major','critical','down','outage'].includes(val)) return 'major';
@@ -545,10 +547,16 @@ function normalizeIndicator(ind){
 function componentStatusToIndicator(status){
   const val=String(status||'').toLowerCase().trim();
   if(val==='operational') return 'none';
+  if(val.includes('rerout')) return 'rerouting';
   if(['degraded_performance','partial_outage'].includes(val)) return 'minor';
   if(val==='major_outage') return 'major';
   if(val==='under_maintenance') return 'maintenance';
   return 'unknown';
+}
+
+function isNorthAmericaAwsEvent(event){
+  const region=String(event?.region_name||'').toLowerCase();
+  return /\b(us|usa|united states|north america|canada|ca-central|na-)/.test(region);
 }
 
 let audioCtx;
@@ -977,7 +985,7 @@ async function fetchOne(s){
       const d=await getJsonEncoded(s.su, s.p);
       // Response is a plain array of current events
       const items=Array.isArray(d) ? d : (d?.current||[]);
-      const current=items.filter(x=>parseInt(x.status||'0')>0);
+      const current=items.filter(x=>parseInt(x.status||'0')>0).filter(isNorthAmericaAwsEvent);
       if(!current.length) return mk(s.name,'none','','',new Date().toLocaleString(),s.hu);
       const worst=current.reduce((a,b)=>parseInt(b.status||'0')>parseInt(a.status||'0')?b:a,current[0]);
       const ind=parseInt(worst.status||'0')>=2 ? 'major' : 'minor';
@@ -1058,6 +1066,9 @@ async function fetchOne(s){
       );
       const watched=components.filter(c=>targetGroupIds.has(c.id) || targetGroupIds.has(c.group_id));
       const watchedIds=new Set(watched.map(c=>c.id));
+      const affectedNorthAmerica=watched
+        .filter(c=>c.group_id && componentStatusToIndicator(c.status)!=='none')
+        .sort((a,b)=>((PRI[componentStatusToIndicator(a.status)]||9)-(PRI[componentStatusToIndicator(b.status)]||9)) || a.name.localeCompare(b.name));
 
       if(watched.length){
         const worst=watched.reduce((max,c)=>{
@@ -1086,7 +1097,18 @@ async function fetchOne(s){
         let desc=stripHtml(a.description||'');
         if(!desc && a.incident_updates?.[0]?.body) desc=stripHtml(a.incident_updates[0].body);
         body=desc;
-      } else if(watched.length && ind!=='none'){
+      }
+
+      if(affectedNorthAmerica.length){
+        const impactsList=affectedNorthAmerica
+          .map(c=>`• ${c.name}: ${LABELS[componentStatusToIndicator(c.status)]||'Impacted'}`)
+          .join('<br>');
+
+        if(!title){
+          title=`${affectedNorthAmerica.length} non-operational North America status${affectedNorthAmerica.length===1?'':'es'}`;
+        }
+        body=`${body ? `${body}<br><br>` : ''}<strong>North America affected areas:</strong><br>${impactsList}`;
+      } else if(watched.length && ind!=='none' && !title){
         const topIssue=watched
           .filter(c=>componentStatusToIndicator(c.status)!=='none')
           .sort((a,b)=>((PRI[componentStatusToIndicator(a.status)]||9)-(PRI[componentStatusToIndicator(b.status)]||9)) || a.name.localeCompare(b.name))[0];
@@ -1397,13 +1419,11 @@ async function init(){
   const pages=[];
   for(const group of groups){
     let rem=[...group.items];
-    let first=true;
     while(rem.length){
       // If taking a full page would leave exactly 1 card stranded, take one fewer now
       const take=(rem.length > perPage && rem.length - perPage === 1) ? perPage - 1 : Math.min(perPage, rem.length);
       const cards=rem.splice(0, take);
-      pages.push({header: first ? group.label : null, headerMeta: first ? {issues:group.issues, hasOutage:group.hasOutage, hasDegraded:group.hasDegraded} : null, cards});
-      first=false;
+      pages.push({header: group.label, headerMeta: {issues:group.issues, hasOutage:group.hasOutage, hasDegraded:group.hasDegraded}, cards});
     }
   }
   const totalPages=pages.length;
