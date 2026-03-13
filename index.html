@@ -1015,43 +1015,46 @@ async function fetchOne(s){
 
   if(s.p==='cloudflare'){
     try {
-      const [sd,id]=await Promise.all([
-        getJson(s.su, s.p),
+      const [summary,id]=await Promise.all([
+        getJson('https://www.cloudflarestatus.com/api/v2/summary.json', s.p),
         s.iu ? getJson(s.iu, s.p).catch(()=>({incidents:[]})) : Promise.resolve({incidents:[]})
       ]);
-      let ind=normalizeIndicator(sd?.status?.indicator||'none');
-      const updated=sd?.page?.updated_at ? new Date(sd.page.updated_at).toLocaleString() : new Date().toLocaleString();
+      const updated=summary?.page?.updated_at ? new Date(summary.page.updated_at).toLocaleString() : new Date().toLocaleString();
+      const components=summary?.components||[];
+      const targetNames=['North America','Cloudflare Sites and Services'];
+      const targetGroups=components.filter(c=>targetNames.includes(c.name));
+      const targetGroupIds=new Set(targetGroups.map(c=>c.id));
+      const scopedComponents=components.filter(c=>targetGroupIds.has(c.id)||targetGroupIds.has(c.group_id));
+      const componentNames=new Set(scopedComponents.map(c=>c.name));
       const active=(id?.incidents||[]).filter(x=>['investigating','identified','monitoring'].includes((x.status||'').toLowerCase()));
-      let title='', body='';
-      if(active.length){
-        const a=active[0];
-        const allUpdates=(a.incident_updates||[]).map(u=>u.body||'').join(' ');
-        const incidentText=(a.name+' '+(a.description||'')+' '+allUpdates).toLowerCase();
+      const scopedActive=active.filter((inc)=>{
+        const refs=inc.components||[];
+        return refs.some(ref=>targetGroupIds.has(ref.id)||componentNames.has(ref.name));
+      });
 
-        // Detect traffic rerouting language (mitigating a localized issue by redirecting traffic)
-        const isRerouting=/re.?rout(?:ing|ed)|traffic.*redirect|redirect.*traffic/.test(incidentText);
-
-        // Detect North American data center references
-        const hasNADC=/north.?america|united.?states|\bcanada\b|atlanta|chicago|dallas|denver|los.?angeles|las.?vegas|miami|minneapolis|new.?york|phoenix|san.?jose|san.?francisco|seattle|washington.?d\.?c|toronto|montreal|vancouver|\batl\b|\bord\b|\bdfw\b|\bden\b|\blax\b|\blas\b|\bmia\b|\bmsp\b|\bewr\b|\bjfk\b|\bphx\b|\bsjc\b|\bsfo\b|\bsea\b|\biad\b|\byyz\b|\byul\b|\byvr\b/.test(incidentText);
-
-        title=a.name||'';
-        let desc=stripHtml(a.description||'');
-        if(!desc && a.incident_updates?.[0]?.body) desc=stripHtml(a.incident_updates[0].body);
-        body=desc;
-
-        if(isRerouting && !hasNADC){
-          // Traffic being rerouted away from non-North-American locations only — services remain
-          // available via alternate paths, so this is informational rather than an outage
-          ind='rerouting';
-          if(!title) title='Traffic Being Rerouted';
-        } else {
-          // Actual service issue or North American data center affected — show real impact level
-          if(ind==='none'){
-            const impact=normalizeIndicator(a.impact||'none');
-            if(impact!=='none') ind=impact;
-          }
-        }
+      let ind='none';
+      for(const c of scopedComponents){
+        const candidate=normalizeIndicator(c.status||'none');
+        if(PRI[candidate] < PRI[ind]) ind=candidate;
       }
+
+      let title='', body='';
+      if(scopedActive.length){
+        const a=scopedActive[0];
+        title=a.name||'';
+        body=stripHtml(a.description||'');
+        if(!body && a.incident_updates?.[0]?.body) body=stripHtml(a.incident_updates[0].body);
+        const impact=normalizeIndicator(a.impact||'none');
+        if(PRI[impact] < PRI[ind]) ind=impact;
+      } else if(ind!=='none'){
+        const impacted=scopedComponents
+          .filter(c=>normalizeIndicator(c.status||'none')!=='none' && !targetGroupIds.has(c.id))
+          .slice(0,4)
+          .map(c=>c.name);
+        title='Issue in selected Cloudflare categories';
+        if(impacted.length) body='Affected: '+impacted.join(', ');
+      }
+
       return mk(s.name,ind,title,body,updated,s.hu);
     } catch { return errSvc(s); }
   }
