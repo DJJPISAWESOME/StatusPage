@@ -643,6 +643,16 @@ function calcStdDev(values){
   return Math.sqrt(variance);
 }
 
+function createRandomPayload(size){
+  const bytes=new Uint8Array(size);
+  const chunkSize=65536;
+  for(let i=0;i<size;i+=chunkSize){
+    const end=Math.min(i+chunkSize,size);
+    crypto.getRandomValues(bytes.subarray(i,end));
+  }
+  return bytes;
+}
+
 async function runNetConnectionTest(){
   const traceRaw=await getText('https://speed.cloudflare.com/cdn-cgi/trace');
   const trace=parseTraceText(traceRaw);
@@ -650,20 +660,21 @@ async function runNetConnectionTest(){
   const downloadBytes=5_000_000;
   const dlStart=performance.now();
   const dlResp=await fetch(`https://speed.cloudflare.com/__down?bytes=${downloadBytes}&_=${Date.now()}`, {cache:'no-store'});
+  if(!dlResp.ok) throw new Error(`Download probe failed (${dlResp.status})`);
   const dlBuf=await dlResp.arrayBuffer();
   const dlMs=Math.max(performance.now()-dlStart,1);
   const downloadMbps=((dlBuf.byteLength*8)/(dlMs/1000))/1_000_000;
 
   const uploadBytes=2_000_000;
-  const uploadPayload=new Uint8Array(uploadBytes);
-  crypto.getRandomValues(uploadPayload);
+  const uploadPayload=createRandomPayload(uploadBytes);
   const ulStart=performance.now();
-  await fetch('https://speed.cloudflare.com/__up', {
+  const upResp=await fetch('https://speed.cloudflare.com/__up', {
     method:'POST',
     cache:'no-store',
     headers:{'content-type':'application/octet-stream'},
     body:uploadPayload
   });
+  if(!upResp.ok) throw new Error(`Upload probe failed (${upResp.status})`);
   const ulMs=Math.max(performance.now()-ulStart,1);
   const uploadMbps=((uploadBytes*8)/(ulMs/1000))/1_000_000;
 
@@ -1143,8 +1154,9 @@ async function fetchOne(s){
     try {
       const res=await refreshNetConnectionSnapshot();
       return mk(s.name,res.ind,res.title,res.body,res.updated,s.hu,res.labelOverride,res.labels);
-    } catch {
-      return mk(s.name,'unknown','Network test unavailable','Unable to complete the Cloudflare speed test right now. Try again on the next 10 minute cycle.',new Date().toLocaleString(),s.hu,'Network test',['10 min cadence']);
+    } catch (err) {
+      const reason=String(err?.message||'Unknown error').replace(/[<>]/g,'');
+      return mk(s.name,'unknown','Network test unavailable',`Unable to complete the Cloudflare speed test right now. Reason: ${reason}. Try again on the next 10 minute cycle.`,new Date().toLocaleString(),s.hu,'Network test',['10 min cadence']);
     }
   }
 
