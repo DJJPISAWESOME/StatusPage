@@ -666,17 +666,16 @@ async function runNetConnectionTest(){
   const downloadMbps=((dlBuf.byteLength*8)/(dlMs/1000))/1_000_000;
 
   const uploadBytes=2_000_000;
-  const uploadPayload=createRandomPayload(uploadBytes);
+  const uploadPayload=new Blob([createRandomPayload(uploadBytes)], {type:'text/plain'});
   const ulStart=performance.now();
   const upResp=await fetch('https://speed.cloudflare.com/__up', {
     method:'POST',
     cache:'no-store',
-    headers:{'content-type':'application/octet-stream'},
     body:uploadPayload
   });
   if(!upResp.ok) throw new Error(`Upload probe failed (${upResp.status})`);
   const ulMs=Math.max(performance.now()-ulStart,1);
-  const uploadMbps=((uploadBytes*8)/(ulMs/1000))/1_000_000;
+  const uploadMbps=((uploadPayload.size*8)/(ulMs/1000))/1_000_000;
 
   const latencyMeasurements=[];
   const latencyRuns=8;
