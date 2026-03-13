@@ -167,6 +167,7 @@
     .grid-wrap { flex:1; min-height:0; overflow:hidden; position:relative; }
     .page {
       position:absolute; inset:0; display:grid; gap:12px; align-content:start;
+      grid-auto-flow:row dense;
       opacity:0; pointer-events:none;
       transform:translateX(36px) scale(0.995);
       filter:blur(3px);
@@ -263,6 +264,9 @@
     .card.compact .inc-body { font-size:14px; --body-lines:3; }
     .card.compact .meta-updated { font-size:12px; }
     .card.compact .meta-tag { font-size:11px; }
+    .card.span-2w { grid-column:span 2; }
+    .card.span-2h { grid-row:span 2; }
+    .card.span-2x2 { grid-column:span 2; grid-row:span 2; }
     .footer { display:flex; align-items:center; justify-content:space-between; flex-shrink:0; gap:16px; }
     .f-left { display:flex; align-items:center; gap:20px; }
     .f-meta { font-size:12px; color:var(--muted); }
@@ -1476,7 +1480,27 @@ async function init(){
   const hdrAvailH=H - SECTION_HDR_H - GAP;
   const CARD_H_HDR=Math.floor((hdrAvailH - GAP*(rowsPerPage-1)) / rowsPerPage);
   const compactCards=CARD_H<290;
-  const perPage=cols*rowsPerPage; // same card count on all pages
+  const pageCapacity=cols*rowsPerPage; // total 1x1 tile slots per page
+
+  const incidentTextSize=(svc)=>{
+    const title=(svc.title||svc.label||'').trim();
+    const body=(svc.body||'').trim();
+    return (title.length*1.2)+body.length;
+  };
+
+  const getTileSpan=(svc)=>{
+    // iOS-style snapped tile sizes: 1x1, 2x1, 1x2, 2x2 (max 4 slots)
+    if(svc.ind==='none' || svc.ind==='unknown') return {units:1, cls:''};
+    const textSize=incidentTextSize(svc);
+    const isCritical=svc.ind==='major' || svc.ind==='maintenance';
+
+    if(textSize>420 || (isCritical && textSize>300)) return {units:4, cls:'span-2x2'};
+    if(textSize>250){
+      if(cols<=2) return {units:2, cls:'span-2h'};
+      return {units:2, cls:'span-2w'};
+    }
+    return {units:1, cls:''};
+  };
 
   // Group and sort each category independently
   const sort=(arr)=>[...arr].sort((a,b)=>{
@@ -1495,15 +1519,26 @@ async function init(){
     makeGroup('Infrastructure',           results.filter(s=>s.cat==='infra'))
   ].filter(g=>g.items.length);
 
-  // Build flat page list; avoid single-card last pages by borrowing one card from the prior page
+  // Build pages using snapped tile sizes so larger incidents can occupy 2 or 4 slots.
   const pages=[];
   for(const group of groups){
-    let rem=[...group.items];
-    while(rem.length){
-      // If taking a full page would leave exactly 1 card stranded, take one fewer now
-      const take=(rem.length > perPage && rem.length - perPage === 1) ? perPage - 1 : Math.min(perPage, rem.length);
-      const cards=rem.splice(0, take);
-      pages.push({header: group.label, headerMeta: {issues:group.issues, hasOutage:group.hasOutage, hasDegraded:group.hasDegraded}, cards});
+    let current=[];
+    let used=0;
+
+    for(const svc of group.items){
+      const span=getTileSpan(svc);
+      const units=Math.min(span.units, pageCapacity);
+      if(current.length && used+units>pageCapacity){
+        pages.push({header: group.label, headerMeta: {issues:group.issues, hasOutage:group.hasOutage, hasDegraded:group.hasDegraded}, cards:current});
+        current=[];
+        used=0;
+      }
+      current.push({svc, spanClass:span.cls});
+      used+=units;
+    }
+
+    if(current.length){
+      pages.push({header: group.label, headerMeta: {issues:group.issues, hasOutage:group.hasOutage, hasDegraded:group.hasDegraded}, cards:current});
     }
   }
   const totalPages=pages.length;
@@ -1515,13 +1550,13 @@ async function init(){
     const pg=document.createElement('div');
     pg.className=`page ${p===0?'active':''}`;
     const cardCount=pageData.cards.length;
-    const c=(cardCount>0 && cardCount<cols) ? cardCount : cols;
+    const c=cols;
     pg.style.gridTemplateColumns=`repeat(${c}, 1fr)`;
 
     if(pageData.header){
-      // Explicit rows: header row (auto) + card row(s) (CARD_H_HDR each — slightly shorter to fit header)
-      const cardRows=Math.max(1, Math.ceil(cardCount/cols));
-      pg.style.gridTemplateRows=`${SECTION_HDR_H}px ${Array(cardRows).fill(CARD_H_HDR+'px').join(' ')}`;
+      // Explicit rows: header row + fixed snapped rows for iOS-style widget sizing.
+      pg.style.gridTemplateRows=`${SECTION_HDR_H}px ${Array(rowsPerPage).fill(CARD_H_HDR+'px').join(' ')}`;
+      pg.style.gridAutoRows=CARD_H_HDR+'px';
       const hdr=document.createElement('div');
       hdr.className='section-hdr';
       const meta=pageData.headerMeta||{};
@@ -1535,11 +1570,13 @@ async function init(){
       hdr.innerHTML=`<span>${pageData.header}</span>${badge}`;
       pg.appendChild(hdr);
     } else {
+      pg.style.gridTemplateRows=Array(rowsPerPage).fill(CARD_H+'px').join(' ');
       pg.style.gridAutoRows=CARD_H+'px';
     }
 
-    pageData.cards.forEach((s,i)=>{
-      const card=mkCard(s,i*30);
+    pageData.cards.forEach((entry,i)=>{
+      const card=mkCard(entry.svc,i*30);
+      if(entry.spanClass) card.classList.add(entry.spanClass);
       if(compactCards) card.classList.add('compact');
       pg.appendChild(card);
     });
