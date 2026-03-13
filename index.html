@@ -2208,6 +2208,35 @@ function packToPages(items, cols, rows){
   return pages;
 }
 
+
+function packWithMinimumCards(items, cols, rows, minCardsPerPage=4){
+  const minCards=Math.max(1,Math.min(minCardsPerPage,items.length));
+  const maxPagesByMin=Math.max(1,Math.floor(items.length/minCards));
+  const targetPages=Math.max(1,maxPagesByMin);
+
+  if(items.length<minCardsPerPage*2){
+    return packToPages(items,cols,rows);
+  }
+
+  const base=Math.floor(items.length/targetPages);
+  const extra=items.length%targetPages;
+  const chunkSizes=Array.from({length:targetPages},(_,i)=>base+(i<extra?1:0));
+  if(chunkSizes.some(size=>size<minCardsPerPage)) return packToPages(items,cols,rows);
+
+  const packed=[];
+  let cursor=0;
+  for(const size of chunkSizes){
+    const chunk=items.slice(cursor,cursor+size);
+    cursor+=size;
+    const chunkPacked=packToPages(chunk,cols,rows);
+    if(chunkPacked.length!==1){
+      return packToPages(items,cols,rows);
+    }
+    packed.push(chunkPacked[0]);
+  }
+  return packed;
+}
+
 function rebalanceSingleCardPages(packed, cols, rows){
   for(let i=1;i<packed.length;i++){
     if(packed[i].length!==1) continue;
@@ -2496,7 +2525,7 @@ async function init(){
 
   const pages=[];
   for(const group of groups){
-    const packed=rebalanceSingleCardPages(packToPages(group.items,cols,rowsPerPage),cols,rowsPerPage);
+    const packed=rebalanceSingleCardPages(packWithMinimumCards(group.items,cols,rowsPerPage,4),cols,rowsPerPage);
     packed.forEach((pageCards,idx)=>{
       pages.push({
         header:idx===0?group.label:null,
