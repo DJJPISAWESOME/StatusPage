@@ -74,27 +74,29 @@
       padding:6px 0 18px;
       border-bottom:1px solid rgba(255,255,255,0.07);
     }
-    .brand { display:flex; align-items:center; gap:11px; }
+    .brand { display:flex; align-items:flex-start; gap:11px; }
     .brand-icon {
       width:34px; height:34px; border-radius:9px; flex-shrink:0;
       background:linear-gradient(135deg,#1d4ed8,#7c3aed);
       display:flex; align-items:center; justify-content:center;
     }
     .brand-icon svg { width:17px; height:17px; }
+    .brand-copy { display:flex; flex-direction:column; min-width:0; }
     .brand-name { font-size:18px; font-weight:700; letter-spacing:-0.025em; }
     .brand-sub { font-size:12px; color:var(--muted); margin-top:2px; letter-spacing:0.01em; }
+    .stats-under { margin-top:9px; }
     .incident-pin {
       display:none;
       align-items:center;
       gap:6px;
-      min-width:240px;
+      min-width:300px;
       max-width:min(46vw, 620px);
       padding:7px 14px;
       border-radius:8px;
       border:1px solid rgba(245,158,11,0.28);
       background:rgba(245,158,11,0.08);
       color:#fcd34d;
-      font-size:14px;
+      font-size:13px;
       font-weight:600;
       letter-spacing:0.01em;
       white-space:nowrap;
@@ -394,6 +396,11 @@
       .inc-body { font-size:15px; --body-lines:3; }
     }
 
+
+    @media (min-width: 1280px) and (max-width: 1599px) {
+      .inc-body { font-size:clamp(18px, 1.12vw, 25px); line-height:1.52; }
+    }
+
     @media (min-width: 1600px) {
       .brand-name { font-size:24px; }
       .brand-sub { font-size:15px; }
@@ -402,6 +409,7 @@
       .stat strong { font-size:19px; }
       .clock { font-size:22px; }
       .c-badge { font-size:15px; }
+      .inc-body { font-size:clamp(20px, 1.2vw, 28px); line-height:1.55; }
       .meta-updated { font-size:14px; }
       .meta-tag { font-size:13px; }
     }
@@ -464,18 +472,18 @@
             <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
           </svg>
         </div>
-        <div>
+        <div class="brand-copy">
           <div class="brand-name">Service Status</div>
           <div class="brand-sub">Live monitoring · auto-refresh every 2 min</div>
+          <div class="stats stats-under">
+            <div class="stat"><span class="sdot" style="background:var(--ok)"></span><strong id="n-ok">—</strong>&nbsp;Operational</div>
+            <div class="stat"><span class="sdot" style="background:var(--warn)"></span><strong id="n-warn">—</strong>&nbsp;Degraded</div>
+            <div class="stat"><span class="sdot" style="background:var(--bad)"></span><strong id="n-bad">—</strong>&nbsp;Down</div>
+            <div class="stat"><span class="sdot" style="background:var(--maint)"></span><strong id="n-maint">—</strong>&nbsp;Maintenance</div>
+            <div class="stat reroute-stat" id="stat-reroute"><span class="sdot" style="background:var(--reroute)"></span><strong id="n-reroute">—</strong>&nbsp;Rerouted</div>
+            <div class="stat unknown-stat" id="stat-unknown"><span class="sdot" style="background:var(--unknown)"></span><strong id="n-unknown">—</strong>&nbsp;Unknown</div>
+          </div>
         </div>
-      </div>
-      <div class="stats">
-        <div class="stat"><span class="sdot" style="background:var(--ok)"></span><strong id="n-ok">—</strong>&nbsp;Operational</div>
-        <div class="stat"><span class="sdot" style="background:var(--warn)"></span><strong id="n-warn">—</strong>&nbsp;Degraded</div>
-        <div class="stat"><span class="sdot" style="background:var(--bad)"></span><strong id="n-bad">—</strong>&nbsp;Down</div>
-        <div class="stat"><span class="sdot" style="background:var(--maint)"></span><strong id="n-maint">—</strong>&nbsp;Maintenance</div>
-        <div class="stat reroute-stat" id="stat-reroute"><span class="sdot" style="background:var(--reroute)"></span><strong id="n-reroute">—</strong>&nbsp;Rerouted</div>
-        <div class="stat unknown-stat" id="stat-unknown"><span class="sdot" style="background:var(--unknown)"></span><strong id="n-unknown">—</strong>&nbsp;Unknown</div>
       </div>
       <div class="incident-pin" id="incident-pin" aria-live="polite"><span class="incident-pin-text" id="incident-pin-text">—</span></div>
     </div>
@@ -1139,7 +1147,8 @@ async function fetchOne(s){
       const sev=top.severity||'low';
       const ind=/high|critical/.test(sev.toLowerCase()) ? 'major' : 'minor';
       const title=top.external_desc||top.service_name||'Google Cloud Incident';
-      const body=latestUpdateBody(top)||stripHtml(top.external_desc||'');
+      const latestUpdate=top?.most_recent_update?.text || latestUpdateBody(top);
+      const body=stripHtml(latestUpdate || top.external_desc || '');
       return mk(s.name,ind,title,body,new Date().toLocaleString(),s.hu);
     } catch { return errSvc(s); }
   }
@@ -1153,7 +1162,7 @@ async function fetchOne(s){
       const hasHigh=active.some(x=>/high/i.test(x.severity||'')||/outage/i.test(x.status_impact||''));
       const ind=hasHigh ? 'major' : 'minor';
       const top=mostRecentEvent(active) || active[0];
-      const latestText=latestUpdateBody(top)||top.external_desc||'';
+      const latestText=top?.most_recent_update?.text || latestUpdateBody(top) || top.external_desc || '';
       const formatted=formatGoogleWorkspaceMarkdown(latestText);
       const title=formatted.summary||'Service Disruption';
       const affectedNames=active.map(x=>x.service_name||'').filter(Boolean).join(', ');
