@@ -579,6 +579,10 @@ function cloudflareStatusLabel(status){
   return 'Unknown';
 }
 
+function isCloudflareRerouteStatus(status){
+  return ['degraded_performance','partial_outage','major_outage'].includes(String(status||'').toLowerCase().trim());
+}
+
 function normalizeRegionText(value){
   return String(value||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
 }
@@ -1137,6 +1141,7 @@ async function fetchOne(s){
       const watched=components.filter(c=>targetGroupIds.has(c.id) || targetGroupIds.has(c.group_id));
       const watchedIds=new Set(watched.map(c=>c.id));
       const cloudflareComponentIndicator=(component)=>{
+        if(isCloudflareRerouteStatus(component?.status)) return 'none';
         const base=componentStatusToIndicator(component?.status);
         if(base!=='minor') return base;
         const isNorthAmericaChild=!!northAmericaGroupId && component?.group_id===northAmericaGroupId;
@@ -1158,7 +1163,7 @@ async function fetchOne(s){
       }
 
       const active=(id?.incidents||[]).filter(x=>{
-        if(!['investigating','identified','monitoring'].includes((x.status||'').toLowerCase())) return false;
+        if(!['investigating','identified','monitoring','scheduled','in_progress','verifying'].includes((x.status||'').toLowerCase())) return false;
         if(!x.components?.length) return true;
         return x.components.some(c=>watchedIds.has(c.id));
       });
@@ -1171,7 +1176,10 @@ async function fetchOne(s){
           if(impact!=='none') ind=impact;
         }
         if(hasRerouteSignal(a.name, a.impact, a.status, a.description, a.incident_updates?.[0]?.body)){
-          ind='rerouting';
+          ind='none';
+        }
+        if(['scheduled','in_progress','verifying'].includes((a.status||'').toLowerCase())){
+          ind='maintenance';
         }
         title=a.name||'Service Disruption';
         let desc=stripHtml(a.description||'');
