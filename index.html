@@ -654,28 +654,39 @@ function createRandomPayload(size){
 }
 
 async function runNetConnectionTest(){
-  const traceRaw=await getText('https://speed.cloudflare.com/cdn-cgi/trace');
-  const trace=parseTraceText(traceRaw);
+  let trace={};
+  try {
+    const traceRaw=await getText('https://speed.cloudflare.com/cdn-cgi/trace');
+    trace=parseTraceText(traceRaw);
+  } catch {}
 
-  const downloadBytes=5_000_000;
-  const dlStart=performance.now();
-  const dlResp=await fetch(`https://speed.cloudflare.com/__down?bytes=${downloadBytes}&_=${Date.now()}`, {cache:'no-store'});
-  if(!dlResp.ok) throw new Error(`Download probe failed (${dlResp.status})`);
-  const dlBuf=await dlResp.arrayBuffer();
-  const dlMs=Math.max(performance.now()-dlStart,1);
-  const downloadMbps=((dlBuf.byteLength*8)/(dlMs/1000))/1_000_000;
+  let downloadMbps=null;
+  try {
+    const downloadBytes=5_000_000;
+    const dlStart=performance.now();
+    const dlResp=await fetch(`https://speed.cloudflare.com/__down?bytes=${downloadBytes}&_=${Date.now()}`, {cache:'no-store'});
+    if(dlResp.ok){
+      const dlBuf=await dlResp.arrayBuffer();
+      const dlMs=Math.max(performance.now()-dlStart,1);
+      downloadMbps=((dlBuf.byteLength*8)/(dlMs/1000))/1_000_000;
+    }
+  } catch {}
 
-  const uploadBytes=2_000_000;
-  const uploadPayload=new Blob([createRandomPayload(uploadBytes)], {type:'text/plain'});
-  const ulStart=performance.now();
-  const upResp=await fetch('https://speed.cloudflare.com/__up', {
-    method:'POST',
-    cache:'no-store',
-    body:uploadPayload
-  });
-  if(!upResp.ok) throw new Error(`Upload probe failed (${upResp.status})`);
-  const ulMs=Math.max(performance.now()-ulStart,1);
-  const uploadMbps=((uploadPayload.size*8)/(ulMs/1000))/1_000_000;
+  let uploadMbps=null;
+  try {
+    const uploadBytes=2_000_000;
+    const uploadPayload=new Blob([createRandomPayload(uploadBytes)], {type:'text/plain'});
+    const ulStart=performance.now();
+    const upResp=await fetch('https://speed.cloudflare.com/__up', {
+      method:'POST',
+      cache:'no-store',
+      body:uploadPayload
+    });
+    if(upResp.ok){
+      const ulMs=Math.max(performance.now()-ulStart,1);
+      uploadMbps=((uploadPayload.size*8)/(ulMs/1000))/1_000_000;
+    }
+  } catch {}
 
   const latencyMeasurements=[];
   const latencyRuns=8;
@@ -683,29 +694,38 @@ async function runNetConnectionTest(){
     const lStart=performance.now();
     try {
       const resp=await fetch(`https://speed.cloudflare.com/__down?bytes=1000&lat=${i}&_=${Date.now()}`,{cache:'no-store'});
+      if(!resp.ok) continue;
       await resp.arrayBuffer();
       latencyMeasurements.push(performance.now()-lStart);
     } catch {}
   }
 
   const packetLossPct=Math.max(0, ((latencyRuns-latencyMeasurements.length)/latencyRuns)*100);
-  const latencyMs=calcAverage(latencyMeasurements);
-  const jitterMs=calcStdDev(latencyMeasurements);
+  const latencyMs=latencyMeasurements.length ? calcAverage(latencyMeasurements) : null;
+  const jitterMs=latencyMeasurements.length ? calcStdDev(latencyMeasurements) : null;
+  const connectionNetwork=(trace.warp==='on') ? 'Cloudflare WARP / VPN' : (trace.loc ? `Direct (${trace.loc})` : 'Unavailable');
 
-  const connectionNetwork=(trace.warp==='on') ? 'Cloudflare WARP / VPN' : (trace.loc ? `Direct (${trace.loc})` : 'Direct internet');
+  const formatMbps=(value)=>value==null ? 'N/A' : `${value.toFixed(1)} Mbps`;
+  const formatMs=(value)=>value==null ? 'N/A' : `${value.toFixed(1)} ms`;
+
+  let ind='none';
+  if(latencyMs==null && downloadMbps==null && uploadMbps==null) ind='unknown';
+  else if(packetLossPct>=25 || (latencyMs!=null && latencyMs>250)) ind='major';
+  else if(packetLossPct>0 || (latencyMs!=null && latencyMs>120)) ind='minor';
+
   const result={
-    ind: packetLossPct>=25 || latencyMs>250 ? 'major' : (packetLossPct>0 || latencyMs>120 ? 'minor' : 'none'),
+    ind,
     title:'Cloudflare network performance snapshot',
     body:[
       '<strong>Connected via</strong><br>https://speed.cloudflare.com/',
-      `<strong>Server location:</strong> ${trace.colo || trace.loc || 'Unknown'}`,
+      `<strong>Server location:</strong> ${trace.colo || trace.loc || 'Unavailable'}`,
       `<strong>Your network:</strong> ${connectionNetwork}`,
       `<strong>Your IP address:</strong> ${trace.ip || 'Unavailable'}`,
       '',
-      `<strong>Download</strong>: ${downloadMbps.toFixed(1)} Mbps`,
-      `<strong>Upload</strong>: ${uploadMbps.toFixed(1)} Mbps`,
-      `<strong>Latency</strong>: ${latencyMs.toFixed(1)} ms`,
-      `<strong>Jitter</strong>: ${jitterMs.toFixed(1)} ms`,
+      `<strong>Download</strong>: ${formatMbps(downloadMbps)}`,
+      `<strong>Upload</strong>: ${formatMbps(uploadMbps)}`,
+      `<strong>Latency</strong>: ${formatMs(latencyMs)}`,
+      `<strong>Jitter</strong>: ${formatMs(jitterMs)}`,
       `<strong>Packet Loss</strong>: ${packetLossPct.toFixed(1)}%`,
       '',
       `<strong>All Latency Measurements</strong><br>${latencyMeasurements.length ? latencyMeasurements.map(v=>`${v.toFixed(1)} ms`).join(', ') : 'No successful latency samples.'}`
