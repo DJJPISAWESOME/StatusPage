@@ -1993,6 +1993,8 @@ async function fetchOne(s){
       const watched=components.filter(c=>targetGroupIds.has(c.id) || targetGroupIds.has(c.group_id));
       const watchedIds=new Set(watched.map(c=>c.id));
       const cloudflareComponentIndicator=(component)=>{
+        const rawStatus=String(component?.status||'').toLowerCase().trim();
+        if(['degraded_performance','partial_outage','major_outage'].includes(rawStatus)) return 'rerouting';
         const base=componentStatusToIndicator(component?.status);
         if(base==='none' || base==='maintenance' || base==='unknown') return base;
         const isNorthAmericaChild=!!northAmericaGroupId && component?.group_id===northAmericaGroupId;
