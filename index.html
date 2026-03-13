@@ -525,7 +525,7 @@ const SVCS=[
   {name:'DNSFilter',su:'https://status.dnsfilter.com/api/v2/status.json',iu:'https://status.dnsfilter.com/api/v2/incidents.json',hu:'https://status.dnsfilter.com',cat:'infra'},
   {name:'Meraki',su:'https://status.meraki.net/api/v2/status.json',iu:'https://status.meraki.net/api/v2/incidents.json',hu:'https://status.meraki.net',cat:'infra'},
   {name:'AWS',su:'https://health.aws.amazon.com/public/currentevents',hu:'https://health.aws.amazon.com/health/status',p:'aws',cat:'infra'},
-  {name:'Azure',su:'https://azure.status.microsoft/en-us/status',hu:'https://azure.status.microsoft/en-us/status',p:'azure',cat:'infra'},
+  {name:'Azure',su:'https://azurestatusprodscus2.azurewebsites.net/en-us/status/',hu:'https://azure.status.microsoft/en-us/status',p:'azure',cat:'infra'},
   {name:'Google Cloud',su:'https://status.cloud.google.com/incidents.json',hu:'https://status.cloud.google.com',p:'gcloud',cat:'infra'},
 ];
 
@@ -539,6 +539,7 @@ function normalizeIndicator(ind){
   if(['minor','degraded','warning','partial_outage','partial outage'].includes(val)) return 'minor';
   if(['maintenance','under_maintenance','scheduled','scheduled_maintenance'].includes(val)) return 'maintenance';
   if(['major','critical','down','outage'].includes(val)) return 'major';
+  if(/re.?rout/.test(val)) return 'rerouting';
   return 'major';
 }
 
@@ -977,7 +978,9 @@ async function fetchOne(s){
       const d=await getJsonEncoded(s.su, s.p);
       // Response is a plain array of current events
       const items=Array.isArray(d) ? d : (d?.current||[]);
-      const current=items.filter(x=>parseInt(x.status||'0')>0);
+      // Filter to North America regions only (us-*, ca-*) plus global/unspecified events
+      const isNA=r=>!r||/^(us[-_]|ca[-_])|(\bus\s|\bca\s|\bcanada\b|north.?america|united.?states)/i.test(r);
+      const current=items.filter(x=>parseInt(x.status||'0')>0 && isNA(x.region_name));
       if(!current.length) return mk(s.name,'none','','',new Date().toLocaleString(),s.hu);
       const worst=current.reduce((a,b)=>parseInt(b.status||'0')>parseInt(a.status||'0')?b:a,current[0]);
       const ind=parseInt(worst.status||'0')>=2 ? 'major' : 'minor';
@@ -1018,23 +1021,31 @@ async function fetchOne(s){
   if(s.p==='azure'){
     try {
       const html=await getText(s.su, s.p);
-      // The Azure status page is server-side rendered HTML.
-      // "There are currently no active events." appears when all systems are good.
-      if(/no active events/i.test(html)){
+      // Isolate the Americas section — Azure groups regions by geography.
+      // Slice from "Americas" header to the next major geographic section.
+      let scope=html;
+      const amIdx=html.search(/\bamericas\b/i);
+      if(amIdx!==-1){
+        const afterAm=html.slice(amIdx);
+        const nextGeoIdx=afterAm.search(/\b(asia.?pacific|europe|middle.?east|africa|oceania|australia)\b/i);
+        scope=nextGeoIdx!==-1 ? afterAm.slice(0,nextGeoIdx) : afterAm;
+      }
+      // "no active events" anywhere on the (scoped) page = operational
+      if(/no active events/i.test(scope)){
         return mk(s.name,'none','','',new Date().toLocaleString(),s.hu);
       }
-      // Detect severity from status text in the rendered table
-      const hasCritical=/\bCritical\b/.test(html);
-      const hasWarning=/\b(Warning|Disrupted|Degraded)\b/i.test(html);
+      // Detect severity from status keywords in the Americas section
+      const hasCritical=/\bCritical\b/i.test(scope);
+      const hasWarning=/\b(Warning|Disrupted|Degraded|Active)\b/i.test(scope);
       if(hasCritical||hasWarning){
         const ind=hasCritical ? 'major' : 'minor';
-        // Try to pull the first incident title from the page if present
-        const titleMatch=html.match(/class="[^"]*incident[^"]*"[^>]*>\s*([^<]{5,120})/i)||
-                         html.match(/<h[23][^>]*>\s*([^<]{5,120})/i);
-        const title=titleMatch ? stripHtml(titleMatch[1]).trim() : 'Service Issue Detected';
-        return mk(s.name,ind,title,'',new Date().toLocaleString(),s.hu);
+        // Try to pull an incident title; fall back to a generic Americas label
+        const titleMatch=scope.match(/class="[^"]*incident[^"]*"[^>]*>\s*([^<]{5,120})/i)||
+                         scope.match(/<h[23][^>]*>\s*([^<]{5,120})/i);
+        const title=titleMatch ? stripHtml(titleMatch[1]).trim() : 'Americas Service Issue';
+        return mk(s.name,ind,title,'Americas regions only',new Date().toLocaleString(),s.hu);
       }
-      // Page loaded but neither "no active events" nor a known bad status found → treat as operational
+      // Page loaded — no issues detected in Americas section
       return mk(s.name,'none','','',new Date().toLocaleString(),s.hu);
     } catch { return errSvc(s); }
   }
@@ -1078,11 +1089,20 @@ async function fetchOne(s){
       let title='', body='';
       if(active.length){
         const a=active[0];
-        if(ind==='none'){
-          const impact=normalizeIndicator(a.impact||'none');
-          if(impact!=='none') ind=impact;
+        // Check incident name and updates for rerouting language
+        const incidentText=((a.name||'')+' '+(a.incident_updates||[]).map(u=>u.body||'').join(' '));
+        const isPartialReroute=/partial.*re.?rout|re.?rout.*partial/i.test(incidentText);
+        const isRerouted=/re.?rout/i.test(incidentText);
+        if(isRerouted){
+          ind='rerouting';
+          title=isPartialReroute ? 'Partially Re-Routed' : (a.name||'Traffic Re-Routed');
+        } else {
+          if(ind==='none'){
+            const impact=normalizeIndicator(a.impact||'none');
+            if(impact!=='none') ind=impact;
+          }
+          title=a.name||'Service Disruption';
         }
-        title=a.name||'Service Disruption';
         let desc=stripHtml(a.description||'');
         if(!desc && a.incident_updates?.[0]?.body) desc=stripHtml(a.incident_updates[0].body);
         body=desc;
@@ -1091,7 +1111,14 @@ async function fetchOne(s){
           .filter(c=>componentStatusToIndicator(c.status)!=='none')
           .sort((a,b)=>((PRI[componentStatusToIndicator(a.status)]||9)-(PRI[componentStatusToIndicator(b.status)]||9)) || a.name.localeCompare(b.name))[0];
         if(topIssue){
-          title=`${topIssue.name} is ${LABELS[componentStatusToIndicator(topIssue.status)]||'impacted'}`;
+          const compStatus=componentStatusToIndicator(topIssue.status);
+          const compName=topIssue.name||'';
+          if(/re.?rout/i.test(compName)){
+            ind='rerouting';
+            title=`${compName} - Re-Routed`;
+          } else {
+            title=`${compName} is ${LABELS[compStatus]||'impacted'}`;
+          }
           body='Monitoring Cloudflare Sites and Services + North America categories only.';
         }
       }
