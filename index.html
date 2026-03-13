@@ -62,14 +62,15 @@
       0%, 100% { transform:translate3d(0, 0, 0) scale(1); }
       50% { transform:translate3d(0, -12px, 0) scale(1.08); }
     }
-    .shell { height:100vh; display:flex; flex-direction:column; padding:20px 24px 16px; gap:16px; position:relative; z-index:1; animation:shellIn 0.75s cubic-bezier(.22,1,.36,1) both; }
+    .shell { height:100vh; display:flex; flex-direction:column; padding:20px clamp(20px, 2.2vw, 34px) 16px; gap:16px; position:relative; z-index:1; animation:shellIn 0.75s cubic-bezier(.22,1,.36,1) both; }
     @keyframes shellIn { from { opacity:0; transform:translateY(10px) scale(.995); } to { opacity:1; transform:translateY(0) scale(1); } }
     .hdr {
       display:flex;
-      align-items:center;
+      align-items:flex-start;
       justify-content:space-between;
       flex-shrink:0;
-      gap:24px;
+      gap:16px 24px;
+      flex-wrap:wrap;
       padding:6px 0 18px;
       border-bottom:1px solid rgba(255,255,255,0.07);
     }
@@ -80,11 +81,11 @@
       display:flex; align-items:center; justify-content:center;
     }
     .brand-icon svg { width:17px; height:17px; }
-    .brand-name { font-size:18px; font-weight:700; letter-spacing:-0.025em; }
-    .brand-sub { font-size:12px; color:var(--muted); margin-top:2px; letter-spacing:0.01em; }
+    .brand-name { font-size:clamp(18px, 1.1vw, 24px); font-weight:700; letter-spacing:-0.025em; }
+    .brand-sub { font-size:clamp(12px, 0.65vw, 15px); color:var(--muted); margin-top:2px; letter-spacing:0.01em; }
     .pill {
       display:inline-flex; align-items:center; gap:8px;
-      padding:6px 14px; border-radius:7px; font-size:13px; font-weight:600;
+      padding:7px 15px; border-radius:8px; font-size:clamp(13px, 0.75vw, 16px); font-weight:600;
       background:rgba(34,197,94,0.08); border:1px solid rgba(34,197,94,0.18); color:var(--ok);
       transition:all 0.4s; white-space:nowrap; letter-spacing:0.02em;
     }
@@ -93,17 +94,44 @@
     @keyframes ring { 0%,100%{ box-shadow:0 0 0 0 rgba(239,68,68,0.35); } 50%{ box-shadow:0 0 0 8px rgba(239,68,68,0); } }
     .pill-dot { width:6px; height:6px; border-radius:50%; background:currentColor; animation:blink 2s ease-in-out infinite; }
     @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.25} }
-    .hdr-right { display:flex; align-items:center; gap:20px; }
-    .stats { display:flex; align-items:center; gap:16px; }
-    .stat { display:flex; align-items:center; gap:5px; font-size:13px; color:var(--muted); }
+    .hdr-mid {
+      display:flex;
+      align-items:center;
+      gap:12px;
+      flex:1 1 260px;
+      min-width:220px;
+    }
+    .incident-pin {
+      display:none;
+      align-items:center;
+      gap:8px;
+      max-width:min(700px, 56vw);
+      min-width:220px;
+      padding:7px 12px;
+      border-radius:8px;
+      border:1px solid rgba(239,68,68,0.25);
+      background:rgba(239,68,68,0.1);
+      color:#fecaca;
+      font-size:clamp(12px, 0.72vw, 15px);
+      line-height:1.25;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    .incident-pin.show { display:inline-flex; }
+    .incident-pin .pin-dot { width:7px; height:7px; border-radius:50%; background:currentColor; flex-shrink:0; }
+    .incident-pin strong { color:#fee2e2; font-weight:700; }
+    .hdr-right { display:flex; align-items:center; gap:14px; flex:1 1 420px; justify-content:flex-end; min-width:320px; flex-wrap:wrap; }
+    .stats { display:flex; align-items:center; gap:12px; flex-wrap:wrap; justify-content:flex-end; }
+    .stat { display:flex; align-items:center; gap:5px; font-size:clamp(12px, 0.7vw, 15px); color:var(--muted); }
     .sdot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
-    .stat strong { color:var(--text); font-weight:600; font-size:15px; }
+    .stat strong { color:var(--text); font-weight:600; font-size:clamp(14px, 0.8vw, 18px); }
     .stat.reroute-stat { display: none; }
     .stat.reroute-stat.show { display: flex; }
     .stat.unknown-stat { display: none; }
     .stat.unknown-stat.show { display: flex; }
     .clock {
-      font-size:17px;
+      font-size:clamp(16px, 0.9vw, 21px);
       font-weight:500;
       color:rgba(244,244,245,0.75);
       font-variant-numeric:tabular-nums;
@@ -222,11 +250,11 @@
     .c-icon.unknown { background:rgba(107,114,128,0.1); color:var(--unknown); }
     .c-logo { width:32px; height:32px; border-radius:6px; object-fit:contain; background:rgba(255,255,255,0.92); padding:2px; }
     .c-fallback { font-size:22px; font-weight:700; line-height:1; }
-    .c-name { font-size:22px; font-weight:700; letter-spacing:-0.02em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:1.2; }
-    .c-url { font-size:13px; color:var(--muted); margin-top:3px; text-decoration:none; display:inline-flex; align-items:center; gap:4px; transition:color 0.2s; }
+    .c-name { font-size:clamp(20px, 1.2vw, 28px); font-weight:700; letter-spacing:-0.02em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:1.2; }
+    .c-url { font-size:clamp(12px, 0.72vw, 15px); color:var(--muted); margin-top:3px; text-decoration:none; display:inline-flex; align-items:center; gap:4px; transition:color 0.2s; }
     .c-url:hover { color:var(--sub); }
     .c-badge {
-      flex-shrink:0; font-size:14px; font-weight:600; letter-spacing:0.03em; text-transform:uppercase;
+      flex-shrink:0; font-size:clamp(13px, 0.8vw, 16px); font-weight:600; letter-spacing:0.03em; text-transform:uppercase;
       padding:6px 14px; border-radius:7px; margin-top:2px;
     }
     .c-badge.ok { background:rgba(34,197,94,0.1); color:var(--ok); border:1px solid rgba(34,197,94,0.2); }
@@ -245,8 +273,8 @@
     .inc-block.unknown-block { background:rgba(107,114,128,0.06); border:1px solid rgba(107,114,128,0.15); }
     .inc-label { font-size:12px; font-weight:600; letter-spacing:0.06em; text-transform:uppercase; color:var(--muted); margin-bottom:8px; display:flex; align-items:center; gap:6px; }
     .inc-label-dot { width:7px; height:7px; border-radius:50%; background:currentColor; }
-    .inc-title { font-size:18px; font-weight:600; color:var(--text); line-height:1.35; margin-bottom:6px; }
-    .inc-body { font-size:15px; color:var(--sub); line-height:1.5; display:block; overflow:auto; overflow-wrap:anywhere; min-height:0; padding-right:2px; }
+    .inc-title { font-size:clamp(18px, 1.02vw, 24px); font-weight:600; color:var(--text); line-height:1.35; margin-bottom:6px; }
+    .inc-body { font-size:clamp(14px, 0.82vw, 18px); color:var(--sub); line-height:1.5; display:block; overflow:auto; overflow-wrap:anywhere; min-height:0; padding-right:2px; }
     .status-labels { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px; }
     .status-label { font-size:11px; letter-spacing:0.04em; text-transform:uppercase; color:var(--sub); border:1px solid var(--border); background:rgba(255,255,255,0.04); padding:3px 7px; border-radius:999px; }
     .card.compact .status-label { font-size:10px; padding:2px 6px; }
@@ -377,6 +405,19 @@
       .inc-body { font-size:13px; --body-lines:3; }
     }
 
+    @media (min-width: 1700px) {
+      .shell { gap:20px; }
+      .card { padding:24px 26px; }
+      .c-icon { width:58px; height:58px; }
+      .f-meta { font-size:14px; }
+    }
+
+    @media (max-width: 1180px) {
+      .incident-pin { max-width:100%; }
+      .hdr-right { min-width:100%; justify-content:flex-start; }
+      .stats { justify-content:flex-start; }
+    }
+
     /* Stale data warning badge */
     .stale-badge {
       display:none; align-items:center; gap:6px;
@@ -435,7 +476,10 @@
         <div class="brand-sub">Live monitoring · auto-refresh every 2 min</div>
       </div>
     </div>
-    <div class="pill" id="pill"><span class="pill-dot"></span><span id="pill-txt">Loading…</span></div>
+    <div class="hdr-mid">
+      <div class="pill" id="pill"><span class="pill-dot"></span><span id="pill-txt">Loading…</span></div>
+      <div class="incident-pin" id="incident-pin" aria-live="polite"><span class="pin-dot"></span><span id="incident-pin-text"></span></div>
+    </div>
     <div class="hdr-right">
       <div class="stats">
         <div class="stat"><span class="sdot" style="background:var(--ok)"></span><strong id="n-ok">—</strong>&nbsp;Operational</div>
@@ -1526,6 +1570,19 @@ function updateStats(data){
   if(bd>0){ pill.className='pill bad'; txt.textContent=bd===1?'1 Service Down':`${bd} Services Down`; }
   else if(wn>0){ pill.className='pill warn'; txt.textContent='Degraded Performance'; }
   else { pill.className='pill'; txt.textContent='All Systems Operational'; }
+
+  const incidentPin=document.getElementById('incident-pin');
+  const incidentPinText=document.getElementById('incident-pin-text');
+  const activeIncident=data.find(s=>['major','minor','maintenance','rerouting'].includes(s.ind));
+  if(incidentPin && incidentPinText){
+    if(activeIncident){
+      incidentPin.classList.add('show');
+      incidentPinText.innerHTML=`<strong>${activeIncident.name}</strong> · ${activeIncident.label}`;
+    } else {
+      incidentPin.classList.remove('show');
+      incidentPinText.textContent='';
+    }
+  }
 
   const fmeta=document.getElementById('f-meta');
   if(fmeta) fmeta.textContent='Updated '+new Date().toLocaleTimeString('en-US',{hour12:true,hour:'numeric',minute:'2-digit',second:'2-digit'})+'  ·  '+SVCS.length+' services monitored';
