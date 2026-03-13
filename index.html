@@ -247,7 +247,7 @@
     .c-icon.unknown { background:rgba(107,114,128,0.1); color:var(--unknown); }
     .c-logo { width:32px; height:32px; border-radius:6px; object-fit:contain; background:rgba(255,255,255,0.92); padding:2px; }
     .c-fallback { font-size:22px; font-weight:700; line-height:1; }
-    .c-name { font-size:clamp(20px, 1.7vw, 38px); font-weight:700; letter-spacing:-0.02em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:1.2; }
+    .c-name { font-size:clamp(18px, 1.45vw, 32px); font-weight:700; letter-spacing:-0.02em; line-height:1.22; overflow-wrap:anywhere; }
     .c-url { font-size:13px; color:var(--muted); margin-top:3px; text-decoration:none; display:inline-flex; align-items:center; gap:4px; transition:color 0.2s; }
     .c-url:hover { color:var(--sub); }
     .c-badge {
@@ -270,33 +270,33 @@
     .inc-block.unknown-block { background:rgba(107,114,128,0.06); border:1px solid rgba(107,114,128,0.15); }
     .inc-label { font-size:12px; font-weight:600; letter-spacing:0.06em; text-transform:uppercase; color:var(--muted); margin-bottom:8px; display:flex; align-items:center; gap:6px; }
     .inc-label-dot { width:7px; height:7px; border-radius:50%; background:currentColor; }
-    .inc-title { font-size:clamp(20px, 1.7vw, 40px); font-weight:600; color:var(--text); line-height:1.35; margin-bottom:6px; overflow-wrap:anywhere; }
-    .inc-body { font-size:clamp(17px, 1.35vw, 32px); color:var(--sub); line-height:1.55; display:block; overflow:auto; overflow-wrap:anywhere; min-height:0; padding-right:2px; }
+    .inc-title { font-size:clamp(18px, 1.45vw, 34px); font-weight:600; color:var(--text); line-height:1.32; margin-bottom:6px; overflow-wrap:anywhere; }
+    .inc-body { font-size:clamp(15px, 1.05vw, 24px); color:var(--sub); line-height:1.45; display:block; overflow:auto; overflow-wrap:anywhere; min-height:0; padding-right:2px; }
     .status-labels { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px; }
     .status-label { font-size:11px; letter-spacing:0.04em; text-transform:uppercase; color:var(--sub); border:1px solid var(--border); background:rgba(255,255,255,0.04); padding:3px 7px; border-radius:999px; }
     .card.compact .status-label { font-size:10px; padding:2px 6px; }
-    .card.dense .inc-title { font-size:clamp(19px, 1.5vw, 34px); }
-    .card.dense .inc-body { font-size:clamp(16px, 1.2vw, 28px); }
+    .card.dense .inc-title { font-size:clamp(17px, 1.3vw, 30px); }
+    .card.dense .inc-body { font-size:clamp(14px, 0.95vw, 22px); }
     .card-meta { display:flex; align-items:center; justify-content:space-between; margin-top:auto; }
     .meta-updated { font-size:clamp(13px, 0.82vw, 16px); color:var(--muted); display:flex; align-items:center; gap:5px; }
     .meta-updated svg { width:14px; height:14px; opacity:0.6; }
     .meta-tag { font-size:clamp(12px, 0.78vw, 15px); font-weight:500; color:var(--muted); padding:4px 9px; border-radius:4px; background:rgba(255,255,255,0.04); border:1px solid var(--border); }
 
-    .card.compact .inc-title { font-size:clamp(18px, 1.4vw, 32px); margin-bottom:3px; }
-    .card.compact .inc-body { font-size:clamp(15px, 1.15vw, 26px); }
+    .card.compact .inc-title { font-size:clamp(16px, 1.2vw, 28px); margin-bottom:3px; }
+    .card.compact .inc-body { font-size:clamp(13px, 0.95vw, 20px); }
     .card.compact .meta-updated { font-size:clamp(12px, 0.8vw, 15px); }
     .card.compact .meta-tag { font-size:clamp(11px, 0.75vw, 14px); }
 
     /* iOS-style widget snap sizes */
     .card.span-tall .inc-title,
-    .card.span-large .inc-title { font-size:clamp(22px, 1.9vw, 44px); }
+    .card.span-large .inc-title { font-size:clamp(20px, 1.65vw, 36px); }
     @media (min-width: 1400px) {
-      .inc-body { font-size:clamp(20px, 1.35vw + 0.2rem, 34px); }
-      .card.compact .inc-body { font-size:clamp(16px, 1.15vw, 26px); }
-      .card.dense .inc-body { font-size:clamp(17px, 1.2vw, 28px); }
+      .inc-body { font-size:clamp(16px, 1.08vw + 0.15rem, 26px); }
+      .card.compact .inc-body { font-size:clamp(14px, 0.95vw, 21px); }
+      .card.dense .inc-body { font-size:clamp(15px, 1.0vw, 23px); }
     }
     .card.span-large .c-icon { width:60px; height:60px; font-size:28px; }
-    .card.span-large .c-name { font-size:clamp(24px, 2vw, 44px); }
+    .card.span-large .c-name { font-size:clamp(21px, 1.7vw, 36px); }
     .card.span-large .c-badge { font-size:clamp(14px, 0.9vw, 18px); padding:7px 16px; }
     .footer { display:flex; align-items:center; justify-content:space-between; flex-shrink:0; gap:16px; }
     .f-left { display:flex; align-items:center; gap:20px; }
@@ -564,6 +564,7 @@ const SVCS=[
   {name:'Google Workspace',su:'https://www.google.com/appsstatus/dashboard/incidents.json',hu:'https://workspace.google.com/dashboard/',p:'gworkspace',cat:'app'},
   // Infrastructure Providers
   {name:'Cloudflare',su:'https://www.cloudflarestatus.com/api/v2/status.json',iu:'https://www.cloudflarestatus.com/api/v2/incidents.json',cu:'https://www.cloudflarestatus.com/api/v2/components.json',mu:'https://www.cloudflarestatus.com/api/v2/scheduled-maintenances/active.json',hu:'https://www.cloudflarestatus.com',p:'cloudflare',cat:'infra'},
+  {name:'Net connection',su:'https://speed.cloudflare.com/cdn-cgi/trace',hu:'https://speed.cloudflare.com/',p:'netconn',cat:'infra'},
   {name:'DNSFilter',su:'https://status.dnsfilter.com/api/v2/status.json',iu:'https://status.dnsfilter.com/api/v2/incidents.json',hu:'https://status.dnsfilter.com',cat:'infra'},
   {name:'Meraki',su:'https://status.meraki.net/api/v2/status.json',iu:'https://status.meraki.net/api/v2/incidents.json',hu:'https://status.meraki.net',cat:'infra'},
   {name:'AWS',su:'https://status.aws.amazon.com/rss/all.rss',hu:'https://health.aws.amazon.com/health/status',p:'aws',cat:'infra'},
@@ -611,6 +612,104 @@ function cloudflareStatusLabel(status){
 
 function normalizeRegionText(value){
   return String(value||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
+}
+
+const NET_CONNECTION_REFRESH_MS=1000*60*10;
+let netConnectionCache={ts:0,data:null};
+
+function parseTraceText(traceText){
+  const map={};
+  String(traceText||'').split(/\r?\n/).forEach(line=>{
+    const idx=line.indexOf('=');
+    if(idx<=0) return;
+    const key=line.slice(0,idx).trim();
+    const value=line.slice(idx+1).trim();
+    if(key) map[key]=value;
+  });
+  return map;
+}
+
+function calcAverage(values){
+  if(!values.length) return 0;
+  return values.reduce((sum,v)=>sum+v,0)/values.length;
+}
+
+function calcStdDev(values){
+  if(!values.length) return 0;
+  const avg=calcAverage(values);
+  const variance=calcAverage(values.map(v=>(v-avg)**2));
+  return Math.sqrt(variance);
+}
+
+async function runNetConnectionTest(){
+  const now=Date.now();
+  if(netConnectionCache.data && (now-netConnectionCache.ts)<NET_CONNECTION_REFRESH_MS){
+    return netConnectionCache.data;
+  }
+
+  const traceRaw=await getText('https://speed.cloudflare.com/cdn-cgi/trace');
+  const trace=parseTraceText(traceRaw);
+
+  const downloadBytes=5_000_000;
+  const dlStart=performance.now();
+  const dlResp=await fetch(`https://speed.cloudflare.com/__down?bytes=${downloadBytes}&_=${Date.now()}`, {cache:'no-store'});
+  const dlBuf=await dlResp.arrayBuffer();
+  const dlMs=Math.max(performance.now()-dlStart,1);
+  const downloadMbps=((dlBuf.byteLength*8)/(dlMs/1000))/1_000_000;
+
+  const uploadBytes=2_000_000;
+  const uploadPayload=new Uint8Array(uploadBytes);
+  crypto.getRandomValues(uploadPayload);
+  const ulStart=performance.now();
+  await fetch('https://speed.cloudflare.com/__up', {
+    method:'POST',
+    cache:'no-store',
+    headers:{'content-type':'application/octet-stream'},
+    body:uploadPayload
+  });
+  const ulMs=Math.max(performance.now()-ulStart,1);
+  const uploadMbps=((uploadBytes*8)/(ulMs/1000))/1_000_000;
+
+  const latencyMeasurements=[];
+  const latencyRuns=8;
+  for(let i=0;i<latencyRuns;i++){
+    const lStart=performance.now();
+    try {
+      const resp=await fetch(`https://speed.cloudflare.com/__down?bytes=1000&lat=${i}&_=${Date.now()}`,{cache:'no-store'});
+      await resp.arrayBuffer();
+      latencyMeasurements.push(performance.now()-lStart);
+    } catch {}
+  }
+
+  const packetLossPct=Math.max(0, ((latencyRuns-latencyMeasurements.length)/latencyRuns)*100);
+  const latencyMs=calcAverage(latencyMeasurements);
+  const jitterMs=calcStdDev(latencyMeasurements);
+
+  const connectionNetwork=(trace.warp==='on') ? 'Cloudflare WARP / VPN' : (trace.loc ? `Direct (${trace.loc})` : 'Direct internet');
+  const result={
+    ind: packetLossPct>=25 || latencyMs>250 ? 'major' : (packetLossPct>0 || latencyMs>120 ? 'minor' : 'none'),
+    title:'Cloudflare network performance snapshot',
+    body:[
+      '<strong>Connected via</strong><br>https://speed.cloudflare.com/',
+      `<strong>Server location:</strong> ${trace.colo || trace.loc || 'Unknown'}`,
+      `<strong>Your network:</strong> ${connectionNetwork}`,
+      `<strong>Your IP address:</strong> ${trace.ip || 'Unavailable'}`,
+      '',
+      `<strong>Download</strong>: ${downloadMbps.toFixed(1)} Mbps`,
+      `<strong>Upload</strong>: ${uploadMbps.toFixed(1)} Mbps`,
+      `<strong>Latency</strong>: ${latencyMs.toFixed(1)} ms`,
+      `<strong>Jitter</strong>: ${jitterMs.toFixed(1)} ms`,
+      `<strong>Packet Loss</strong>: ${packetLossPct.toFixed(1)}%`,
+      '',
+      `<strong>All Latency Measurements</strong><br>${latencyMeasurements.length ? latencyMeasurements.map(v=>`${v.toFixed(1)} ms`).join(', ') : 'No successful latency samples.'}`
+    ].join('<br>'),
+    updated:new Date().toLocaleString(),
+    labelOverride:'Network test',
+    labels:['10 min cadence']
+  };
+
+  netConnectionCache={ts:now,data:result};
+  return result;
 }
 
 function formatGoogleWorkspaceMarkdown(raw){
@@ -1016,6 +1115,15 @@ function isOpenAdobeStatus(status){
 }
 
 async function fetchOne(s){
+  if(s.p==='netconn'){
+    try {
+      const res=await runNetConnectionTest();
+      return mk(s.name,res.ind,res.title,res.body,res.updated,s.hu,res.labelOverride,res.labels);
+    } catch {
+      return mk(s.name,'unknown','Network test unavailable','Unable to complete the Cloudflare speed test right now. Try again on the next 10 minute cycle.',new Date().toLocaleString(),s.hu,'Network test',['10 min cadence']);
+    }
+  }
+
   if(s.p==='adobe'){
     try {
       const [registry, events]=await Promise.all([getJson(s.su, s.p), getJson(s.iu, s.p)]);
@@ -1394,6 +1502,7 @@ const LOGO_DOMAINS={
   'Adobe CC':'adobe.com',
   'Google Workspace':'workspace.google.com',
   'Cloudflare':'cloudflare.com',
+  'Net connection':'cloudflare.com',
   'DNSFilter':'dnsfilter.com',
   'AWS':'aws.amazon.com',
   'Azure':'microsoft.com',
