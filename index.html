@@ -74,6 +74,7 @@
       padding:6px 0 18px;
       border-bottom:1px solid rgba(255,255,255,0.07);
     }
+    .hdr-left { display:flex; align-items:center; gap:22px; flex-wrap:wrap; }
     .brand { display:flex; align-items:center; gap:11px; }
     .brand-icon {
       width:34px; height:34px; border-radius:9px; flex-shrink:0;
@@ -83,12 +84,6 @@
     .brand-icon svg { width:17px; height:17px; }
     .brand-name { font-size:18px; font-weight:700; letter-spacing:-0.025em; }
     .brand-sub { font-size:12px; color:var(--muted); margin-top:2px; letter-spacing:0.01em; }
-    .pill {
-      display:inline-flex; align-items:center; gap:8px;
-      padding:6px 14px; border-radius:7px; font-size:13px; font-weight:600;
-      background:rgba(34,197,94,0.08); border:1px solid rgba(34,197,94,0.18); color:var(--ok);
-      transition:all 0.4s; white-space:nowrap; letter-spacing:0.02em;
-    }
     .incident-pin {
       display:none;
       align-items:center;
@@ -106,21 +101,16 @@
       white-space:nowrap;
       overflow:hidden;
       text-overflow:ellipsis;
+      margin-left:auto;
     }
     .incident-pin.show { display:inline-flex; }
     .incident-pin.dot-major { border-color:rgba(239,68,68,0.35); background:rgba(239,68,68,0.09); color:#fda4af; }
     .incident-pin.dot-minor { border-color:rgba(245,158,11,0.3); background:rgba(245,158,11,0.08); color:#fcd34d; }
     .incident-pin.dot-maintenance { border-color:rgba(59,130,246,0.28); background:rgba(59,130,246,0.09); color:#93c5fd; }
     .incident-pin.dot-rerouting { border-color:rgba(20,184,166,0.32); background:rgba(20,184,166,0.1); color:#5eead4; }
-    .incident-pin-label { flex-shrink:0; opacity:0.8; }
     .incident-pin-text { overflow:hidden; text-overflow:ellipsis; }
-    .pill.warn { background:rgba(245,158,11,0.08); border-color:rgba(245,158,11,0.2); color:var(--warn); }
-    .pill.bad { background:rgba(239,68,68,0.08); border-color:rgba(239,68,68,0.22); color:var(--bad); animation:ring 1.8s infinite; }
-    @keyframes ring { 0%,100%{ box-shadow:0 0 0 0 rgba(239,68,68,0.35); } 50%{ box-shadow:0 0 0 8px rgba(239,68,68,0); } }
-    .pill-dot { width:6px; height:6px; border-radius:50%; background:currentColor; animation:blink 2s ease-in-out infinite; }
-    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.25} }
-    .hdr-right { display:flex; align-items:center; gap:20px; flex-wrap:wrap; justify-content:flex-end; margin-left:auto; }
-    .stats { display:flex; align-items:center; gap:16px; flex-wrap:wrap; justify-content:flex-end; }
+    .hdr-right { display:flex; align-items:center; gap:20px; flex-wrap:wrap; justify-content:flex-end; }
+    .stats { display:flex; align-items:center; gap:16px; flex-wrap:wrap; justify-content:flex-start; }
     .stat { display:flex; align-items:center; gap:5px; font-size:13px; color:var(--muted); }
     .sdot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
     .stat strong { color:var(--text); font-weight:600; font-size:15px; }
@@ -271,20 +261,20 @@
     .inc-block.unknown-block { background:rgba(107,114,128,0.06); border:1px solid rgba(107,114,128,0.15); }
     .inc-label { font-size:12px; font-weight:600; letter-spacing:0.06em; text-transform:uppercase; color:var(--muted); margin-bottom:8px; display:flex; align-items:center; gap:6px; }
     .inc-label-dot { width:7px; height:7px; border-radius:50%; background:currentColor; }
-    .inc-title { font-size:clamp(18px, 1.05vw, 24px); font-weight:600; color:var(--text); line-height:1.35; margin-bottom:6px; overflow-wrap:anywhere; }
-    .inc-body { font-size:clamp(15px, 0.92vw, 20px); color:var(--sub); line-height:1.5; display:block; overflow:auto; overflow-wrap:anywhere; min-height:0; padding-right:2px; }
+    .inc-title { font-size:clamp(20px, 1.3vw, 32px); font-weight:600; color:var(--text); line-height:1.35; margin-bottom:6px; overflow-wrap:anywhere; }
+    .inc-body { font-size:clamp(17px, 1.12vw, 25px); color:var(--sub); line-height:1.5; display:block; overflow:auto; overflow-wrap:anywhere; min-height:0; padding-right:2px; }
     .status-labels { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px; }
     .status-label { font-size:11px; letter-spacing:0.04em; text-transform:uppercase; color:var(--sub); border:1px solid var(--border); background:rgba(255,255,255,0.04); padding:3px 7px; border-radius:999px; }
     .card.compact .status-label { font-size:10px; padding:2px 6px; }
-    .card.dense .inc-title { font-size:16px; }
-    .card.dense .inc-body { font-size:13px; }
+    .card.dense .inc-title { font-size:20px; }
+    .card.dense .inc-body { font-size:16px; }
     .card-meta { display:flex; align-items:center; justify-content:space-between; margin-top:auto; }
     .meta-updated { font-size:13px; color:var(--muted); display:flex; align-items:center; gap:5px; }
     .meta-updated svg { width:14px; height:14px; opacity:0.6; }
     .meta-tag { font-size:12px; font-weight:500; color:var(--muted); padding:4px 9px; border-radius:4px; background:rgba(255,255,255,0.04); border:1px solid var(--border); }
 
-    .card.compact .inc-title { font-size:16px; margin-bottom:3px; }
-    .card.compact .inc-body { font-size:14px; }
+    .card.compact .inc-title { font-size:18px; margin-bottom:3px; }
+    .card.compact .inc-body { font-size:16px; }
     .card.compact .meta-updated { font-size:12px; }
     .card.compact .meta-tag { font-size:11px; }
 
@@ -400,13 +390,12 @@
       .card-top { margin-bottom:10px; }
       .card-div { margin-bottom:10px; }
       .inc-block { padding:10px 12px; margin-bottom:8px; }
-      .inc-body { font-size:13px; --body-lines:3; }
+      .inc-body { font-size:15px; --body-lines:3; }
     }
 
     @media (min-width: 1600px) {
       .brand-name { font-size:24px; }
       .brand-sub { font-size:15px; }
-      .pill { font-size:16px; padding:8px 16px; }
       .incident-pin { font-size:16px; max-width:min(54vw, 820px); }
       .stat { font-size:16px; }
       .stat strong { font-size:19px; }
@@ -467,33 +456,34 @@
 <body>
 <div class="shell">
   <div class="hdr">
-    <div class="brand">
-      <div class="brand-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
-        </svg>
+    <div class="hdr-left">
+      <div class="brand">
+        <div class="brand-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+          </svg>
+        </div>
+        <div>
+          <div class="brand-name">Service Status</div>
+          <div class="brand-sub">Live monitoring · auto-refresh every 2 min</div>
+        </div>
       </div>
-      <div>
-        <div class="brand-name">Service Status</div>
-        <div class="brand-sub">Live monitoring · auto-refresh every 2 min</div>
+      <div class="hdr-right">
+        <div class="stats">
+          <div class="stat"><span class="sdot" style="background:var(--ok)"></span><strong id="n-ok">—</strong>&nbsp;Operational</div>
+          <div class="stat"><span class="sdot" style="background:var(--warn)"></span><strong id="n-warn">—</strong>&nbsp;Degraded</div>
+          <div class="stat"><span class="sdot" style="background:var(--bad)"></span><strong id="n-bad">—</strong>&nbsp;Down</div>
+          <div class="stat"><span class="sdot" style="background:var(--maint)"></span><strong id="n-maint">—</strong>&nbsp;Maintenance</div>
+          <div class="stat reroute-stat" id="stat-reroute"><span class="sdot" style="background:var(--reroute)"></span><strong id="n-reroute">—</strong>&nbsp;Rerouted</div>
+          <div class="stat unknown-stat" id="stat-unknown"><span class="sdot" style="background:var(--unknown)"></span><strong id="n-unknown">—</strong>&nbsp;Unknown</div>
+        </div>
+        <span class="stale-badge" id="stale-badge" title="Data may be outdated — refresh failed">&#9888; Stale Data</span>
+        <div class="refresh-spinner" id="refresh-spinner" title="Refreshing…"></div>
+        <button class="test-btn" id="test-alert-btn" type="button" title="Test notification banner and sounds">Test Alerts</button>
+        <div class="clock" id="clock">--:--:--</div>
       </div>
     </div>
-    <div class="pill" id="pill"><span class="pill-dot"></span><span id="pill-txt">Loading…</span></div>
-    <div class="incident-pin" id="incident-pin" aria-live="polite"><span class="incident-pin-label">Active:</span><span class="incident-pin-text" id="incident-pin-text">—</span></div>
-    <div class="hdr-right">
-      <div class="stats">
-        <div class="stat"><span class="sdot" style="background:var(--ok)"></span><strong id="n-ok">—</strong>&nbsp;Operational</div>
-        <div class="stat"><span class="sdot" style="background:var(--warn)"></span><strong id="n-warn">—</strong>&nbsp;Degraded</div>
-        <div class="stat"><span class="sdot" style="background:var(--bad)"></span><strong id="n-bad">—</strong>&nbsp;Down</div>
-        <div class="stat"><span class="sdot" style="background:var(--maint)"></span><strong id="n-maint">—</strong>&nbsp;Maintenance</div>
-        <div class="stat reroute-stat" id="stat-reroute"><span class="sdot" style="background:var(--reroute)"></span><strong id="n-reroute">—</strong>&nbsp;Rerouted</div>
-        <div class="stat unknown-stat" id="stat-unknown"><span class="sdot" style="background:var(--unknown)"></span><strong id="n-unknown">—</strong>&nbsp;Unknown</div>
-      </div>
-      <span class="stale-badge" id="stale-badge" title="Data may be outdated — refresh failed">&#9888; Stale Data</span>
-      <div class="refresh-spinner" id="refresh-spinner" title="Refreshing…"></div>
-      <button class="test-btn" id="test-alert-btn" type="button" title="Test notification banner and sounds">Test Alerts</button>
-      <div class="clock" id="clock">--:--:--</div>
-    </div>
+    <div class="incident-pin" id="incident-pin" aria-live="polite"><span class="incident-pin-text" id="incident-pin-text">—</span></div>
   </div>
   <div class="grid-wrap" id="grid-wrap">
     <div class="loading" id="loading-el">
@@ -1562,9 +1552,8 @@ function updateIncidentPin(data){
   }
 
   const top=active[0];
-  const status=LABELS[top.ind]||top.label||'Issue';
   pin.className=`incident-pin show dot-${top.ind}`;
-  pinText.textContent=`${top.name} · ${status}`;
+  pinText.textContent=top.name;
 }
 
 function updateStats(data){
@@ -1588,12 +1577,6 @@ function updateStats(data){
   const statUnknown = document.getElementById('stat-unknown');
   if(un>0) statUnknown.classList.add('show');
   else statUnknown.classList.remove('show');
-
-  const pill=document.getElementById('pill');
-  const txt=document.getElementById('pill-txt');
-  if(bd>0){ pill.className='pill bad'; txt.textContent=bd===1?'1 Service Down':`${bd} Services Down`; }
-  else if(wn>0){ pill.className='pill warn'; txt.textContent='Degraded Performance'; }
-  else { pill.className='pill'; txt.textContent='All Systems Operational'; }
 
   const fmeta=document.getElementById('f-meta');
   if(fmeta) fmeta.textContent='Updated '+new Date().toLocaleTimeString('en-US',{hour12:true,hour:'numeric',minute:'2-digit',second:'2-digit'})+'  ·  '+SVCS.length+' services monitored';
