@@ -2115,6 +2115,12 @@ const LOGO_DOMAINS={
   'Google Cloud':'cloud.google.com',
   'Net Connection':'speed.cloudflare.com'
 };
+const LOGO_SOURCE_OVERRIDES={
+  'AWS':[
+    'https://a0.awsstatic.com/libra-css/images/site/fav/favicon.ico',
+    'https://status.aws.amazon.com/favicon.ico'
+  ]
+};
 const CC={none:'',minor:'cw',major:'cb',maintenance:'cm',rerouting:'cr',unknown:'cu'};
 const IC={none:'ok',minor:'warn',major:'bad',maintenance:'maint',rerouting:'reroute',unknown:'unknown'};
 const BLOCK_CLS={none:'ok-block',minor:'warn-block',major:'bad-block',maintenance:'maint-block',rerouting:'reroute-block',unknown:'unknown-block'};
@@ -2124,6 +2130,9 @@ function logoSources(svc){
   const sources=[];
   const companyDomain=LOGO_DOMAINS[svc.name] || '';
   const statusHost=(svc.url||'').replace(/^https?:\/\//,'').replace(/\/$/,'');
+
+  const overrides=LOGO_SOURCE_OVERRIDES[svc.name]||[];
+  sources.push(...overrides);
 
   if(companyDomain){
     sources.push(`https://logo.clearbit.com/${companyDomain}`);
