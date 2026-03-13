@@ -1306,9 +1306,61 @@ function ipVersion(ip){
   if(ip.includes('.')) return 'IPv4';
   return 'Unknown';
 }
+function normalizeHttpProtocol(proto){
+  const normalized=String(proto||'').trim().toLowerCase();
+  if(!normalized) return '';
+  if(normalized==='h2' || normalized==='http/2' || normalized==='http2') return 'HTTP/2';
+  if(normalized==='h3' || normalized==='http/3' || normalized==='http3' || normalized==='quic') return 'HTTP/3';
+  if(normalized==='http/1.1' || normalized==='http1.1') return 'HTTP/1.1';
+  return String(proto||'').trim();
+}
 function protocolAllowed(proto){
-  const normalized=String(proto||'').trim().toUpperCase();
-  return !!normalized && normalized!=='HTTP/1.1';
+  const normalized=normalizeHttpProtocol(proto);
+  return normalized==='HTTP/2' || normalized==='HTTP/3';
+}
+function parseCfTrace(text=''){
+  return text.split('\n').reduce((acc,line)=>{
+    const idx=line.indexOf('=');
+    if(idx<1) return acc;
+    const k=line.slice(0,idx).trim();
+    const v=line.slice(idx+1).trim();
+    if(k) acc[k]=v;
+    return acc;
+  },{});
+}
+async function detectProtocolFromTiming(){
+  const probeUrl='https://speed.cloudflare.com/__down?bytes=0&nc='+Date.now();
+  try{
+    const r=await fetchWithOpts(probeUrl,{cache:'no-store'},10000);
+    if(r) await r.arrayBuffer();
+  }catch(e){}
+  const entries=performance.getEntriesByName(probeUrl)||[];
+  const last=entries[entries.length-1];
+  return normalizeHttpProtocol(last&&last.nextHopProtocol?last.nextHopProtocol:'');
+}
+async function getSpeedMeta(){
+  const meta={};
+  try{
+    const r=await fetchWithOpts('https://speed.cloudflare.com/meta',{cache:'no-store'},12000);
+    if(r&&r.ok) Object.assign(meta, await r.json());
+  }catch(e){}
+  if(!meta.clientIp || !meta.httpProtocol){
+    try{
+      const t=await fetchWithOpts('https://www.cloudflare.com/cdn-cgi/trace',{cache:'no-store'},12000);
+      if(t&&t.ok){
+        const trace=parseCfTrace(await t.text());
+        if(!meta.clientIp && trace.ip) meta.clientIp=trace.ip;
+        if(!meta.httpProtocol && trace.http) meta.httpProtocol=trace.http;
+        if(!meta.colo && trace.colo) meta.colo=trace.colo;
+      }
+    }catch(e){}
+  }
+  if(!meta.httpProtocol){
+    const timingProto=await detectProtocolFromTiming();
+    if(timingProto) meta.httpProtocol=timingProto;
+  }
+  meta.httpProtocol=normalizeHttpProtocol(meta.httpProtocol);
+  return meta;
 }
 
 // ─── Download phase: streams bytes and fires concurrent pings ─────────────────
@@ -1570,18 +1622,16 @@ async function runFullSpeedTest(){
   try{
     // 1. Meta
     setNetPhase('Connecting to Cloudflare…');
-    let meta={};
-    try{
-      const r=await fetchWithOpts('https://speed.cloudflare.com/meta',{cache:'no-store'},12000);
-      if(r.ok) meta=await r.json();
-    }catch(e){}
-    if(meta.clientIp){
-      updateServerInfo(meta);
-      showNetMap(meta);
-    }
+    const meta=await getSpeedMeta();
+    updateServerInfo(meta);
+    if(meta.clientIp) showNetMap(meta);
+
     const currentIpVersion=ipVersion(meta.clientIp);
     if(currentIpVersion!=='IPv4'){
       throw new Error('Speed test requires IPv4 connectivity');
+    }
+    if(!meta.httpProtocol){
+      throw new Error('Unable to verify protocol (requires HTTP/2 or HTTP/3)');
     }
     if(!protocolAllowed(meta.httpProtocol)){
       throw new Error('Speed test requires HTTP/2 or HTTP/3');
