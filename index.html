@@ -616,6 +616,8 @@ function normalizeRegionText(value){
 
 const NET_CONNECTION_REFRESH_MS=1000*60*10;
 let netConnectionCache={ts:0,data:null};
+let netConnectionInFlight=null;
+let netConnectionTimer=null;
 
 function parseTraceText(traceText){
   const map={};
@@ -642,11 +644,6 @@ function calcStdDev(values){
 }
 
 async function runNetConnectionTest(){
-  const now=Date.now();
-  if(netConnectionCache.data && (now-netConnectionCache.ts)<NET_CONNECTION_REFRESH_MS){
-    return netConnectionCache.data;
-  }
-
   const traceRaw=await getText('https://speed.cloudflare.com/cdn-cgi/trace');
   const trace=parseTraceText(traceRaw);
 
@@ -708,8 +705,35 @@ async function runNetConnectionTest(){
     labels:['10 min cadence']
   };
 
-  netConnectionCache={ts:now,data:result};
   return result;
+}
+
+async function refreshNetConnectionSnapshot(force=false){
+  const now=Date.now();
+  if(!force && netConnectionCache.data && (now-netConnectionCache.ts)<NET_CONNECTION_REFRESH_MS){
+    return netConnectionCache.data;
+  }
+  if(netConnectionInFlight) return netConnectionInFlight;
+
+  netConnectionInFlight=(async ()=>{
+    const data=await runNetConnectionTest();
+    netConnectionCache={ts:Date.now(),data};
+    return data;
+  })();
+
+  try {
+    return await netConnectionInFlight;
+  } finally {
+    netConnectionInFlight=null;
+  }
+}
+
+function startNetConnectionSchedule(){
+  if(netConnectionTimer) return;
+  refreshNetConnectionSnapshot(true).catch(()=>{});
+  netConnectionTimer=setInterval(()=>{
+    refreshNetConnectionSnapshot(true).catch(()=>{});
+  }, NET_CONNECTION_REFRESH_MS);
 }
 
 function formatGoogleWorkspaceMarkdown(raw){
@@ -1117,7 +1141,7 @@ function isOpenAdobeStatus(status){
 async function fetchOne(s){
   if(s.p==='netconn'){
     try {
-      const res=await runNetConnectionTest();
+      const res=await refreshNetConnectionSnapshot();
       return mk(s.name,res.ind,res.title,res.body,res.updated,s.hu,res.labelOverride,res.labels);
     } catch {
       return mk(s.name,'unknown','Network test unavailable','Unable to complete the Cloudflare speed test right now. Try again on the next 10 minute cycle.',new Date().toLocaleString(),s.hu,'Network test',['10 min cadence']);
@@ -1975,6 +1999,7 @@ window.addEventListener('DOMContentLoaded',()=>{
   // Request wake lock on load
   requestWakeLock();
 
+  startNetConnectionSchedule();
   init();
   setInterval(init, 120000); // normal 2-minute refresh cycle
   scheduleRefresh();           // aggressive retry when stale
