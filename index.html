@@ -247,11 +247,11 @@
     .c-icon.unknown { background:rgba(107,114,128,0.1); color:var(--unknown); }
     .c-logo { width:32px; height:32px; border-radius:6px; object-fit:contain; background:rgba(255,255,255,0.92); padding:2px; }
     .c-fallback { font-size:22px; font-weight:700; line-height:1; }
-    .c-name { font-size:clamp(20px, 1.7vw, 38px); font-weight:700; letter-spacing:-0.02em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:1.2; }
+    .c-name { font-size:clamp(18px, 1.4vw, 32px); font-weight:700; letter-spacing:-0.02em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:1.2; }
     .c-url { font-size:13px; color:var(--muted); margin-top:3px; text-decoration:none; display:inline-flex; align-items:center; gap:4px; transition:color 0.2s; }
     .c-url:hover { color:var(--sub); }
     .c-badge {
-      flex-shrink:0; font-size:14px; font-weight:600; letter-spacing:0.03em; text-transform:uppercase;
+      flex-shrink:0; font-size:13px; font-weight:600; letter-spacing:0.03em; text-transform:uppercase;
       padding:6px 14px; border-radius:7px; margin-top:2px;
     }
     .c-badge.ok { background:rgba(34,197,94,0.1); color:var(--ok); border:1px solid rgba(34,197,94,0.2); }
@@ -270,30 +270,36 @@
     .inc-block.unknown-block { background:rgba(107,114,128,0.06); border:1px solid rgba(107,114,128,0.15); }
     .inc-label { font-size:12px; font-weight:600; letter-spacing:0.06em; text-transform:uppercase; color:var(--muted); margin-bottom:8px; display:flex; align-items:center; gap:6px; }
     .inc-label-dot { width:7px; height:7px; border-radius:50%; background:currentColor; }
-    .inc-title { font-size:clamp(20px, 1.7vw, 40px); font-weight:600; color:var(--text); line-height:1.35; margin-bottom:6px; overflow-wrap:anywhere; }
-    .inc-body { font-size:clamp(17px, 1.35vw, 32px); color:var(--sub); line-height:1.55; display:block; overflow:auto; overflow-wrap:anywhere; min-height:0; padding-right:2px; }
+    .inc-title {
+      font-size:clamp(17px, 1.35vw, 30px); font-weight:600; color:var(--text); line-height:1.32; margin-bottom:6px;
+      overflow-wrap:anywhere; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden;
+    }
+    .inc-body {
+      font-size:clamp(14px, 1.05vw, 22px); color:var(--sub); line-height:1.45; display:-webkit-box;
+      -webkit-box-orient:vertical; -webkit-line-clamp:var(--body-lines, 6); overflow:hidden; overflow-wrap:anywhere; min-height:0;
+    }
     .status-labels { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px; }
     .status-label { font-size:11px; letter-spacing:0.04em; text-transform:uppercase; color:var(--sub); border:1px solid var(--border); background:rgba(255,255,255,0.04); padding:3px 7px; border-radius:999px; }
     .card.compact .status-label { font-size:10px; padding:2px 6px; }
-    .card.dense .inc-title { font-size:clamp(19px, 1.5vw, 34px); }
-    .card.dense .inc-body { font-size:clamp(16px, 1.2vw, 28px); }
-    .card-meta { display:flex; align-items:center; justify-content:space-between; margin-top:auto; }
-    .meta-updated { font-size:clamp(13px, 0.82vw, 16px); color:var(--muted); display:flex; align-items:center; gap:5px; }
+    .card.dense .inc-title { font-size:clamp(16px, 1.2vw, 26px); }
+    .card.dense .inc-body { font-size:clamp(13px, 0.95vw, 20px); }
+    .card-meta { display:flex; align-items:center; justify-content:space-between; margin-top:auto; gap:10px; flex-wrap:wrap; }
+    .meta-updated { font-size:clamp(12px, 0.76vw, 14px); color:var(--muted); display:flex; align-items:center; gap:5px; min-width:0; }
     .meta-updated svg { width:14px; height:14px; opacity:0.6; }
-    .meta-tag { font-size:clamp(12px, 0.78vw, 15px); font-weight:500; color:var(--muted); padding:4px 9px; border-radius:4px; background:rgba(255,255,255,0.04); border:1px solid var(--border); }
+    .meta-tag { font-size:clamp(11px, 0.72vw, 13px); font-weight:500; color:var(--muted); padding:4px 9px; border-radius:4px; background:rgba(255,255,255,0.04); border:1px solid var(--border); }
 
-    .card.compact .inc-title { font-size:clamp(18px, 1.4vw, 32px); margin-bottom:3px; }
-    .card.compact .inc-body { font-size:clamp(15px, 1.15vw, 26px); }
-    .card.compact .meta-updated { font-size:clamp(12px, 0.8vw, 15px); }
-    .card.compact .meta-tag { font-size:clamp(11px, 0.75vw, 14px); }
+    .card.compact .inc-title { font-size:clamp(15px, 1.1vw, 24px); margin-bottom:3px; }
+    .card.compact .inc-body { font-size:clamp(13px, 0.9vw, 19px); }
+    .card.compact .meta-updated { font-size:clamp(11px, 0.72vw, 13px); }
+    .card.compact .meta-tag { font-size:clamp(10px, 0.68vw, 12px); }
 
     /* iOS-style widget snap sizes */
     .card.span-tall .inc-title,
-    .card.span-large .inc-title { font-size:clamp(22px, 1.9vw, 44px); }
+    .card.span-large .inc-title { font-size:clamp(19px, 1.55vw, 34px); }
     @media (min-width: 1400px) {
-      .inc-body { font-size:clamp(20px, 1.35vw + 0.2rem, 34px); }
-      .card.compact .inc-body { font-size:clamp(16px, 1.15vw, 26px); }
-      .card.dense .inc-body { font-size:clamp(17px, 1.2vw, 28px); }
+      .inc-body { font-size:clamp(15px, 1vw + 0.15rem, 24px); }
+      .card.compact .inc-body { font-size:clamp(13px, 0.9vw, 20px); }
+      .card.dense .inc-body { font-size:clamp(14px, 0.96vw, 21px); }
     }
     .card.span-large .c-icon { width:60px; height:60px; font-size:28px; }
     .card.span-large .c-name { font-size:clamp(24px, 2vw, 44px); }
@@ -404,7 +410,7 @@
       .card-top { margin-bottom:10px; }
       .card-div { margin-bottom:10px; }
       .inc-block { padding:10px 12px; margin-bottom:8px; }
-      .inc-body { font-size:15px; --body-lines:3; }
+      .inc-body { font-size:13px; --body-lines:3; }
     }
 
     @media (min-width: 1600px) {
@@ -569,6 +575,7 @@ const SVCS=[
   {name:'AWS',su:'https://status.aws.amazon.com/rss/all.rss',hu:'https://health.aws.amazon.com/health/status',p:'aws',cat:'infra'},
   {name:'Azure',su:'https://azurestatusprodscus2.azurewebsites.net/en-us/status/',hu:'https://azure.status.microsoft/en-us/status',p:'azure',cat:'infra'},
   {name:'Google Cloud',su:'https://status.cloud.google.com/incidents.json',hu:'https://status.cloud.google.com',p:'gcloud',cat:'infra'},
+  {name:'Net connection',su:'https://speed.cloudflare.com/',hu:'https://speed.cloudflare.com/',p:'netconn',cat:'infra'},
 ];
 
 window._pi = window._pi || {};
@@ -660,6 +667,117 @@ function isAwsNorthAmericaEvent(event){
 }
 
 const AWS_RSS_ACTIVE_WINDOW_MS=1000*60*60*72;
+const NET_CONNECTION_REFRESH_MS=10*60*1000;
+let netConnectionCache=null;
+
+function roundTo(value, places=2){
+  const n=Number(value);
+  if(!Number.isFinite(n)) return null;
+  const f=Math.pow(10, places);
+  return Math.round(n*f)/f;
+}
+
+function formatMetric(value, unit='', fallback='—', places=2){
+  const n=roundTo(value, places);
+  return n===null ? fallback : `${n}${unit}`;
+}
+
+function latencyStats(samples){
+  if(!samples.length) return {avg:null,jitter:null,min:null,max:null};
+  const avg=samples.reduce((sum,val)=>sum+val,0)/samples.length;
+  const jitter=samples.length>1
+    ? samples.slice(1).reduce((sum,val,idx)=>sum+Math.abs(val-samples[idx]),0)/(samples.length-1)
+    : 0;
+  return {avg,jitter,min:Math.min(...samples),max:Math.max(...samples)};
+}
+
+async function runNetConnectionTest(){
+  const metaRes=await fetch('https://speed.cloudflare.com/meta', {cache:'no-store'});
+  if(!metaRes.ok) throw new Error('Cloudflare meta request failed');
+  const meta=await metaRes.json();
+
+  const latencySamples=[];
+  for(let i=0;i<5;i++){
+    const start=performance.now();
+    const pingRes=await fetch(`https://speed.cloudflare.com/cdn-cgi/trace?ts=${Date.now()}-${i}`, {cache:'no-store'});
+    if(!pingRes.ok) throw new Error('Latency probe failed');
+    await pingRes.text();
+    latencySamples.push(performance.now()-start);
+  }
+
+  const downloadBytes=5_000_000;
+  const downStart=performance.now();
+  const downRes=await fetch(`https://speed.cloudflare.com/__down?bytes=${downloadBytes}&ts=${Date.now()}`, {cache:'no-store'});
+  if(!downRes.ok) throw new Error('Download test failed');
+  await downRes.arrayBuffer();
+  const downSec=(performance.now()-downStart)/1000;
+  const downloadMbps=(downloadBytes*8)/(downSec*1_000_000);
+
+  const uploadBytes=1_000_000;
+  const payload=new Uint8Array(uploadBytes);
+  const upStart=performance.now();
+  const upRes=await fetch(`https://speed.cloudflare.com/__up?bytes=${uploadBytes}&ts=${Date.now()}`, {
+    method:'POST',
+    headers:{'Content-Type':'application/octet-stream'},
+    body:payload
+  });
+  if(!upRes.ok) throw new Error('Upload test failed');
+  await upRes.text();
+  const upSec=(performance.now()-upStart)/1000;
+  const uploadMbps=(uploadBytes*8)/(upSec*1_000_000);
+
+  const lat=latencyStats(latencySamples);
+  return {
+    measuredAt:new Date(),
+    meta,
+    downloadMbps,
+    uploadMbps,
+    latency:lat.avg,
+    jitter:lat.jitter,
+    packetLoss:0,
+    latencySamples
+  };
+}
+
+function buildNetConnectionWidget(data){
+  const measuredAt=data?.measuredAt instanceof Date ? data.measuredAt.toLocaleString() : new Date().toLocaleString();
+  if(!data || !data.meta){
+    return mk(
+      'Net connection',
+      'unknown',
+      'Speed test unavailable',
+      'Connected via<br><br>Server location:<br><br>Your network:<br><br>Your IP address:<br><br>Download<br>Upload<br>Latency<br>Jitter<br>Packet Loss<br><br>All Latency Measurements',
+      measuredAt,
+      'https://speed.cloudflare.com/',
+      'Stale / Unknown'
+    );
+  }
+
+  const serverLocation=[data.meta.city,data.meta.region,data.meta.country].filter(Boolean).join(', ') || 'Unknown';
+  const network=data.meta.asOrganization || data.meta.asn || 'Unknown';
+  const ip=data.meta.clientIp || 'Unknown';
+  const latencyMeasurements=(data.latencySamples||[]).map(v=>`${roundTo(v,2)} ms`).join(', ') || '—';
+
+  const body=[
+    'Connected via',
+    '',
+    `Server location: ${serverLocation}`,
+    '',
+    `Your network: ${network}`,
+    '',
+    `Your IP address: ${ip}`,
+    '',
+    `Download: ${formatMetric(data.downloadMbps,' Mbps')}`,
+    `Upload: ${formatMetric(data.uploadMbps,' Mbps')}`,
+    `Latency: ${formatMetric(data.latency,' ms')}`,
+    `Jitter: ${formatMetric(data.jitter,' ms')}`,
+    `Packet Loss: ${formatMetric(data.packetLoss,' %', '0', 0)}`,
+    '',
+    `All Latency Measurements: ${latencyMeasurements}`
+  ].join('<br>');
+
+  return mk('Net connection','none','Cloudflare network test',body,measuredAt,'https://speed.cloudflare.com/','Operational');
+}
 
 function parseAwsRssItems(xmlText){
   const parser=new DOMParser();
@@ -1016,6 +1134,19 @@ function isOpenAdobeStatus(status){
 }
 
 async function fetchOne(s){
+  if(s.p==='netconn'){
+    try {
+      const shouldRefresh=!netConnectionCache || (Date.now()-netConnectionCache.measuredAt.getTime())>=NET_CONNECTION_REFRESH_MS;
+      if(shouldRefresh){
+        const latest=await runNetConnectionTest();
+        netConnectionCache=latest;
+      }
+      return buildNetConnectionWidget(netConnectionCache);
+    } catch {
+      return buildNetConnectionWidget(netConnectionCache);
+    }
+  }
+
   if(s.p==='adobe'){
     try {
       const [registry, events]=await Promise.all([getJson(s.su, s.p), getJson(s.iu, s.p)]);
