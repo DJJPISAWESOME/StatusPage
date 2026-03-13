@@ -828,6 +828,13 @@ function stripHtml(txt){
   return String(txt||'').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();
 }
 
+function humanizeComponentStatus(status){
+  return String(status||'')
+    .replace(/_/g,' ')
+    .replace(/\b\w/g,m=>m.toUpperCase())
+    .trim();
+}
+
 function mk(name,ind,title,body,updated,url){
   return {name,ind,label:LABELS[ind]||'Unknown',title,body,updated,url};
 }
@@ -1056,8 +1063,14 @@ async function fetchOne(s){
           .filter(c=>c.group && targetGroups.includes(String(c.name||'').toLowerCase().trim()))
           .map(c=>c.id)
       );
+      const northAmericaGroup=components.find(c=>c.group && String(c.name||'').toLowerCase().trim()==='north america');
+      const northAmericaGroupId=northAmericaGroup?.id||'';
       const watched=components.filter(c=>targetGroupIds.has(c.id) || targetGroupIds.has(c.group_id));
       const watchedIds=new Set(watched.map(c=>c.id));
+      const northAmericaComponents=northAmericaGroupId ? components.filter(c=>c.group_id===northAmericaGroupId) : [];
+      const northAmericaImpacted=northAmericaComponents
+        .filter(c=>componentStatusToIndicator(c.status)!=='none')
+        .sort((a,b)=>a.name.localeCompare(b.name));
 
       if(watched.length){
         const worst=watched.reduce((max,c)=>{
@@ -1085,14 +1098,27 @@ async function fetchOne(s){
         title=a.name||'Service Disruption';
         let desc=stripHtml(a.description||'');
         if(!desc && a.incident_updates?.[0]?.body) desc=stripHtml(a.incident_updates[0].body);
-        body=desc;
+        const naIncidentComponents=(a.components||[])
+          .filter(c=>northAmericaComponents.some(nc=>nc.id===c.id))
+          .map(c=>{
+            const source=northAmericaComponents.find(nc=>nc.id===c.id);
+            return source ? `${source.name} (${humanizeComponentStatus(source.status)})` : c.name;
+          });
+        const listSource=naIncidentComponents.length ? naIncidentComponents : northAmericaImpacted.map(c=>`${c.name} (${humanizeComponentStatus(c.status)})`);
+        const affectedList=listSource.length
+          ? `North America affected areas: ${listSource.join(' • ')}`
+          : '';
+        body=[desc, affectedList].filter(Boolean).join(' ');
       } else if(watched.length && ind!=='none'){
         const topIssue=watched
           .filter(c=>componentStatusToIndicator(c.status)!=='none')
           .sort((a,b)=>((PRI[componentStatusToIndicator(a.status)]||9)-(PRI[componentStatusToIndicator(b.status)]||9)) || a.name.localeCompare(b.name))[0];
         if(topIssue){
           title=`${topIssue.name} is ${LABELS[componentStatusToIndicator(topIssue.status)]||'impacted'}`;
-          body='Monitoring Cloudflare Sites and Services + North America categories only.';
+          const affectedList=northAmericaImpacted.map(c=>`${c.name} (${humanizeComponentStatus(c.status)})`).join(' • ');
+          body=affectedList
+            ? `North America affected areas: ${affectedList}`
+            : 'Monitoring Cloudflare Sites and Services + North America categories only.';
         }
       }
       return mk(s.name,ind,title,body,updated,s.hu);
