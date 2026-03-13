@@ -2254,6 +2254,79 @@ function rebalanceSingleCardPages(packed, cols, rows){
   return packed;
 }
 
+
+function findPlacementOnPage(pageItems, cols, rows, item){
+  const grid=Array.from({length:rows},()=>Array(cols).fill(false));
+  for(const it of pageItems){
+    const r0=(it.gridRow||1)-1;
+    const c0=(it.gridCol||1)-1;
+    for(let dr=0;dr<it.spanRow;dr++){
+      for(let dc=0;dc<it.spanCol;dc++){
+        if(r0+dr>=0&&r0+dr<rows&&c0+dc>=0&&c0+dc<cols) grid[r0+dr][c0+dc]=true;
+      }
+    }
+  }
+
+  for(let r=0;r<=rows-item.spanRow;r++){
+    for(let c=0;c<=cols-item.spanCol;c++){
+      let ok=true;
+      for(let dr=0;dr<item.spanRow&&ok;dr++){
+        for(let dc=0;dc<item.spanCol&&ok;dc++){
+          if(grid[r+dr][c+dc]) ok=false;
+        }
+      }
+      if(ok) return {gridRow:r+1,gridCol:c+1};
+    }
+  }
+  return null;
+}
+
+function optimizePackedPagesFill(packed, cols, rows, minCardsPerPage=4){
+  if(packed.length<2) return packed;
+
+  for(let i=0;i<packed.length-1;i++){
+    let changed=true;
+    while(changed){
+      changed=false;
+      for(let j=packed.length-1;j>i;j--){
+        const donor=packed[j];
+        if(!donor || donor.length===0) continue;
+        if(donor.length<=minCardsPerPage) continue;
+
+        const candidates=[...donor]
+          .sort((a,b)=>(a.spanCol*a.spanRow)-(b.spanCol*b.spanRow));
+
+        for(const cand of candidates){
+          const placement=findPlacementOnPage(packed[i], cols, rows, cand);
+          if(!placement) continue;
+
+          const idx=donor.indexOf(cand);
+          if(idx===-1) continue;
+
+          donor.splice(idx,1);
+          packed[i].push({...cand,...placement});
+          changed=true;
+
+          if(donor.length===0){
+            packed.splice(j,1);
+          }else{
+            const repacked=packToPages(donor.map(({gridCol,gridRow,...rest})=>rest), cols, rows);
+            if(repacked.length===1){
+              packed[j]=repacked[0];
+            }else{
+              packed.splice(j,1,...repacked);
+            }
+          }
+          break;
+        }
+        if(changed) break;
+      }
+    }
+  }
+
+  return packed;
+}
+
 function mkCard(svc, delay){
   const d=document.createElement('div');
   const isMini=svc.ind==='none' && !svc.noMini;
@@ -2525,7 +2598,7 @@ async function init(){
 
   const pages=[];
   for(const group of groups){
-    const packed=rebalanceSingleCardPages(packWithMinimumCards(group.items,cols,rowsPerPage,4),cols,rowsPerPage);
+    const packed=optimizePackedPagesFill(rebalanceSingleCardPages(packWithMinimumCards(group.items,cols,rowsPerPage,4),cols,rowsPerPage),cols,rowsPerPage,4);
     packed.forEach((pageCards,idx)=>{
       pages.push({
         header:idx===0?group.label:null,
