@@ -551,25 +551,27 @@
     .filter-chip.active.fc-maint{ background:rgba(59,130,246,0.1);  color:#93c5fd; border-color:rgba(59,130,246,0.25); }
 
     /* ── TV / Status board mode ──────────────────────────────────────────────── */
-    .tv-board { position:fixed; inset:0; background:var(--bg); z-index:200; display:flex; flex-direction:column; padding:clamp(14px,2vh,28px) clamp(18px,2.5vw,40px); overflow:hidden; }
-    .tv-board-hdr { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:clamp(14px,2vh,24px); flex-shrink:0; border-bottom:1px solid var(--border); padding-bottom:clamp(10px,1.5vh,18px); }
+    .tv-board { position:fixed; inset:0; background:var(--bg); z-index:200; display:flex; flex-direction:column; padding:clamp(16px,2vh,30px) clamp(20px,2.8vw,44px); overflow:hidden; }
+    .tv-board-hdr { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:clamp(12px,1.5vh,20px); flex-shrink:0; border-bottom:1px solid var(--border); padding-bottom:clamp(10px,1.5vh,18px); }
     .tv-board-brand { display:flex; align-items:center; gap:10px; font-size:clamp(16px,1.8vw,28px); font-weight:800; letter-spacing:-0.02em; }
     .tv-board-status { font-size:clamp(12px,1.2vw,18px); font-weight:700; padding:5px 16px; border-radius:100px; }
     .tv-board-status.ok   { background:rgba(34,197,94,0.1);  border:1px solid rgba(34,197,94,0.25);  color:#4ade80; }
     .tv-board-status.warn { background:rgba(245,158,11,0.1); border:1px solid rgba(245,158,11,0.3);  color:#fbbf24; }
     .tv-board-status.bad  { background:rgba(239,68,68,0.1);  border:1px solid rgba(239,68,68,0.3);   color:#f87171; }
     .tv-clock { font-size:clamp(14px,1.5vw,24px); font-weight:600; font-variant-numeric:tabular-nums; color:var(--sub); flex-shrink:0; }
-    .tv-tiles { flex:1; display:grid; grid-template-columns:repeat(auto-fill, minmax(clamp(140px,13vw,220px),1fr)); grid-auto-rows:minmax(0,1fr); gap:clamp(8px,0.9vw,14px); overflow:hidden; min-height:0; }
-    .tv-tile { background:rgba(255,255,255,0.03); border:1px solid var(--border); border-radius:10px; padding:clamp(10px,1vw,16px); display:flex; flex-direction:column; gap:5px; cursor:pointer; transition:border-color 0.2s,background 0.2s; overflow:hidden; min-height:0; justify-content:center; }
-    .tv-tile:hover { background:rgba(255,255,255,0.06); }
-    .tv-tile.cb { background:rgba(239,68,68,0.08);  border-color:rgba(239,68,68,0.25); }
-    .tv-tile.cw { background:rgba(245,158,11,0.07); border-color:rgba(245,158,11,0.22); }
-    .tv-tile.cm { background:rgba(59,130,246,0.07); border-color:rgba(59,130,246,0.22); }
+    .tv-board-main { flex:1; display:grid; grid-template-columns:minmax(0,2.1fr) minmax(280px,1fr); gap:clamp(10px,1vw,16px); min-height:0; }
+    .tv-board-left,.tv-board-right { min-height:0; display:flex; flex-direction:column; gap:clamp(8px,1vh,12px); }
+    .tv-tiles { flex:1; display:grid; grid-template-columns:repeat(auto-fill,minmax(clamp(270px,24vw,420px),1fr)); grid-auto-rows:minmax(0,1fr); gap:clamp(9px,1vw,14px); min-height:0; overflow:hidden; }
+    .tv-tile { background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:14px; padding:clamp(14px,1.2vw,20px); display:flex; flex-direction:column; gap:8px; cursor:pointer; transition:border-color 0.2s,background 0.2s,transform 0.2s; overflow:hidden; min-height:0; justify-content:flex-start; }
+    .tv-tile:hover { background:rgba(255,255,255,0.07); transform:translateY(-1px); }
+    .tv-tile.cb { background:rgba(239,68,68,0.12); border-color:rgba(239,68,68,0.32); box-shadow:0 0 30px rgba(239,68,68,0.12); }
+    .tv-tile.cw { background:rgba(245,158,11,0.11); border-color:rgba(245,158,11,0.28); }
+    .tv-tile.cm { background:rgba(59,130,246,0.11); border-color:rgba(59,130,246,0.28); }
     .tv-tile-top { display:flex; align-items:center; gap:8px; min-width:0; }
-    .tv-tile-logo { width:clamp(20px,1.8vw,28px); height:clamp(20px,1.8vw,28px); border-radius:5px; background:#fff; object-fit:contain; flex-shrink:0; }
-    .tv-tile-logo-fb { width:clamp(20px,1.8vw,28px); height:clamp(20px,1.8vw,28px); border-radius:5px; background:rgba(255,255,255,0.1); display:flex; align-items:center; justify-content:center; font-size:clamp(10px,1vw,14px); font-weight:700; flex-shrink:0; }
-    .tv-tile-name { font-size:clamp(11px,1vw,15px); font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-    .tv-tile-badge { font-size:clamp(9px,0.8vw,12px); font-weight:700; letter-spacing:0.07em; text-transform:uppercase; }
+    .tv-tile-logo { width:clamp(22px,1.8vw,32px); height:clamp(22px,1.8vw,32px); border-radius:6px; background:#fff; object-fit:contain; flex-shrink:0; }
+    .tv-tile-logo-fb { width:clamp(22px,1.8vw,32px); height:clamp(22px,1.8vw,32px); border-radius:6px; background:rgba(255,255,255,0.1); display:flex; align-items:center; justify-content:center; font-size:clamp(10px,1vw,14px); font-weight:700; flex-shrink:0; }
+    .tv-tile-name { font-size:clamp(14px,1.2vw,22px); font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .tv-tile-badge { font-size:clamp(10px,0.9vw,14px); font-weight:800; letter-spacing:0.07em; text-transform:uppercase; }
     .tv-tile-badge.ok    { color:var(--ok); }
     .tv-tile-badge.warn  { color:var(--warn); }
     .tv-tile-badge.bad   { color:var(--bad); }
@@ -577,10 +579,28 @@
     .tv-tile-badge.reroute{ color:var(--reroute); }
     .tv-tile-badge.unknown{ color:var(--unknown); }
     .tv-tile-inc { font-size:clamp(9px,0.75vw,11px); color:var(--sub); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-    .tv-tile-title { font-size:clamp(9px,0.8vw,12px); font-weight:600; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-    .tv-tile-body { font-size:clamp(8px,0.72vw,11px); color:var(--sub); line-height:1.4; overflow:hidden; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; white-space:pre-wrap; overflow-wrap:anywhere; }
-    .tv-net-bar { display:flex; align-items:center; flex-wrap:wrap; gap:4px 12px; padding:7px 14px; background:rgba(255,255,255,0.02); border:1px solid var(--border); border-radius:8px; margin-bottom:clamp(10px,1.4vh,16px); font-size:clamp(10px,0.82vw,13px); color:var(--sub); flex-shrink:0; }
+    .tv-tile-title { font-size:clamp(13px,1vw,17px); font-weight:700; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .tv-tile-body { font-size:clamp(12px,0.95vw,15px); color:var(--sub); line-height:1.4; overflow:hidden; display:-webkit-box; -webkit-line-clamp:4; -webkit-box-orient:vertical; white-space:pre-wrap; overflow-wrap:anywhere; }
+    .tv-net-bar,.tv-wx-bar { display:flex; align-items:center; flex-wrap:wrap; gap:4px 12px; padding:10px 14px; background:rgba(255,255,255,0.03); border:1px solid var(--border); border-radius:10px; font-size:clamp(11px,0.85vw,14px); color:var(--sub); flex-shrink:0; }
     .light-mode .tv-net-bar { background:rgba(0,0,0,0.03); }
+    .light-mode .tv-wx-bar { background:rgba(0,0,0,0.03); }
+    .tv-wx-bar { display:grid; grid-template-columns:auto minmax(0,1fr) auto; align-items:center; gap:10px 14px; }
+    .tv-wx-main { display:flex; align-items:center; gap:12px; min-width:0; }
+    .tv-wx-icon { font-size:clamp(22px,1.8vw,30px); }
+    .tv-wx-temp { font-size:clamp(22px,1.8vw,34px); font-weight:800; color:var(--text); }
+    .tv-wx-cond { font-size:clamp(13px,1vw,18px); color:var(--sub); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .tv-wx-loc { font-size:clamp(12px,0.95vw,15px); color:var(--muted); }
+    .tv-wx-alerts { display:flex; align-items:center; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
+    .tv-wx-alert { background:rgba(245,158,11,0.14); border:1px solid rgba(245,158,11,0.34); color:#fbbf24; padding:4px 10px; border-radius:999px; font-size:clamp(10px,0.75vw,12px); font-weight:700; white-space:nowrap; }
+    .tv-health-wrap,.tv-issue-wrap { background:rgba(255,255,255,0.02); border:1px solid var(--border); border-radius:12px; padding:clamp(10px,1vw,16px); min-height:0; }
+    .tv-panel-hdr { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:10px; }
+    .tv-panel-title { font-size:clamp(13px,1.1vw,18px); font-weight:800; letter-spacing:0.04em; text-transform:uppercase; color:var(--sub); }
+    .tv-panel-count { font-size:clamp(11px,0.9vw,14px); font-weight:700; color:var(--muted); }
+    .tv-health-list { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; max-height:100%; overflow:auto; padding-right:4px; }
+    .tv-health-item { border:1px solid var(--border); border-radius:10px; padding:8px 10px; color:var(--sub); font-size:clamp(11px,0.85vw,14px); background:rgba(255,255,255,0.01); display:flex; align-items:center; gap:8px; }
+    .tv-health-dot { width:8px; height:8px; border-radius:50%; background:var(--ok); box-shadow:0 0 0 3px rgba(34,197,94,0.2); flex-shrink:0; }
+    .tv-empty-issues { display:flex; align-items:center; justify-content:center; min-height:160px; color:var(--ok); font-size:clamp(20px,2vw,34px); font-weight:800; }
+    @media (max-width: 1100px) { .tv-board-main { grid-template-columns:1fr; } .tv-health-list { grid-template-columns:repeat(3,minmax(0,1fr)); } }
     .tv-net-item { display:inline-flex; align-items:center; gap:5px; white-space:nowrap; }
     .tv-net-lbl { font-weight:700; font-size:0.82em; letter-spacing:0.07em; text-transform:uppercase; color:var(--muted); }
     .tv-net-sep { color:var(--border); user-select:none; }
@@ -2335,20 +2355,23 @@ function _renderBoardWeatherBar(){
   const bwb=document.getElementById('tv-wx-bar');
   if(!bwb) return;
   if(!_wxInfo||_wxInfo.err){bwb.style.display='none';return;}
-  const{loc,period,alerts}=_wxInfo;
+  const{loc,period,alerts,ts}=_wxInfo;
   const temp=period?`${period.temperature}°${period.temperatureUnit||'F'}`:'';
   const cond=period?.shortForecast||'';
-  const cStr=cond.substring(0,40);
+  const cStr=cond.substring(0,48);
   const icon=period?.isDaytime===false?'🌙':cond.match(/sunny|clear/i)?'☀️':cond.match(/cloud/i)?'⛅':cond.match(/rain|shower/i)?'🌧':cond.match(/snow/i)?'❄️':cond.match(/thunder|storm/i)?'⛈':'🌡';
-  const sep='<span class="tv-net-sep">·</span>';
-  let html=`<span class="tv-net-lbl">Weather</span>`;
-  html+=`<span class="tv-net-item">${icon} ${temp?`<b>${esc(temp)}</b>${sep}`:''}${esc(cStr)}</span>`;
-  if(loc) html+=`${sep}<span class="tv-net-item" style="color:var(--muted)">${esc(loc)}</span>`;
-  alerts.slice(0,2).forEach(a=>{
-    const ev=a.properties?.event||'';
-    html+=`${sep}<span class="tv-net-item" style="color:#fbbf24;font-weight:600">⚠ ${esc(ev)}</span>`;
-  });
-  bwb.innerHTML=html;
+  const alertHTML=alerts.slice(0,2).map(a=>`<span class="tv-wx-alert">⚠ ${esc(a.properties?.event||'Weather alert')}</span>`).join('');
+  bwb.innerHTML=`
+    <span class="tv-net-lbl">Weather</span>
+    <div class="tv-wx-main">
+      <span class="tv-wx-icon">${icon}</span>
+      <span class="tv-wx-temp">${esc(temp||'--')}</span>
+      <div style="min-width:0">
+        <div class="tv-wx-cond">${esc(cStr||'Conditions unavailable')}</div>
+        ${loc?`<div class="tv-wx-loc">${esc(loc)}</div>`:''}
+      </div>
+    </div>
+    <div class="tv-wx-alerts">${alertHTML}${ts?`<span class="tv-net-ts">updated ${fmtFetchAge(ts)}</span>`:''}</div>`;
   bwb.style.display='';
 }
 
@@ -2642,13 +2665,15 @@ function renderBoardView(results){
   }
   const srt=(arr)=>[...arr].sort((a,b)=>(PRI[a.ind]||9)-(PRI[b.ind]||9)||a.name.localeCompare(b.name));
   const sorted=srt(results);
+  const issueSvcs=sorted.filter(s=>s.ind!=='none'&&s.ind!=='unknown');
+  const healthySvcs=sorted.filter(s=>s.ind==='none');
   const techSvcs=results.filter(s=>{const sv=SVCS.find(x=>x.name===s.name);return !sv||sv.cat!=='transit';});
   const issueCount=techSvcs.filter(s=>s.ind!=='none'&&s.ind!=='unknown').length;
   const outageCount=techSvcs.filter(s=>s.ind==='major').length;
   const statusCls=outageCount>0?'bad':issueCount>0?'warn':'ok';
   const statusMsg=outageCount>0?`${outageCount} Down`:issueCount>0?`${issueCount} Issue${issueCount!==1?'s':''}`:'\u2713 All Systems Operational';
   const statusColor=outageCount>0?'var(--bad)':issueCount>0?'var(--warn)':'var(--ok)';
-  const tilesHTML=sorted.map(svc=>{
+  const tilesHTML=issueSvcs.map(svc=>{
     const logos=logoSources(svc);
     const fallback=(svc.name||'?').trim().charAt(0).toUpperCase();
     const logoEl=logos.length
@@ -2672,13 +2697,32 @@ function renderBoardView(results){
       <div class="tv-board-status ${statusCls}">${statusMsg}</div>
       <div class="tv-clock" id="tv-clock"></div>
     </div>
-    <div class="tv-net-bar" id="tv-net-bar"><span class="tv-net-lbl">Network</span> Loading…</div>
-    <div class="tv-wx-bar" id="tv-wx-bar" style="display:none"></div>
     <div class="tv-minimal-status">
       <div class="tv-minimal-msg" style="color:${statusColor}">${statusMsg}</div>
       <div class="tv-minimal-clock" id="tv-minimal-clock"></div>
     </div>
-    <div class="tv-tiles" id="tv-tiles">${tilesHTML}</div>
+    <div class="tv-board-main">
+      <div class="tv-board-left">
+        <div class="tv-net-bar" id="tv-net-bar"><span class="tv-net-lbl">Network</span> Loading…</div>
+        <div class="tv-wx-bar" id="tv-wx-bar" style="display:none"></div>
+        <div class="tv-issue-wrap">
+          <div class="tv-panel-hdr">
+            <div class="tv-panel-title">Active issues</div>
+            <div class="tv-panel-count">${issueSvcs.length||0} impacted</div>
+          </div>
+          ${issueSvcs.length?`<div class="tv-tiles" id="tv-tiles">${tilesHTML}</div>`:`<div class="tv-empty-issues">No active issues</div>`}
+        </div>
+      </div>
+      <div class="tv-board-right">
+        <div class="tv-health-wrap">
+          <div class="tv-panel-hdr">
+            <div class="tv-panel-title">Operational services</div>
+            <div class="tv-panel-count">${healthySvcs.length||0} healthy</div>
+          </div>
+          <div class="tv-health-list">${healthySvcs.map(s=>`<div class="tv-health-item"><span class="tv-health-dot"></span><span>${esc(s.name)}</span></div>`).join('')||'<div class="tv-empty-issues">No operational services</div>'}</div>
+        </div>
+      </div>
+    </div>
     <div class="tv-board-footer">
       <button class="tv-exit-btn" id="tv-exit-btn">Exit Board</button>
       <span class="tv-updated" id="tv-updated"></span>
@@ -2693,13 +2737,15 @@ function renderBoardView(results){
   _boardResizeObs.observe(board);
   document.getElementById('tv-exit-btn').addEventListener('click',exitBoardMode);
   const tilesEl=document.getElementById('tv-tiles');
-  tilesEl.addEventListener('click',e=>{
-    const tile=e.target.closest('.tv-tile');
-    if(tile&&tile.dataset.url) _safeOpen(tile.dataset.url);
-  });
-  tilesEl.addEventListener('error',e=>{
-    if(e.target.matches('.tv-tile-logo')) e.target.style.display='none';
-  },true);
+  if(tilesEl){
+    tilesEl.addEventListener('click',e=>{
+      const tile=e.target.closest('.tv-tile');
+      if(tile&&tile.dataset.url) _safeOpen(tile.dataset.url);
+    });
+    tilesEl.addEventListener('error',e=>{
+      if(e.target.matches('.tv-tile-logo')) e.target.style.display='none';
+    },true);
+  }
   clearInterval(_boardClockTimer);
   const tick=()=>{
     const cl=document.getElementById('tv-clock');
