@@ -1854,8 +1854,7 @@ async function fetchOne(s){
       const cloudflareComponentIndicator=(component)=>{
         const base=componentStatusToIndicator(component?.status);
         if(base==='none' || base==='maintenance' || base==='unknown') return base;
-        const isNorthAmericaChild=!!northAmericaGroupId && component?.group_id===northAmericaGroupId;
-        if(isNorthAmericaChild || hasRerouteSignal(component?.name, component?.description)) return 'rerouting';
+        if(hasRerouteSignal(component?.name, component?.description)) return 'rerouting';
         return base;
       };
       const affectedNorthAmerica=watched
