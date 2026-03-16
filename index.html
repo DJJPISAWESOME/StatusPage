@@ -2304,28 +2304,52 @@ let _boardClockTimer=null,_boardLastUpdate=null;
 let _boardNetTimer=null,_boardNetInfo=null,_boardNetFetching=false;
 let _wxInfo=null,_wxTimer=null,_wxFetching=false;
 
+function _getBrowserCoords(timeoutMs=10000){
+  if(!navigator.geolocation) return Promise.resolve(null);
+  return new Promise(resolve=>{
+    navigator.geolocation.getCurrentPosition(
+      pos=>resolve({
+        lat:Number(pos.coords.latitude),
+        lon:Number(pos.coords.longitude),
+        source:'browser'
+      }),
+      ()=>resolve(null),
+      { enableHighAccuracy:false, timeout:timeoutMs, maximumAge:10*60*1000 }
+    );
+  });
+}
+
 async function _fetchWeather(){
   if(_wxFetching) return;
   _wxFetching=true;
   try{
-    let lat,lon,locName='';
+    let lat,lon,locName='',locationSource='';
     const cached=sessionStorage.getItem('_wx_coords');
-    if(cached){try{const c=JSON.parse(cached);lat=c.lat;lon=c.lon;locName=c.name||'';}catch{}}
+    if(cached){try{const c=JSON.parse(cached);lat=c.lat;lon=c.lon;locName=c.name||'';locationSource=c.source||'';}catch{}}
     if(!lat){
-      // Prefer Cloudflare meta first (usually CORS-friendly from browsers).
-      const meta=await fetchWithTimeout('https://speed.cloudflare.com/meta',8000).then(r=>r.ok?r.json():null).catch(()=>null);
-      if(meta?.latitude&&meta?.longitude){
-        lat=Number(meta.latitude);lon=Number(meta.longitude);
-        locName=(meta.city||'')+(meta.region?', '+meta.region:'');
+      // Prefer browser geolocation so weather reflects the user's current device location.
+      const browserCoords=await _getBrowserCoords();
+      if(browserCoords?.lat&&browserCoords?.lon){
+        lat=browserCoords.lat;lon=browserCoords.lon;
+        locationSource='browser';
       } else {
-        // Fallback via configured route/proxy strategy.
-        const ipd=await getJson('https://ip-api.com/json').catch(()=>null);
-        if(ipd?.lat){
-          lat=ipd.lat;lon=ipd.lon;
-          locName=(ipd.city||'')+(ipd.regionName?', '+ipd.regionName:'');
+        // Fallback to network-based location if geolocation is blocked/unavailable.
+        const meta=await fetchWithTimeout('https://speed.cloudflare.com/meta',8000).then(r=>r.ok?r.json():null).catch(()=>null);
+        if(meta?.latitude&&meta?.longitude){
+          lat=Number(meta.latitude);lon=Number(meta.longitude);
+          locName=(meta.city||'')+(meta.region?', '+meta.region:'');
+          locationSource='network';
+        } else {
+          // Final fallback via configured route/proxy strategy.
+          const ipd=await getJson('https://ip-api.com/json').catch(()=>null);
+          if(ipd?.lat){
+            lat=ipd.lat;lon=ipd.lon;
+            locName=(ipd.city||'')+(ipd.regionName?', '+ipd.regionName:'');
+            locationSource='network';
+          }
         }
       }
-      if(lat&&lon) sessionStorage.setItem('_wx_coords',JSON.stringify({lat,lon,name:locName}));
+      if(lat&&lon) sessionStorage.setItem('_wx_coords',JSON.stringify({lat,lon,name:locName,source:locationSource}));
     }
     if(!lat){_wxInfo={err:'Location unavailable'};_wxFetching=false;_renderWeather();return;}
     const pt=await fetchWithTimeout(`https://api.weather.gov/points/${lat.toFixed(4)},${lon.toFixed(4)}`,12000).then(r=>r.ok?r.json():null).catch(()=>null);
