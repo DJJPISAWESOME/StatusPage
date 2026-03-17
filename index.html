@@ -177,7 +177,6 @@
     .chip-unknown { color:#d4d4d8; background:rgba(107,114,128,0.1); border-color:rgba(107,114,128,0.25); }
     .hdr-left { display:flex; align-items:center; gap:16px; flex-wrap:wrap; margin-right:auto; }
     .hdr-right { display:flex; align-items:center; gap:20px; flex-wrap:wrap; justify-content:flex-end; }
-    .bwrsd-seal { height:56px; width:56px; object-fit:contain; flex-shrink:0; border-radius:50%; background:#fff; padding:3px; box-shadow:0 2px 8px rgba(0,0,0,0.35); }
     .stats { display:flex; align-items:center; gap:16px; flex-wrap:wrap; justify-content:flex-start; }
     .stat { display:flex; align-items:center; gap:5px; font-size:clamp(13px, 0.85vw, 17px); color:var(--sub); }
     .sdot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
@@ -616,7 +615,9 @@
     .tv-radio-vol-slider::-webkit-slider-thumb { -webkit-appearance:none; width:11px; height:11px; border-radius:50%; background:var(--text); cursor:pointer; }
     .tv-radio-vol-slider::-moz-range-thumb { width:11px; height:11px; border-radius:50%; background:var(--text); border:none; cursor:pointer; }
     /* Clock */
-    .tv-clock-block { display:flex; flex-direction:column; align-items:flex-end; gap:0; flex-shrink:0; }
+    .tv-clock-block { display:flex; flex-direction:row; align-items:center; gap:clamp(10px,1.2vw,20px); flex-shrink:0; }
+    .tv-clock-text { display:flex; flex-direction:column; align-items:flex-end; gap:0; }
+    .tv-board-seal { height:clamp(44px,4.8vw,76px); width:clamp(44px,4.8vw,76px); object-fit:contain; border-radius:50%; background:#fff; padding:3px; box-shadow:0 2px 10px rgba(0,0,0,0.4); flex-shrink:0; }
     .tv-clock { font-size:clamp(28px,3.2vw,54px); font-weight:800; font-variant-numeric:tabular-nums; color:var(--text); letter-spacing:-0.02em; line-height:1.1; }
     .tv-date { font-size:clamp(11px,0.95vw,16px); color:var(--muted); font-weight:500; letter-spacing:0.03em; white-space:nowrap; font-variant-numeric:tabular-nums; }
     /* Section label */
@@ -734,7 +735,6 @@
       .hdr { flex-wrap:wrap; gap:10px; padding:4px 0 12px; }
       .hdr-left { flex-direction:column; align-items:flex-start; gap:8px; width:100%; }
       .hdr-right { flex-wrap:wrap; justify-content:flex-start; gap:10px; }
-      .bwrsd-seal { height:40px; width:40px; }
       .stats { gap:8px 14px; flex-wrap:wrap; }
       .issues-grid { grid-template-columns:1fr; }
       .footer { flex-wrap:wrap; gap:8px; }
@@ -871,7 +871,6 @@
         <button class="nav-tab active" data-view="services" type="button">Services</button>
         <button class="nav-tab" data-view="network" type="button">Network</button>
       </div>
-      <img src="bwrsd-logo.png" alt="Bristol Warren Regional School District Seal" class="bwrsd-seal">
     </div>
   </div>
   <div class="view active" id="view-services">
@@ -3331,8 +3330,11 @@ function renderBoardView(results){
         </div>
       </div>
       <div class="tv-clock-block">
-        <div class="tv-clock" id="tv-clock"></div>
-        <div class="tv-date" id="tv-date"></div>
+        <div class="tv-clock-text">
+          <div class="tv-clock" id="tv-clock"></div>
+          <div class="tv-date" id="tv-date"></div>
+        </div>
+        <img src="bwrsd-logo.png" class="tv-board-seal" alt="Bristol Warren Regional School District">
       </div>
     </div>
     <div class="tv-minimal-status">
