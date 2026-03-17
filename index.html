@@ -1105,12 +1105,40 @@ const TTS_STATUS_LABEL={
   restored:'Operational'
 };
 const PREFERRED_TTS_VOICES=[
-  'Google US English',
-  'Google UK English Female',
   'Microsoft Aria Online (Natural) - English (United States)',
   'Microsoft Jenny Online (Natural) - English (United States)',
+  'Microsoft Davis Online (Natural) - English (United States)',
+  'Microsoft Emma Online (Natural) - English (United States)',
+  'Microsoft Brian Online (Natural) - English (United States)',
+  'Microsoft Guy Online (Natural) - English (United States)',
+  'Google US English',
+  'Google UK English Female',
   'Samantha'
 ];
+
+// --- Kokoro neural TTS (free, no API key, runs in-browser via WASM) ---
+let _kokoroTTS=null;
+let _kokoroInitPromise=null;
+let _kokoroFailed=false;
+
+function _initKokoro(){
+  if(_kokoroInitPromise) return _kokoroInitPromise;
+  _kokoroInitPromise=(async()=>{
+    try{
+      const {pipeline,env}=await import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@3/dist/transformers.min.js');
+      env.allowLocalModels=false;
+      _kokoroTTS=await pipeline('text-to-speech','onnx-community/Kokoro-82M-v1.0-ONNX',{
+        dtype:'q8',
+        device:'wasm',
+      });
+      console.log('[TTS] Kokoro neural TTS ready');
+    }catch(e){
+      console.warn('[TTS] Kokoro failed to load, will use Web Speech API fallback:',e);
+      _kokoroFailed=true;
+    }
+  })();
+  return _kokoroInitPromise;
+}
 
 const BOARD_STATIONS=[
   {id:'wror',name:'105.7 WROR',streamUrl:'https://18163.live.streamtheworld.com/WRORFM_SC',nowPlayingUrl:'special://wror-now-playing',parse:'artist-track',quality:'96k (highest available)',baseVolume:0.6,duckVolume:0.25},
@@ -1159,6 +1187,7 @@ async function ensureAudioReady(){
 
 function primeAudio(){
   ensureAudioReady().catch(()=>{});
+  if(!_kokoroInitPromise&&!_kokoroFailed) _initKokoro();
 }
 
 function tone(ctx, start, freq, dur=0.18, type='sine', gain=0.09){
@@ -1188,11 +1217,32 @@ function getPreferredVoice(){
   return voices.find((v)=>/en[-_](US|GB)/i.test(v.lang)) || voices.find((v)=>/^en/i.test(v.lang)) || null;
 }
 
-function speakBannerStatus(serviceName, kind){
+async function speakBannerStatus(serviceName, kind){
   if(_alertsMuted) return;
-  if(!('speechSynthesis' in window)) return;
-  const status=TTS_STATUS_LABEL[kind] || 'Status Updated';
+  const status=TTS_STATUS_LABEL[kind]||'Status Updated';
   const spokenText=`${serviceName}. ${status}.`;
+
+  // Try Kokoro neural TTS first (human-quality, free, no API key)
+  if(_kokoroTTS){
+    try{
+      const result=await _kokoroTTS(spokenText,{voice:'af_heart'});
+      const ctx=getAudioCtx();
+      const audio=new Float32Array(result.audio);
+      const buffer=ctx.createBuffer(1,audio.length,result.sampling_rate);
+      buffer.copyToChannel(audio,0);
+      const source=ctx.createBufferSource();
+      source.buffer=buffer;
+      source.connect(ctx.destination);
+      _duckBoardRadio(Math.round((audio.length/result.sampling_rate)*1000)+900);
+      source.start();
+      return;
+    }catch(e){
+      console.warn('[TTS] Kokoro speak error, falling back to Web Speech API:',e);
+    }
+  }
+
+  // Fallback: Web Speech API
+  if(!('speechSynthesis' in window)) return;
   const utterance=new SpeechSynthesisUtterance(spokenText);
   const voice=getPreferredVoice();
   if(voice) utterance.voice=voice;
