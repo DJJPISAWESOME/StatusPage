@@ -3468,12 +3468,7 @@ function _renderBoardNetBar(){
 function _startBoardNet(){
   _fetchBoardNet();
   clearInterval(_boardNetTimer);
-  // Align subsequent fetches to 2-minute clock boundaries (12:00, 12:02, 12:04, ...)
-  function _scheduleNext(){
-    const msUntilNext=120000-(Date.now()%120000);
-    _boardNetTimer=setTimeout(function(){ _fetchBoardNet(); _scheduleNext(); },msUntilNext);
-  }
-  _scheduleNext();
+  _boardNetTimer=setInterval(_fetchBoardNet,120000);
 }
 
 // Expand MBTA/Cloudflare services into one tile per alert/event for better board use of space
@@ -4210,16 +4205,21 @@ async function pollService(svc){
 
 const _pollIntervals=[];
 function startPerServicePolling(){
-  // Clear any previously-registered intervals to prevent duplicates
-  _pollIntervals.forEach(id=>clearInterval(id));
+  // Clear any previously-registered timers to prevent duplicates
+  _pollIntervals.forEach(id=>clearTimeout(id));
   _pollIntervals.length=0;
   SVCS.forEach((s,i)=>{
-    // Stagger so they don't all hit simultaneously, spread over the 2-min window
-    const offset=Math.round((i/SVCS.length)*110000)+5000;
-    setTimeout(()=>{
-      pollService(s);
-      _pollIntervals.push(setInterval(()=>pollService(s), 120000));
-    }, offset);
+    // Each service gets a fixed offset within the 2-min cycle so they spread out
+    // but the cycle itself aligns to clock boundaries (12:00, 12:02, 12:04, ...)
+    const stagger=Math.round((i/SVCS.length)*110000);
+    function scheduleNext(){
+      const msSinceBoundary=Date.now()%120000;
+      let msUntilSlot=(stagger-msSinceBoundary+120000)%120000;
+      if(msUntilSlot<1000) msUntilSlot+=120000; // avoid double-firing immediately
+      _pollIntervals.push(setTimeout(()=>{ pollService(s); scheduleNext(); }, msUntilSlot));
+    }
+    pollService(s);
+    scheduleNext();
   });
 }
 
