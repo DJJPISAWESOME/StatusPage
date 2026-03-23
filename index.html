@@ -4199,6 +4199,9 @@ async function pollService(svc){
       renderServices(allResults);
       lastSuccessfulRefresh=Date.now();
       setStale(false);
+    } else if(_boardModeActive){
+      // Data unchanged but poll succeeded — still refresh the "Updated X ago" timestamp
+      _boardLastUpdate=Date.now();
     }
   }catch(e){}
 }
