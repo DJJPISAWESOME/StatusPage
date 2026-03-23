@@ -3468,7 +3468,12 @@ function _renderBoardNetBar(){
 function _startBoardNet(){
   _fetchBoardNet();
   clearInterval(_boardNetTimer);
-  _boardNetTimer=setInterval(_fetchBoardNet,120000);
+  // Align subsequent fetches to 2-minute clock boundaries (12:00, 12:02, 12:04, ...)
+  function _scheduleNext(){
+    const msUntilNext=120000-(Date.now()%120000);
+    _boardNetTimer=setTimeout(function(){ _fetchBoardNet(); _scheduleNext(); },msUntilNext);
+  }
+  _scheduleNext();
 }
 
 // Expand MBTA/Cloudflare services into one tile per alert/event for better board use of space
