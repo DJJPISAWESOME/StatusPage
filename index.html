@@ -350,6 +350,24 @@
     .spinner { width:32px; height:32px; border:2.5px solid rgba(255,255,255,0.07); border-top-color:#3b82f6; border-radius:50%; animation:spin 0.8s linear infinite; }
     @keyframes spin { to { transform:rotate(360deg); } }
     .load-t { font-size:13px; color:var(--muted); }
+    .load-sub { font-size:11px; color:var(--muted); opacity:0.6; margin-top:-4px; }
+    .load-progress-wrap { width:220px; height:4px; background:rgba(255,255,255,0.07); border-radius:999px; overflow:hidden; }
+    .light-mode .load-progress-wrap { background:rgba(0,0,0,0.08); }
+    .load-progress-bar { height:100%; width:0%; background:#3b82f6; border-radius:999px; transition:width 0.3s ease; animation:loadIndeterminate 1.4s ease-in-out infinite; }
+    @keyframes loadIndeterminate {
+      0%   { width:0%;   margin-left:0%; }
+      40%  { width:60%;  margin-left:20%; }
+      70%  { width:30%;  margin-left:65%; }
+      100% { width:0%;   margin-left:100%; }
+    }
+    .load-progress-bar.filling { animation:none; }
+    /* Board-mode loading overlay (outside .shell so it's visible when board-page hides shell) */
+    .board-loading {
+      position:fixed; inset:0; z-index:199;
+      background:var(--bg);
+      display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px;
+    }
+    .board-loading.hidden { display:none; }
     .status-banner-wrap {
       position:fixed;
       top:18px;
@@ -947,6 +965,15 @@
     <button class="f-theme-btn" id="f-theme-btn" type="button" title="Toggle light/dark mode">☀</button>
     <button class="f-board-btn" id="f-board-btn" type="button" title="Open status board">Board</button>
     <button class="f-refresh-btn" id="f-refresh-btn" type="button" title="Refresh now">↻</button>
+  </div>
+</div>
+<!-- Board-mode loading overlay — outside .shell so it shows when board-page hides .shell -->
+<div class="board-loading hidden" id="board-loading-el">
+  <div class="spinner"></div>
+  <div class="load-t">Syncing board…</div>
+  <div class="load-sub" id="board-loading-sub">Checking service status</div>
+  <div class="load-progress-wrap">
+    <div class="load-progress-bar" id="board-loading-progress-bar"></div>
   </div>
 </div>
 <dialog id="settings-dialog" class="settings-dialog">
@@ -4156,8 +4183,27 @@ async function init(){
   if(isRefreshing) return;
   setRefreshing(true);
   let results;
+  const isFirstLoad=!Object.keys(window._lastResults||{}).length;
+  // Board-mode loading overlay (separate element outside .shell)
+  const boardLoadEl=document.getElementById('board-loading-el');
+  const boardProgBar=document.getElementById('board-loading-progress-bar');
+  const boardLoadSub=document.getElementById('board-loading-sub');
+  const showBoardLoad=isFirstLoad&&_boardModeActive;
+  if(showBoardLoad&&boardLoadEl) boardLoadEl.classList.remove('hidden');
+  let doneCount=0;
+  function onSvcDone(){
+    doneCount++;
+    const pct=Math.round((doneCount/SVCS.length)*100);
+    if(boardProgBar&&showBoardLoad){
+      boardProgBar.classList.add('filling');
+      boardProgBar.style.width=pct+'%';
+    }
+    if(boardLoadSub&&showBoardLoad){
+      boardLoadSub.textContent='Checked '+doneCount+' of '+SVCS.length+' services';
+    }
+  }
   try{
-    results=await Promise.all(SVCS.map((s,i)=>new Promise(res=>setTimeout(()=>fetchOne(s).then(res).catch(()=>res(errSvc(s))),i*80))));
+    results=await Promise.all(SVCS.map((s,i)=>new Promise(res=>setTimeout(()=>fetchOne(s).then(r=>{onSvcDone();res(r);}).catch(()=>{onSvcDone();res(errSvc(s));}),i*80))));
   }catch(e){
     refreshFailCount++;
     if(refreshFailCount>=2) setStale(true);
@@ -4171,6 +4217,8 @@ async function init(){
   lastSuccessfulRefresh=Date.now();
   setStale(false);
   setRefreshing(false);
+  // Hide board loading overlay once data is ready
+  if(showBoardLoad&&boardLoadEl) boardLoadEl.classList.add('hidden');
   results.forEach(s=>{
     s.cat=svcCatMap[s.name]||'app';
     const prev=window._pi[s.name];
