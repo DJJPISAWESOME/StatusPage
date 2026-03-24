@@ -350,6 +350,17 @@
     .spinner { width:32px; height:32px; border:2.5px solid rgba(255,255,255,0.07); border-top-color:#3b82f6; border-radius:50%; animation:spin 0.8s linear infinite; }
     @keyframes spin { to { transform:rotate(360deg); } }
     .load-t { font-size:13px; color:var(--muted); }
+    .load-sub { font-size:11px; color:var(--muted); opacity:0.6; margin-top:-4px; }
+    .load-progress-wrap { width:220px; height:4px; background:rgba(255,255,255,0.07); border-radius:999px; overflow:hidden; }
+    .light-mode .load-progress-wrap { background:rgba(0,0,0,0.08); }
+    .load-progress-bar { height:100%; width:0%; background:#3b82f6; border-radius:999px; transition:width 0.3s ease; animation:loadIndeterminate 1.4s ease-in-out infinite; }
+    @keyframes loadIndeterminate {
+      0%   { width:0%;   margin-left:0%; }
+      40%  { width:60%;  margin-left:20%; }
+      70%  { width:30%;  margin-left:65%; }
+      100% { width:0%;   margin-left:100%; }
+    }
+    .load-progress-bar.filling { animation:none; }
     .status-banner-wrap {
       position:fixed;
       top:18px;
@@ -924,7 +935,11 @@
     <div id="status-summary"></div>
     <div class="loading" id="loading-el">
       <div class="spinner"></div>
-      <div class="load-t">Fetching service status…</div>
+      <div class="load-t">Syncing board…</div>
+      <div class="load-sub" id="loading-sub">Checking service status</div>
+      <div class="load-progress-wrap">
+        <div class="load-progress-bar" id="loading-progress-bar"></div>
+      </div>
     </div>
     <div id="services-grid"></div>
   </div>
@@ -4156,8 +4171,24 @@ async function init(){
   if(isRefreshing) return;
   setRefreshing(true);
   let results;
+  const isFirstLoad=!Object.keys(window._lastResults||{}).length;
+  // Progress bar helpers (only shown on first load)
+  const progBar=document.getElementById('loading-progress-bar');
+  const loadSub=document.getElementById('loading-sub');
+  let doneCount=0;
+  function onSvcDone(){
+    doneCount++;
+    const pct=Math.round((doneCount/SVCS.length)*100);
+    if(progBar&&isFirstLoad){
+      progBar.classList.add('filling');
+      progBar.style.width=pct+'%';
+    }
+    if(loadSub&&isFirstLoad){
+      loadSub.textContent='Checked '+doneCount+' of '+SVCS.length+' services';
+    }
+  }
   try{
-    results=await Promise.all(SVCS.map((s,i)=>new Promise(res=>setTimeout(()=>fetchOne(s).then(res).catch(()=>res(errSvc(s))),i*80))));
+    results=await Promise.all(SVCS.map((s,i)=>new Promise(res=>setTimeout(()=>fetchOne(s).then(r=>{onSvcDone();res(r);}).catch(()=>{onSvcDone();res(errSvc(s));}),i*80))));
   }catch(e){
     refreshFailCount++;
     if(refreshFailCount>=2) setStale(true);
@@ -4171,6 +4202,8 @@ async function init(){
   lastSuccessfulRefresh=Date.now();
   setStale(false);
   setRefreshing(false);
+  // Reset progress bar for future refreshes
+  if(progBar){ progBar.classList.remove('filling'); progBar.style.width='0%'; }
   results.forEach(s=>{
     s.cat=svcCatMap[s.name]||'app';
     const prev=window._pi[s.name];
