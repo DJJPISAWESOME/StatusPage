@@ -73,6 +73,65 @@ async function fetchSpecialRoute(key, env) {
     });
   }
 
+  if (key === 'iheart-hjy-now-playing') {
+    const resp = await fetch('https://stream.revma.ihrhls.com/zc2049', {
+      headers: {
+        'Icy-MetaData': '1',
+        'User-Agent': UA,
+        Range: 'bytes=0-65535',
+      },
+    });
+    if (!resp.ok || !resp.body) throw new Error(`upstream ${resp.status}`);
+    const metaInt = Number(resp.headers.get('icy-metaint') || 0);
+    if (!Number.isFinite(metaInt) || metaInt <= 0) {
+      throw new Error('missing icy-metaint');
+    }
+
+    const reader = resp.body.getReader();
+    let chunk = new Uint8Array(0);
+    let totalRead = 0;
+    const targetBytes = Math.min(metaInt * 6 + 4096, 360000);
+    while (totalRead < targetBytes) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      totalRead += value.length;
+      const merged = new Uint8Array(chunk.length + value.length);
+      merged.set(chunk);
+      merged.set(value, chunk.length);
+      chunk = merged;
+    }
+    await reader.cancel().catch(() => {});
+
+    let songtitle = '';
+    for (let pos = metaInt; pos < chunk.length; ) {
+      const metaLen = (chunk[pos] || 0) * 16;
+      const metaStart = pos + 1;
+      const metaEnd = Math.min(chunk.length, metaStart + metaLen);
+      const rawMeta = new TextDecoder('utf-8').decode(chunk.slice(metaStart, metaEnd));
+      const m = rawMeta.match(/StreamTitle='([^']*)';/i);
+      if (m?.[1]) {
+        const raw = m[1].trim();
+        // iHeart RevMA embeds key=value attributes in StreamTitle.
+        // song_spot="M" = music; "T" = talk/station-id; skip anything non-music.
+        const songSpot = (raw.match(/\bsong_spot="([^"]*)"/i) || [])[1] || '';
+        if (songSpot && songSpot.toUpperCase() !== 'M') { pos = metaEnd + metaInt; continue; }
+        // Strip all key=value attribute pairs appended after the title
+        const title = raw.replace(/\s+\w[\w-]*="[^"]*".*$/s, '').replace(/\s*-\s*$/, '').trim();
+        if (title) { songtitle = title; break; }
+      }
+      pos = metaEnd + metaInt;
+    }
+
+    return new Response(JSON.stringify({ songtitle }), {
+      status: 200,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Cache-Control': 'no-store',
+        'Content-Type': 'application/json',
+      },
+    });
+  }
+
   if (key === 'ioda-na-outages') {
     const until = Math.floor(Date.now() / 1000);
     const from = until - 86400;
