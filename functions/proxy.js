@@ -102,8 +102,6 @@ async function fetchSpecialRoute(key, env) {
     }
     await reader.cancel().catch(() => {});
 
-    const isNonSong = t => /^(station\s+id|sign[\s-]?off|[\w-]+fm|[\w-]+am|[\w-]+hd\d?)$/i.test(t);
-
     let songtitle = '';
     for (let pos = metaInt; pos < chunk.length; ) {
       const metaLen = (chunk[pos] || 0) * 16;
@@ -112,8 +110,14 @@ async function fetchSpecialRoute(key, env) {
       const rawMeta = new TextDecoder('utf-8').decode(chunk.slice(metaStart, metaEnd));
       const m = rawMeta.match(/StreamTitle='([^']*)';/i);
       if (m?.[1]) {
-        const title = m[1].trim();
-        if (title && !isNonSong(title)) { songtitle = title; break; }
+        const raw = m[1].trim();
+        // iHeart RevMA embeds key=value attributes in StreamTitle.
+        // song_spot="M" = music; "T" = talk/station-id; skip anything non-music.
+        const songSpot = (raw.match(/\bsong_spot="([^"]*)"/i) || [])[1] || '';
+        if (songSpot && songSpot.toUpperCase() !== 'M') { pos = metaEnd + metaInt; continue; }
+        // Strip all key=value attribute pairs appended after the title
+        const title = raw.replace(/\s+\w[\w-]*="[^"]*".*$/s, '').replace(/\s*-\s*$/, '').trim();
+        if (title) { songtitle = title; break; }
       }
       pos = metaEnd + metaInt;
     }
