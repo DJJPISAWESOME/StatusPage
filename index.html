@@ -1195,7 +1195,7 @@ function awsRssItemToIndicator(item){
 function isAwsRssItemFresh(pubDateText){
   const published=Date.parse(pubDateText||'');
   if(!Number.isFinite(published)) return true;
-  return (Date.now()-published)<=AWS_RSS_ACTIVE_WINDOW_MS;
+  return (_govNowMs()-published)<=AWS_RSS_ACTIVE_WINDOW_MS;
 }
 
 function parseAzureRssFeed(xml){
@@ -1814,7 +1814,7 @@ function fmtClockTime(ts){
   if(!ts) return '';
   const d=new Date(ts);
   if(Number.isNaN(d.getTime())) return '';
-  return d.toLocaleTimeString([], {hour:'numeric', minute:'2-digit', second:'2-digit'});
+  return d.toLocaleTimeString('en-US', {timeZone:'America/New_York', hour:'numeric', minute:'2-digit', second:'2-digit'});
 }
 
 // Relative time for longer durations (last outage, footer update time)
@@ -2878,18 +2878,38 @@ function nextLogo(img){
 let _curFilter=localStorage.getItem('svc-filter')||'all';
 let _lastResults=[];
 let _boardClockTimer=null,_boardLastUpdate=null;
+let _timeGovOffset=0,_timeGovSyncTimer=null;
 let _boardNetTimer=null,_boardNetInfo=null,_boardNetFetching=false,_boardNetFailCount=0;
 let _issuePageTimer=null,_issuePage=0;
 const ISSUE_PAGE_SIZE=3, ISSUE_PAGE_SECS=30;
+// time.gov (NIST) authoritative time helpers
+// _timeGovOffset is the difference (ms) between time.gov UTC and local Date.now().
+// _govNowMs() / _govNow() should be used everywhere the board needs the current time.
+function _govNowMs(){ return Date.now()+_timeGovOffset; }
+function _govNow(){ return new Date(_govNowMs()); }
+async function _syncTimeGov(){
+  try{
+    const t0=Date.now();
+    const r=await fetch('/proxy?svc=time-gov');
+    const t1=Date.now();
+    if(!r.ok) return;
+    const d=await r.json();
+    if(!Number.isFinite(d.epochMs)) return;
+    // d.epochMs = time.gov epoch already RTT-corrected on the proxy side.
+    // Account for browser-to-proxy half-RTT so the offset tracks "now" accurately.
+    _timeGovOffset=(d.epochMs+Math.round((t1-t0)/2))-t1;
+  }catch{ /* network error — keep last known offset */ }
+}
+
 // Clock-sync helpers: all displays with the same ?speed= will rotate issue pages in unison.
 // Page index is derived from the wall clock so every display independently arrives at the same page.
 function _clockSyncPage(numPages,dwellSecs){
   if(numPages<=1) return 0;
-  return Math.floor(Date.now()/(dwellSecs*1000))%numPages;
+  return Math.floor(_govNowMs()/(dwellSecs*1000))%numPages;
 }
 function _msUntilNextClockPage(dwellSecs){
   const slot=dwellSecs*1000;
-  const ms=slot-(Date.now()%slot);
+  const ms=slot-(_govNowMs()%slot);
   // Avoid sub-500 ms races by bumping to the following slot
   return ms<500?ms+slot:ms;
 }
@@ -3694,6 +3714,11 @@ function renderBoardView(results){
   if(!_boardNetTimer) _startBoardNet();
   if(!_wxInfo) _fetchWeather();
   if(!_nowPlayingInfo) _fetchNowPlaying();
+  // Sync clock to time.gov (NIST Eastern time) once on first render, then every 5 minutes
+  if(!_timeGovSyncTimer){
+    _syncTimeGov();
+    _timeGovSyncTimer=setInterval(_syncTimeGov,5*60*1000);
+  }
   let board=document.getElementById('tv-board');
   if(!board){
     board=document.createElement('div');
@@ -3853,14 +3878,17 @@ function renderBoardView(results){
     },true);
   }
   clearInterval(_boardClockTimer);
+  const _EDT_OPTS={timeZone:'America/New_York'};
   const tick=()=>{
-    const now=new Date();
+    const now=_govNow();
+    const timeStr=now.toLocaleTimeString('en-US',{..._EDT_OPTS,hour:'numeric',minute:'2-digit',second:'2-digit',hour12:true});
+    const tzAbbr=new Intl.DateTimeFormat('en-US',{..._EDT_OPTS,timeZoneName:'short'}).formatToParts(now).find(p=>p.type==='timeZoneName')?.value||'ET';
     const cl=document.getElementById('tv-clock');
-    if(cl) cl.textContent=now.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',second:'2-digit',hour12:true});
+    if(cl) cl.textContent=timeStr;
     const dt=document.getElementById('tv-date');
-    if(dt) dt.textContent=now.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'});
+    if(dt) dt.textContent=now.toLocaleDateString('en-US',{..._EDT_OPTS,weekday:'short',month:'short',day:'numeric',year:'numeric'})+' \u2022 '+tzAbbr;
     const mc=document.getElementById('tv-minimal-clock');
-    if(mc) mc.textContent=now.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',second:'2-digit',hour12:true});
+    if(mc) mc.textContent=timeStr;
     const up=document.getElementById('tv-updated');
     if(up&&_boardLastUpdate) up.textContent='Updated '+fmtFetchAge(_boardLastUpdate)+' ago';
   };
