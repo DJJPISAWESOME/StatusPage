@@ -2964,7 +2964,7 @@ async function _fetchWeather(){
     ]);
     const periods=(fR.value?.properties?.periods||[]).slice(0,5);
     const period=periods[0]||null;
-    const alerts=(aR.value?.features||[]).filter(a=>/warning|watch|advisory/i.test(a.properties?.event||''));
+    const alerts=(aR.value?.features||[]).filter(a=>/warning|watch|advisory/i.test(a.properties?.event||'')&&(a.properties?.status||'').toLowerCase()==='actual');
     _wxInfo={loc,period,periods,alerts,ts:Date.now()};
   }catch{_wxInfo={err:'Weather unavailable'};}
   _wxFetching=false;
