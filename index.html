@@ -935,9 +935,9 @@
     <div id="status-summary"></div>
     <div class="loading" id="loading-el">
       <div class="spinner"></div>
-      <div class="load-t">Syncing board…</div>
-      <div class="load-sub" id="loading-sub">Checking service status</div>
-      <div class="load-progress-wrap">
+      <div class="load-t" id="loading-title">Fetching service status…</div>
+      <div class="load-sub" id="loading-sub" style="display:none">Checking service status</div>
+      <div class="load-progress-wrap" id="loading-progress-wrap" style="display:none">
         <div class="load-progress-bar" id="loading-progress-bar"></div>
       </div>
     </div>
@@ -4172,18 +4172,26 @@ async function init(){
   setRefreshing(true);
   let results;
   const isFirstLoad=!Object.keys(window._lastResults||{}).length;
-  // Progress bar helpers (only shown on first load)
+  // Progress bar helpers (only shown on board mode first load)
   const progBar=document.getElementById('loading-progress-bar');
+  const progWrap=document.getElementById('loading-progress-wrap');
   const loadSub=document.getElementById('loading-sub');
+  const loadTitle=document.getElementById('loading-title');
+  const showBoardLoad=isFirstLoad&&_boardModeActive;
+  if(showBoardLoad){
+    if(loadTitle) loadTitle.textContent='Syncing board…';
+    if(loadSub) loadSub.style.display='';
+    if(progWrap) progWrap.style.display='';
+  }
   let doneCount=0;
   function onSvcDone(){
     doneCount++;
     const pct=Math.round((doneCount/SVCS.length)*100);
-    if(progBar&&isFirstLoad){
+    if(progBar&&showBoardLoad){
       progBar.classList.add('filling');
       progBar.style.width=pct+'%';
     }
-    if(loadSub&&isFirstLoad){
+    if(loadSub&&showBoardLoad){
       loadSub.textContent='Checked '+doneCount+' of '+SVCS.length+' services';
     }
   }
@@ -4202,8 +4210,13 @@ async function init(){
   lastSuccessfulRefresh=Date.now();
   setStale(false);
   setRefreshing(false);
-  // Reset progress bar for future refreshes
-  if(progBar){ progBar.classList.remove('filling'); progBar.style.width='0%'; }
+  // Reset board loading UI after first load
+  if(showBoardLoad){
+    if(progBar){ progBar.classList.remove('filling'); progBar.style.width='0%'; }
+    if(progWrap) progWrap.style.display='none';
+    if(loadSub) loadSub.style.display='none';
+    if(loadTitle) loadTitle.textContent='Fetching service status…';
+  }
   results.forEach(s=>{
     s.cat=svcCatMap[s.name]||'app';
     const prev=window._pi[s.name];
