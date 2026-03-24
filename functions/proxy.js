@@ -152,6 +152,29 @@ async function fetchSpecialRoute(key, env) {
     });
   }
 
+  if (key === 'time-gov') {
+    const t0 = Date.now();
+    const resp = await fetch('https://time.gov/', { method: 'HEAD' });
+    const t1 = Date.now();
+    const serverDateStr = resp.headers.get('Date');
+    let epochMs = t1; // fallback to proxy's own clock
+    if (serverDateStr) {
+      const parsed = Date.parse(serverDateStr);
+      if (Number.isFinite(parsed)) {
+        // Correct for proxy-to-time.gov RTT so epochMs ≈ "now" on the proxy
+        epochMs = parsed + Math.round((t1 - t0) / 2);
+      }
+    }
+    return new Response(JSON.stringify({ epochMs }), {
+      status: 200,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Cache-Control': 'no-store',
+        'Content-Type': 'application/json',
+      },
+    });
+  }
+
   throw new Error('unknown special key');
 }
 
