@@ -286,7 +286,11 @@ export async function pollAllServices(env) {
 }
 
 // ── HTTP handler for manual trigger: GET /api/poll ──
+// Rate-limited via KV lock — concurrent polls are coalesced, not duplicated.
 export async function onRequestGet(context) {
+  if (context.request.method !== 'GET') {
+    return new Response('Method Not Allowed', { status: 405 });
+  }
   try {
     const payload = await pollAllServices(context.env);
     return new Response(JSON.stringify(payload), {
@@ -294,10 +298,12 @@ export async function onRequestGet(context) {
         'Content-Type': 'application/json',
         'Access-Control-Allow-Origin': '*',
         'Cache-Control': 'no-store',
+        'X-Content-Type-Options': 'nosniff',
       },
     });
-  } catch (err) {
-    return new Response(JSON.stringify({ error: err.message }), {
+  } catch {
+    // Don't leak internal error details to clients
+    return new Response(JSON.stringify({ error: 'Poll failed' }), {
       status: 500,
       headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
     });
