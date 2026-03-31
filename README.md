@@ -70,13 +70,47 @@ wrangler login
 
 ### KV namespace setup
 
-Create a KV namespace and bind it to the Pages project:
+The SSE endpoint stores polled status results in Cloudflare KV. Without a KV binding, the worker will poll upstream on every SSE connection (still functional, but inefficient).
+
+**1. Create the namespace:**
 
 ```bash
 wrangler kv namespace create STATUS_KV
-# Note the namespace ID, then bind it in the Cloudflare dashboard:
-# Workers & Pages → your project → Settings → Bindings → KV Namespace → STATUS_KV
 ```
+
+This outputs a namespace ID like `abcd1234...`. Note it for the next step.
+
+**2. Bind to your Pages project (production):**
+
+In the Cloudflare dashboard:
+
+1. Go to **Workers & Pages** → select your Pages project
+2. Click **Settings** → **Bindings**
+3. Click **Add binding** → **KV Namespace**
+4. Set **Variable name** to `STATUS_KV`
+5. Select the namespace you created
+6. Click **Save**
+
+Redeploy for the binding to take effect.
+
+**3. Bind for preview environments (optional):**
+
+Repeat the binding step under **Settings** → **Bindings** → **Preview** tab if you want KV in preview deployments too.
+
+**4. Local development with KV:**
+
+```bash
+wrangler pages dev . --kv STATUS_KV
+```
+
+This creates a local KV store in `.wrangler/state/` — no cloud namespace needed for local testing.
+
+**How it works:**
+
+- `functions/api/poll.js` polls all status endpoints and writes results to the `all-statuses` key
+- `functions/api/sse.js` reads from KV (via Cache API buffer) every 30s and pushes changes to connected clients
+- A KV-based distributed lock (`poll-lock` key, 90s TTL) prevents multiple SSE connections from triggering concurrent polls
+- The Cache API acts as a per-colo read-through buffer, so multiple clients on the same Cloudflare edge share a single KV read per 30s window — this keeps KV reads well within the free plan's 100K reads/day limit
 
 ### Deploy
 
@@ -112,11 +146,13 @@ npx serve .
 python3 -m http.server 8080
 ```
 
-In local mode `_IS_DEPLOYED` is `false`; the SSE endpoint is not available. For full local testing with SSE and KV:
+In local mode `_IS_DEPLOYED` is `false`; the SSE endpoint is not available. For full local testing with SSE, KV, and the proxy:
 
 ```bash
 wrangler pages dev . --kv STATUS_KV
 ```
+
+This runs the Pages Functions locally at `http://localhost:8788` with a local KV store. The SSE endpoint, poll trigger, and proxy all work identically to production.
 
 ---
 
@@ -144,8 +180,13 @@ wrangler pages dev . --kv STATUS_KV
 |---------|---------------|
 | No-SSRF proxy | Route table in `functions/proxy.js` loaded from `routes.json`; `?svc=<key>` only — raw URLs rejected with 404 |
 | Response size limit | Proxy enforces a 5 MB max on upstream responses |
+| Content-Type sniffing | `X-Content-Type-Options: nosniff` on all API responses (SSE, poll, proxy) |
+| Method validation | SSE and poll endpoints reject non-GET requests with 405 |
+| Error sanitization | Server error responses use generic messages; internal details never leaked to clients |
 | XSS mitigation | All upstream API text (incident titles, bodies, service names) passed through `esc()` before `innerHTML` insertion |
-| CORS | Proxy responses return `Access-Control-Allow-Origin: *` intentionally (public status data) |
+| Content-Type sanitization | Proxy validates upstream Content-Type against an allowlist; unknown types are rewritten to `text/plain` |
+| Poll deduplication | KV-based distributed lock (90s TTL) prevents concurrent upstream polls from multiple SSE connections |
+| CORS | All API responses return `Access-Control-Allow-Origin: *` intentionally (public status data) |
 | DDoS / rate limiting | Cloudflare's network-level protection; add a Rate Limiting rule in the CF dashboard for additional control |
 
 ---
