@@ -1,6 +1,6 @@
 # Service Status Page
 
-Real-time status dashboard monitoring cloud providers, SaaS applications, CDNs, DNS resolvers, and MBTA commuter rail. Includes a full-screen board/TV mode with live radio, weather, and a Network Diagnostics tab with Cloudflare edge info, DNS resolver detection, protocol support, latency probes, speed testing, and internet health monitoring.
+Real-time status dashboard monitoring cloud providers, SaaS applications, CDNs, DNS resolvers, and MBTA commuter rail. Status data is polled server-side and pushed to clients via Server-Sent Events (SSE). Includes a full-screen board/TV mode with live radio, weather, and a Network Diagnostics tab with Cloudflare edge info, DNS resolver detection, protocol support, latency probes, speed testing, and internet health monitoring.
 
 ---
 
@@ -9,16 +9,17 @@ Real-time status dashboard monitoring cloud providers, SaaS applications, CDNs, 
 | Category | Services |
 |----------|----------|
 | **Applications** | i-Ready, HMH, Follett, IncidentIQ, Clever, Seesaw, Jamf, Duo, Imagine Learning, FinalSite, Dexcom, Adobe CC, Google Workspace, Apple Services, Apple Developer, OpenAI, Mimecast |
-| **Infrastructure** | Cloudflare, Tailscale, Quad9, DNSFilter, Meraki, AWS, Azure, Google Cloud, Oracle Cloud, IBM Cloud, Akamai, Fastly, Bunny.net, CacheFly, Wasabi |
+| **Infrastructure** | Cloudflare, Tailscale, DNSFilter, Meraki, AWS, Azure, Google Cloud, Oracle Cloud, IBM Cloud, Akamai, Fastly, Bunny.net, CacheFly, Wasabi |
 | **Transit** | MBTA Providence/Stoughton Line, MBTA Fall River / New Bedford Line |
 
-Cloudflare and Quad9 show per-PoP status for North America data centers / points of presence. Non-NA incidents (e.g. Jakarta, Lisbon) are filtered out automatically.
+Cloudflare shows per-data-center status for North America. Non-NA incidents (e.g. Jakarta, Lisbon) are filtered out automatically.
 
 ---
 
 ## Features
 
-- **Service directory** — filterable/searchable list with real-time status polling; active issues promoted to a top panel with masonry card layout
+- **Server-side polling + SSE** — a Cloudflare Worker polls all status endpoints every 2 minutes and pushes updates to all connected clients via Server-Sent Events; no per-client polling
+- **Service directory** — filterable/searchable list with real-time status; active issues promoted to a top panel with masonry card layout
 - **Board / TV mode** — full-screen dashboard designed for wall-mounted displays with auto-rotating status banners, weather, clock, and a scrolling service ticker
 - **Live radio** — three stations (105.7 WROR, Cape Cod's X, Ocean 104.7) with now-playing metadata, album art via iTunes, and volume ducking during alert banners
 - **Weather** — current conditions and alerts from the National Weather Service API, with geolocation via browser or ipapi.co fallback
@@ -30,7 +31,15 @@ Cloudflare and Quad9 show per-PoP status for North America data centers / points
 ## Architecture
 
 ```
+Worker (server-side)
+  │
+  ├─ Polls all status endpoints every 2 minutes
+  ├─ Parses responses (Statuspage API, RSS, custom formats)
+  └─ Stores normalized results in KV
+
 Browser
+  │
+  ├─ EventSource /api/sse ──► SSE endpoint reads KV, pushes snapshots/updates
   │
   ├─ GET /proxy?svc=<key> ──► Cloudflare Pages Function (functions/proxy.js)
   │                              ├─ route-table lookup (no raw URL accepted)
@@ -42,10 +51,11 @@ Browser
 ```
 
 **Key properties:**
-- **Single-file SPA** — all UI, parsers, and client logic in `index.html`
+- **SSE push model** — server polls upstream once per cycle, pushes to all clients; eliminates per-client polling overhead
+- **KV cache** — normalized status results stored in Cloudflare KV; SSE endpoint reads from KV, so multiple clients share the same data
+- **Single-file SPA** — all UI and client logic in `index.html`; parsing logic moved server-side to `functions/api/poll.js`
 - **Route-table proxy** — `functions/proxy.js` only proxies URLs registered in `routes.json`; arbitrary URLs are rejected (no SSRF surface)
 - **Special routes** — server-side handlers for endpoints that require non-browser protocols (ICY streaming metadata), API keys (Cloudflare Radar), or custom headers (Adobe WAF bypass)
-- **Fallback chain** — when deployed, tries `/proxy?svc=<key>` first; on failure or local dev, fetches service APIs directly from the browser
 
 ---
 
@@ -58,19 +68,33 @@ npm install -g wrangler
 wrangler login
 ```
 
+### KV namespace setup
+
+Create a KV namespace and bind it to the Pages project:
+
+```bash
+wrangler kv namespace create STATUS_KV
+# Note the namespace ID, then bind it in the Cloudflare dashboard:
+# Workers & Pages → your project → Settings → Bindings → KV Namespace → STATUS_KV
+```
+
 ### Deploy
 
 ```bash
 wrangler pages deploy .
 ```
 
-Cloudflare Pages serves `index.html` as a static asset and runs `functions/proxy.js` as a Pages Function for `/proxy` requests.
+Cloudflare Pages serves `index.html` as a static asset and runs Pages Functions for `/proxy`, `/api/sse`, and `/api/poll` requests.
 
 ### Environment variables
 
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `CF_RADAR_TOKEN` | Optional | Cloudflare API token for Radar traffic anomaly data in the Network tab |
+
+| KV Binding | Required | Description |
+|------------|----------|-------------|
+| `STATUS_KV` | Required | KV namespace for caching polled status results |
 
 ### Custom domain
 
@@ -88,7 +112,11 @@ npx serve .
 python3 -m http.server 8080
 ```
 
-In local mode `_IS_DEPLOYED` is `false`; the app skips the `/proxy` function and fetches service APIs directly from the browser (most support CORS). Radar anomaly data requires the deployed proxy with a `CF_RADAR_TOKEN` secret.
+In local mode `_IS_DEPLOYED` is `false`; the SSE endpoint is not available. For full local testing with SSE and KV:
+
+```bash
+wrangler pages dev . --kv STATUS_KV
+```
 
 ---
 
@@ -101,12 +129,12 @@ In local mode `_IS_DEPLOYED` is `false`; the app skips the `/proxy` function and
 
 2. **Sync routes** — run `node scripts/build.js` to inject the route key into `index.html` (updates `ROUTE_KEYS` and `SPECIAL_KEYS` between the `@routes-start` / `@routes-end` markers).
 
-3. **Service definition** — add an entry to the `SVCS` array in `index.html`:
+3. **Service definition** — add an entry to the `SVCS` array in both `index.html` and `functions/api/poll.js`:
    ```js
    {name:'My Service', su:'https://status.example.com/api/v2/summary.json',
     hu:'https://status.example.com', cat:'app'},
    ```
-   Most Atlassian Statuspage-hosted services work with the default parser. For custom APIs add a `p:'myparser'` key and implement the parser in `fetchOne()`.
+   Most Atlassian Statuspage-hosted services work with the default parser. For custom APIs add a `p:'myparser'` key and implement the parser in `functions/api/_parsers.js`.
 
 ---
 
@@ -125,9 +153,15 @@ In local mode `_IS_DEPLOYED` is `false`; the app skips the `/proxy` function and
 ## File structure
 
 ```
-index.html          — Single-file SPA (UI, parsers, board mode, network diagnostics)
-functions/proxy.js  — Cloudflare Pages Function (route-table proxy + special route handlers)
-routes.json         — Static and special route-key definitions (source of truth)
-_routes.json        — Cloudflare Pages function routing hints
-scripts/build.js    — Syncs route keys from routes.json into index.html
+index.html                  — Single-file SPA (UI, board mode, network diagnostics)
+functions/
+  proxy.js                  — Cloudflare Pages Function (route-table proxy + special routes)
+  api/
+    poll.js                 — Server-side status polling + parsing orchestrator
+    sse.js                  — SSE streaming endpoint (reads from KV, pushes to clients)
+    _parsers.js             — Individual service parsers (Adobe, AWS, MBTA, etc.)
+    _cfparser.js            — Cloudflare-specific parser (complex NA data center logic)
+routes.json                 — Static and special route-key definitions (source of truth)
+_routes.json                — Cloudflare Pages function routing hints
+scripts/build.js            — Syncs route keys from routes.json into index.html
 ```

@@ -970,8 +970,8 @@
 <!-- Board-mode loading overlay — outside .shell so it shows when board-page hides .shell -->
 <div class="board-loading hidden" id="board-loading-el">
   <div class="spinner"></div>
-  <div class="load-t">Syncing board…</div>
-  <div class="load-sub" id="board-loading-sub">Checking service status</div>
+  <div class="load-t">Loading board…</div>
+  <div class="load-sub" id="board-loading-sub">Connecting to status stream</div>
   <div class="load-progress-wrap">
     <div class="load-progress-bar" id="board-loading-progress-bar"></div>
   </div>
@@ -1031,7 +1031,6 @@ const SVCS=[
   // Infrastructure Providers
   {name:'Cloudflare',su:'https://www.cloudflarestatus.com/api/v2/summary.json',hu:'https://www.cloudflarestatus.com',p:'cloudflare',cat:'infra'},
   {name:'Tailscale',su:'https://status.tailscale.com/api/v2/summary.json',hu:'https://status.tailscale.com',cat:'infra'},
-  {name:'Quad9',su:'https://uptime.quad9.net/api/v2/summary.json',hu:'https://quad9.net/service/status',p:'quad9',cat:'infra'},
   {name:'DNSFilter',su:'https://status.dnsfilter.com/api/v2/summary.json',hu:'https://status.dnsfilter.com',cat:'infra'},
   {name:'Meraki',su:'https://status.meraki.net/api/v2/summary.json',hu:'https://status.meraki.net',cat:'infra'},
   {name:'AWS',su:'https://status.aws.amazon.com/rss/all.rss',hu:'https://health.aws.amazon.com/health/status',p:'aws',cat:'infra'},
@@ -1674,8 +1673,6 @@ const ROUTE_KEYS = {
   "https://www.apple.com/support/systemstatus/data/system_status_en_US.js": "apple-status",
   "https://developer.apple.com/system-status/data/system_status_en_US.js": "appledev-status",
   "https://www.cloudflarestatus.com/api/v2/summary.json": "cf-summary",
-  "https://uptime.quad9.net/api/v2/summary.json": "quad9-summary",
-  "https://status.quad9.net/smap/assets/data.csv": "quad9-pops",
   "https://status.dnsfilter.com/api/v2/summary.json": "dnsfilter-summary",
   "https://status.meraki.net/api/v2/summary.json": "meraki-summary",
   "https://status.aws.amazon.com/rss/all.rss": "aws-rss",
@@ -1689,19 +1686,19 @@ const ROUTE_KEYS = {
   "https://status.bunny.net/api/v2/summary.json": "bunny-summary",
   "https://www.cacheflystatus.com/api/v2/summary.json": "cachefly-summary",
   "https://api.status.io/1.0/status/5d849b1c02e65b3ec45369d4": "mimecast-summary",
+  "https://status.tailscale.com/api/v2/summary.json": "tailscale-summary",
   "https://status.wasabi.com/api/v2/summary.json": "wasabi-summary",
   "https://api-v3.mbta.com/alerts?filter[route]=CR-Providence&filter[activity]=BOARD,EXIT,RIDE": "mbta-providence",
   "https://api-v3.mbta.com/alerts?filter[route]=CR-NewBedford,CR-FallRiver&filter[activity]=BOARD,EXIT,RIDE": "mbta-southcoast",
   "https://cloudflare.com/cdn-cgi/trace": "cf-trace",
   "https://speed.cloudflare.com/meta": "speed-meta",
-
   "https://cloudflare-dns.com/dns-query?name=whoami.cloudflare&type=TXT&ct=application/dns-json": "doh-cloudflare",
   "https://dns.google/generate_204": "google-204",
   "https://stream.x1023.fm/stats?sid=1&json=1": "x1023-now-playing",
   "https://status.openai.com/api/v2/summary.json": "openai-summary",
   "https://streamdb3web.securenetsystems.net/player_status_update/WOCN_history.xml": "wocn-nowplaying"
 };
-const SPECIAL_KEYS = new Set(["ioda-na-outages","radar-us-anomalies","wror-now-playing"]);
+const SPECIAL_KEYS = new Set(["ioda-na-outages","iheart-hjy-now-playing","radar-us-anomalies","wror-now-playing","adobe-registry","adobe-events","time-gov"]);
 /* @routes-end */
 
 // Build proxy URL using route key if available.
@@ -2693,88 +2690,6 @@ async function fetchOne(s){
     }catch{return errSvc(s);}
   }
 
-  if(s.p==='quad9'){
-    // Quad9 — Atlassian Statuspage (uptime.quad9.net) + per-PoP CSV (status.quad9.net/smap/)
-    // Incidents are named "City (CODE) - Description"; filter to North America PoPs only.
-    try{
-      // Fetch Statuspage summary and PoP CSV in parallel
-      const [sum, csvText]=await Promise.all([
-        getJson(s.su),
-        getText('https://status.quad9.net/smap/assets/data.csv').catch(()=>null),
-      ]);
-      const updated=sum?.page?.updated_at?new Date(sum.page.updated_at).toLocaleString():new Date().toLocaleString();
-
-      // Countries considered North America for Quad9 PoP filtering
-      const NA_COUNTRIES=new Set(['United States','Canada','Mexico','Puerto Rico','Guatemala','Curaçao','Curacao']);
-
-      // Parse PoP CSV — best-effort; used for both NA code resolution and DC details.
-      // Columns: status, pop_code, city, country, [ixp…]
-      let naCodes=null; // Set<string> built from CSV; null if CSV unavailable
-      let detailsDcs=[];
-      if(csvText){
-        const rows=csvText.trim().split('\n');
-        if(rows.length>1){
-          const hdr=rows[0].split(',').map(h=>h.trim().toLowerCase());
-          const si=hdr.findIndex(h=>/status/.test(h));
-          const ci=hdr.findIndex(h=>/pop|code/.test(h));
-          const cityI=hdr.findIndex(h=>h==='city');
-          const countryI=hdr.findIndex(h=>h==='country');
-          naCodes=new Set();
-          for(const row of rows.slice(1)){
-            if(!row.trim()) continue;
-            const cols=row.split(',');
-            const status=((si>=0?cols[si]:cols[0])||'').trim().toUpperCase();
-            const code=((ci>=0?cols[ci]:cols[1])||'').trim();
-            const city=((cityI>=0?cols[cityI]:cols[2])||'').trim();
-            const country=((countryI>=0?cols[countryI]:cols[3])||'').trim();
-            if(!code) continue;
-            if(NA_COUNTRIES.has(country)) naCodes.add(code);
-            if(!NA_COUNTRIES.has(country)||status==='ONLINE'||status==='COMING SOON'||!status) continue;
-            const popInd=status==='DEGRADED'?'minor':status==='OFFLINE'?'major':status==='BYPASS'?'rerouting':null;
-            if(!popInd) continue;
-            detailsDcs.push({name:`${code} · ${city}`,ind:popInd,status});
-          }
-        }
-      }
-
-      // Fallback NA codes used when CSV is unreachable (from last-known smap data)
-      const FALLBACK_NA=new Set([
-        'SJC','PAO','ORD','LGA','PDX','IAD','DFW','MIA','ATL','BUR','SNA',
-        'YYC','YUL','SFO','PHX','MSP','SJU','DAL','CAK','SLC','DTW','CMH',
-        'YYZ','YVR2','YOW2','QLAX1','QMEX2','QMIA2','QLGA2','QDFW4','QEWR1',
-        'QMCI2','QATL4','QDEN1','QORD4','QBOS2','QPIT2','PDX2','QPAH1','QYUL1',
-      ]);
-      const resolvedNaCodes=naCodes||FALLBACK_NA;
-
-      // Incidents are named "City (CODE) - Description"; extract code and check if NA.
-      // Incidents with no parenthesised code are assumed global and always shown.
-      const extractPopCode=name=>{const m=/\(([A-Z]{2,6}\d*)\)/.exec(name||'');return m?.[1]||null;};
-      const isNAIncident=evt=>{const code=extractPopCode(evt.name||'');return !code||resolvedNaCodes.has(code);};
-      const allActive=(sum?.incidents||[]).filter(x=>
-        ACTIVE_STATUSES.includes((x.status||'').toLowerCase())
-      );
-      const naActive=allActive.filter(isNAIncident);
-
-      let ind=normalizeIndicator(sum?.status?.indicator||'none');
-      let title='',body='';
-      if(naActive.length){
-        const a=mostRecentEvent(naActive)||naActive[0];
-        if(ind==='none'){ const impact=normalizeIndicator(a.impact||'none'); if(impact!=='none') ind=impact; }
-        title=a.name||'';
-        let desc=latestUpdateBody(a); if(!desc) desc=stripHtml(a.description||'');
-        body=desc;
-      } else if(detailsDcs.length){
-        // CSV shows degraded PoPs but no open incident on the Statuspage
-        const worst=detailsDcs.reduce((max,d)=>(PRI[d.ind]||9)<(PRI[max]||9)?d.ind:max,'none');
-        ind=worst;
-        const n=detailsDcs.length;
-        title=`${n} North America PoP${n!==1?'s':''} Affected`;
-      }
-      const details=detailsDcs.length?{type:'quad9',maintenance:[],dataCenters:detailsDcs}:null;
-      return mk(s.name,ind,title,body,updated,s.hu,undefined,[],details);
-    }catch{return errSvc(s);}
-  }
-
   try {
     const sum=await getJson(s.su);
     const [sd,id]=[sum,sum];
@@ -2821,7 +2736,6 @@ const LOGO_DOMAINS={
   'Adobe CC':'adobe.com',
   'Google Workspace':'workspace.google.com',
   'Cloudflare':'cloudflare.com',
-  'Quad9':'quad9.net',
   'DNSFilter':'dnsfilter.com',
   'AWS':'aws.amazon.com',
   'Azure':'microsoft.com',
@@ -3197,7 +3111,7 @@ function renderServices(results){
     const ig=document.createElement('div');
     ig.className='issues-grid';
     activeIssues.forEach(s=>{
-      const cfDet=(s.details?.type==='cloudflare'||s.details?.type==='quad9') ? s.details : null;
+      const cfDet=(s.details?.type==='cloudflare') ? s.details : null;
       const hasCfDcs=(cfDet?.dataCenters?.length||0)+(cfDet?.maintenance?.length||0)>0;
       if(cfDet && hasCfDcs){
         const allDcs=cfDet.dataCenters||[];
@@ -3225,7 +3139,7 @@ function renderServices(results){
           const c2Label=c2Ind==='maintenance'?'Maintenance':c2Ind==='rerouting'?'Operational':s.label;
           const c2Labels=(s.labels||[]).filter(l=>l==='Maintenance'||l==='Re-routed');
           const infraCount=infraDcs.length;
-          const dcLabel=cfDet.type==='quad9'?'PoP':'Data Center';
+          const dcLabel='Data Center';
           const c2Title=infraCount>0
             ?`${infraCount} North America ${dcLabel}${infraCount!==1?'s':''} Affected`
             :'Active Maintenance';
@@ -3563,7 +3477,7 @@ function _cardWeight(svc){
   let w=1;
   if(textLen>300) w=3;
   else if(textLen>100) w=2;
-  if(svc.details?.type==='cloudflare'||svc.details?.type==='quad9'){
+  if(svc.details?.type==='cloudflare'){
     const items=(svc.details.dataCenters?.length||0)+(svc.details.maintenance?.length||0);
     if(items>6) w=Math.max(w,3);
     else if(items>2) w=Math.max(w,2);
@@ -3587,9 +3501,9 @@ function _buildIssueTilesHTML(svcs){
       const detailHtml=svc.body?`<div class="tv-issue-timeframe">${esc(svc.body)}</div>`:'';
       const routeRow=(routeHtml||effectHtml)?`<div class="tv-issue-routes">${routeHtml}${effectHtml}</div>`:'';
       bodyInnerHtml=routeRow+detailHtml;
-    } else if(svc.details?.type==='cloudflare'||svc.details?.type==='quad9'){
-      // Structured tile — incident body + maintenance items + DC/PoP pills
-      const dcLabel=svc.details.type==='quad9'?'PoP':'Data Center';
+    } else if(svc.details?.type==='cloudflare'){
+      // Structured tile — incident body + maintenance items + DC pills
+      const dcLabel='Data Center';
       const cfParts=[];
       if(svc.body) cfParts.push(`<div class="tv-issue-cf-body">${esc(svc.body)}</div>`);
       const cfMaint=svc.details.maintenance||[];
@@ -3984,8 +3898,8 @@ function mkIncCard(svc){
   const _indLabel={rerouting:'Re-routing',maintenance:'Maintenance',minor:'Degraded',major:'Outage',none:'Operational'};
   let detailsHtml='';
   const det=svc.details;
-  if(det?.type==='cloudflare'||det?.type==='quad9'){
-    const dcLabel=det.type==='quad9'?'PoP':'Data Center';
+  if(det?.type==='cloudflare'){
+    const dcLabel='Data Center';
     // Maintenance events section
     if(det.maintenance?.length){
       const maintItems=det.maintenance.map(m=>`
@@ -4062,12 +3976,12 @@ function mkIncCard(svc){
           ${urlHost?`<a class="c-url" href="${esc(svc.url)}" target="_blank" rel="noopener noreferrer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="10" height="10"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg>${esc(urlHost)}</a>`:''}
         </div>
       </div>
-      ${(det?.type==='cloudflare'||det?.type==='quad9'||det?.type==='mbta')?'':`<div class="c-badge ${IC[svc.ind]||'ok'}">${esc(svc.label)}</div>`}
+      ${(det?.type==='cloudflare'||det?.type==='mbta')?'':`<div class="c-badge ${IC[svc.ind]||'ok'}">${esc(svc.label)}</div>`}
     </div>
     <div class="card-div"></div>
     <div class="inc-block ${blockCls}">
       <div class="inc-label" style="color:${color}"><span class="inc-label-dot" style="background:${color}"></span>${incLbl}</div>
-      ${(det?.type==='cloudflare'||det?.type==='quad9')?'':statusLabels}
+      ${(det?.type==='cloudflare')?'':statusLabels}
       <div class="inc-title">${esc(incTitle)}</div>
       ${bodyHtml}
       ${detailsHtml}
@@ -4208,118 +4122,83 @@ function _renderFooterMeta(){
 const svcCatMap=Object.fromEntries(SVCS.map(s=>[s.name, s.cat||'app']));
 window._lastResults=window._lastResults||{};
 
-async function init(){
-  if(isRefreshing) return;
-  setRefreshing(true);
-  let results;
-  const isFirstLoad=!Object.keys(window._lastResults||{}).length;
-  // Board-mode loading overlay (separate element outside .shell)
-  const boardLoadEl=document.getElementById('board-loading-el');
-  const boardProgBar=document.getElementById('board-loading-progress-bar');
-  const boardLoadSub=document.getElementById('board-loading-sub');
-  const showBoardLoad=isFirstLoad&&_boardModeActive;
-  if(showBoardLoad&&boardLoadEl) boardLoadEl.classList.remove('hidden');
-  let doneCount=0;
-  function onSvcDone(){
-    doneCount++;
-    const pct=Math.round((doneCount/SVCS.length)*100);
-    if(boardProgBar&&showBoardLoad){
-      boardProgBar.classList.add('filling');
-      boardProgBar.style.width=pct+'%';
+// ── SSE-based status updates (replaces client-side polling) ──
+let _eventSource = null;
+let _sseErrorCount = 0;
+
+function handleResults(results) {
+  results.forEach(s => {
+    s.cat = svcCatMap[s.name] || 'app';
+    const prev = window._pi[s.name];
+    if (prev && prev === 'none' && (s.ind === 'minor' || s.ind === 'major')) {
+      queueAlert(s, s.ind === 'major' ? 'outage' : 'degraded');
+    } else if (prev && (prev === 'minor' || prev === 'major') && s.ind === 'none') {
+      queueAlert(s, 'restored');
     }
-    if(boardLoadSub&&showBoardLoad){
-      boardLoadSub.textContent='Checked '+doneCount+' of '+SVCS.length+' services';
-    }
-  }
-  try{
-    results=await Promise.all(SVCS.map((s,i)=>new Promise(res=>setTimeout(()=>fetchOne(s).then(r=>{onSvcDone();res(r);}).catch(()=>{onSvcDone();res(errSvc(s));}),i*80))));
-  }catch(e){
-    refreshFailCount++;
-    if(refreshFailCount>=2) setStale(true);
-    if(_boardModeActive&&_boardAutoReload&&refreshFailCount>=_boardAutoReload){
-      setTimeout(()=>window.location.reload(),2000);
-    }
-    setRefreshing(false);
-    return;
-  }
-  refreshFailCount=0;
-  lastSuccessfulRefresh=Date.now();
+    window._pi[s.name] = s.ind;
+    window._lastResults[s.name] = s;
+  });
+  refreshFailCount = 0;
+  lastSuccessfulRefresh = Date.now();
   setStale(false);
   setRefreshing(false);
   // Hide board loading overlay once data is ready
-  if(showBoardLoad&&boardLoadEl) boardLoadEl.classList.add('hidden');
-  results.forEach(s=>{
-    s.cat=svcCatMap[s.name]||'app';
-    const prev=window._pi[s.name];
-    if(prev && prev==='none' && (s.ind==='minor'||s.ind==='major')){
-      queueAlert(s, s.ind==='major'?'outage':'degraded');
-    }else if(prev && (prev==='minor'||prev==='major') && s.ind==='none'){
-      queueAlert(s,'restored');
-    }
-    window._pi[s.name]=s.ind;
-    window._lastResults[s.name]=s;
-  });
+  const boardLoadEl = document.getElementById('board-loading-el');
+  if (boardLoadEl) boardLoadEl.classList.add('hidden');
+  if (_boardModeActive) _boardLastUpdate = Date.now();
   updateStats(results);
   updateIncidentPin(results);
   renderServices(results);
 }
 
-// Per-service background polling — only re-renders what changed
-async function pollService(svc){
-  try{
-    const result=await fetchOne(svc);
-    result.cat=svcCatMap[result.name]||'app';
-    const prev=window._pi[result.name];
-    const prevResult=window._lastResults[result.name];
-    const changed=!prevResult||prev!==result.ind||prevResult.title!==result.title||prevResult.body!==result.body;
-    if(changed){
-      if(prev && prev==='none' && (result.ind==='minor'||result.ind==='major')) queueAlert(result, result.ind==='major'?'outage':'degraded');
-      else if(prev && (prev==='minor'||prev==='major') && result.ind==='none') queueAlert(result,'restored');
-      window._pi[result.name]=result.ind;
-      window._lastResults[result.name]=result;
-      // Full re-render: status change may move service between issues panel and directory
-      const allResults=Object.values(window._lastResults);
-      updateStats(allResults);
-      updateIncidentPin(allResults);
-      renderServices(allResults);
-      lastSuccessfulRefresh=Date.now();
-      setStale(false);
-    } else if(_boardModeActive){
-      // Data unchanged but poll succeeded — still refresh the "Updated X ago" timestamp
-      _boardLastUpdate=Date.now();
-    }
-  }catch(e){}
-}
+function connectSSE() {
+  if (_eventSource) { _eventSource.close(); _eventSource = null; }
+  // Show board loading overlay on first load
+  const isFirstLoad = !Object.keys(window._lastResults || {}).length;
+  const boardLoadEl = document.getElementById('board-loading-el');
+  const boardLoadSub = document.getElementById('board-loading-sub');
+  if (isFirstLoad && _boardModeActive && boardLoadEl) {
+    boardLoadEl.classList.remove('hidden');
+    if (boardLoadSub) boardLoadSub.textContent = 'Connecting to status stream…';
+  }
+  setRefreshing(true);
 
-const _pollIntervals=[];
-function startPerServicePolling(){
-  // Clear any previously-registered timers to prevent duplicates
-  _pollIntervals.forEach(id=>clearTimeout(id));
-  _pollIntervals.length=0;
-  SVCS.forEach((s,i)=>{
-    // Each service gets a fixed offset within the 2-min cycle so they spread out
-    // but the cycle itself aligns to clock boundaries (12:00, 12:02, 12:04, ...)
-    const stagger=Math.round((i/SVCS.length)*110000);
-    function scheduleNext(){
-      const msSinceBoundary=Date.now()%120000;
-      let msUntilSlot=(stagger-msSinceBoundary+120000)%120000;
-      if(msUntilSlot<1000) msUntilSlot+=120000; // avoid double-firing immediately
-      _pollIntervals.push(setTimeout(()=>{ pollService(s); scheduleNext(); }, msUntilSlot));
-    }
-    pollService(s);
-    scheduleNext();
+  _eventSource = new EventSource('/api/sse');
+
+  _eventSource.addEventListener('snapshot', e => {
+    try {
+      const msg = JSON.parse(e.data);
+      _sseErrorCount = 0;
+      handleResults(msg.results);
+    } catch {}
   });
+
+  _eventSource.addEventListener('update', e => {
+    try {
+      const msg = JSON.parse(e.data);
+      _sseErrorCount = 0;
+      handleResults(msg.results);
+    } catch {}
+  });
+
+  _eventSource.onerror = () => {
+    _sseErrorCount++;
+    if (_sseErrorCount >= 3) setStale(true);
+    if (_boardModeActive && _boardAutoReload && _sseErrorCount >= _boardAutoReload) {
+      setTimeout(() => window.location.reload(), 2000);
+    }
+    // EventSource auto-reconnects with exponential backoff
+  };
+
+  _eventSource.onopen = () => {
+    _sseErrorCount = 0;
+    setStale(false);
+  };
 }
 
-// Retry every 30s when stale; no-ops immediately when data is fresh
-let refreshInterval = null;
-function scheduleRefresh(){
-  clearInterval(refreshInterval);
-  refreshInterval = setInterval(()=>{ if(refreshFailCount>=2) _startRefresh(); }, 30000);
-}
-
-function _startRefresh(){
-  init();
+function _startRefresh() {
+  // Trigger a manual server-side poll, then SSE will pick up the new data
+  fetch('/api/poll').catch(() => {});
 }
 
 
@@ -4926,15 +4805,18 @@ window.addEventListener('DOMContentLoaded',()=>{
       }
     }
     if(document.hidden) return;
-    // Refresh data when the tab/window becomes visible again
+    // SSE auto-reconnects on tab visible; trigger a manual poll if data is stale
     const staleThreshold = 3 * 60 * 1000;
     if(!lastSuccessfulRefresh || Date.now() - lastSuccessfulRefresh > staleThreshold){
       _startRefresh();
     }
+    // Reconnect SSE if it was closed
+    if(!_eventSource || _eventSource.readyState === EventSource.CLOSED){
+      connectSSE();
+    }
   });
 
-  init().then(()=>startPerServicePolling());
-  scheduleRefresh();
+  connectSSE();
 
   // Weather: fetch on load, then refresh every 15 minutes
   _fetchWeather();
@@ -4952,8 +4834,7 @@ window.addEventListener('DOMContentLoaded',()=>{
   },30000);
 
   window.addEventListener('beforeunload',()=>{
-    _pollIntervals.forEach(id=>clearInterval(id));
-    clearInterval(refreshInterval);
+    if(_eventSource) { _eventSource.close(); _eventSource=null; }
     clearInterval(_wxTimer);
     clearInterval(_nowPlayingTimer);
     clearTimeout(_uptimeFlushTimer);
