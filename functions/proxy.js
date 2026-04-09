@@ -331,6 +331,7 @@ export async function onRequest({ request, env }) {
         'Access-Control-Allow-Origin': '*',
         'Cache-Control': 'no-store',
         'Content-Type': sanitizeContentType(upstream.headers.get('content-type')),
+        'X-Content-Type-Options': 'nosniff',
       },
     });
   } catch {
