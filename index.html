@@ -1360,6 +1360,8 @@ function speakBannerStatus(serviceName, kind){
   utterance.volume=1;
   const estimatedMs=Math.max(2600,Math.round((spokenText.length/14)*1000));
   utterance.onstart=()=>_duckBoardRadio(estimatedMs+900);
+  utterance.onend=()=>_endBoardRadioDuck();
+  utterance.onerror=()=>_endBoardRadioDuck();
   window.speechSynthesis.cancel();
   window.speechSynthesis.speak(utterance);
 }
@@ -1445,7 +1447,11 @@ function _duckBoardRadio(ms=4500){
   if(!_boardRadioAudio||_boardRadioAudio.paused||!_boardRadioEnabled) return;
   _radioDuckUntil=Math.max(_radioDuckUntil,Date.now()+ms);
   const station=_getBoardStation();
-  _setBoardRadioVolume(station.duckVolume ?? BOARD_RADIO_DUCK_VOLUME);
+  const duckTarget=station.duckVolume ?? BOARD_RADIO_DUCK_VOLUME;
+  // Only duck DOWN from current volume. If the user's slider is already
+  // below duckTarget, setting to duckTarget would make the music LOUDER
+  // during a status announcement — the opposite of what ducking should do.
+  _setBoardRadioVolume(Math.min(_boardRadioAudio.volume,duckTarget));
   document.getElementById('tv-now-playing')?.classList.add('tv-np-ducked');
   clearTimeout(_radioDuckTimer);
   const checkRestore=()=>{
@@ -1461,6 +1467,13 @@ function _duckBoardRadio(ms=4500){
     document.getElementById('tv-now-playing')?.classList.remove('tv-np-ducked');
   };
   _radioDuckTimer=setTimeout(checkRestore,ms+80);
+}
+
+function _endBoardRadioDuck(){
+  if(!_radioDuckUntil) return;
+  // Clamp the duck window to "now" so the running checkRestore timer
+  // releases on its next tick, restoring to the user's slider volume.
+  _radioDuckUntil=Date.now();
 }
 
 function _applyBoardRadioToggle(){
@@ -2952,17 +2965,33 @@ async function _fetchWeather(){
   try{
     const deviceLoc=await _getDeviceLocation();
     const{lat,lon}=deviceLoc;
+    // Append a per-minute cache-buster: NWS responses are occasionally
+    // served stale by intermediate caches, which makes "current conditions"
+    // look wrong after the tab has been open for a while.
+    const cb=Math.floor(Date.now()/60000);
     const pt=await fetchWithTimeout(`https://api.weather.gov/points/${lat.toFixed(4)},${lon.toFixed(4)}`,12000).then(r=>r.ok?r.json():null).catch(()=>null);
     if(!pt?.properties){_wxInfo={err:'NWS unavailable'};_wxFetching=false;_renderWeather();return;}
     const relLoc=pt.properties.relativeLocation?.properties;
     const nwsLoc=relLoc?.city&&relLoc?.state?`${relLoc.city}, ${relLoc.state}`:'';
     const loc=deviceLoc.locName||nwsLoc;
-    const forecastHourlyUrl=pt.properties.forecastHourly;
+    const forecastHourlyUrl=pt.properties.forecastHourly+(pt.properties.forecastHourly.includes('?')?'&':'?')+'_='+cb;
     const [fR,aR]=await Promise.allSettled([
       fetchWithTimeout(forecastHourlyUrl,12000).then(r=>r.ok?r.json():null).catch(()=>null),
-      fetchWithTimeout(`https://api.weather.gov/alerts/active?point=${lat.toFixed(4)},${lon.toFixed(4)}`,12000).then(r=>r.ok?r.json():null).catch(()=>null),
+      fetchWithTimeout(`https://api.weather.gov/alerts/active?point=${lat.toFixed(4)},${lon.toFixed(4)}&_=${cb}`,12000).then(r=>r.ok?r.json():null).catch(()=>null),
     ]);
-    const periods=(fR.value?.properties?.periods||[]).slice(0,5);
+    const allPeriods=fR.value?.properties?.periods||[];
+    // Pick the period whose time range contains "now" instead of always
+    // periods[0] — if the data is a bit stale, periods[0] can be the
+    // previous hour. Then expose the slice starting at that period so the
+    // "next 4 hours" display also tracks the current wall clock.
+    const now=Date.now();
+    let curIdx=allPeriods.findIndex(p=>{
+      const s=p.startTime?Date.parse(p.startTime):NaN;
+      const e=p.endTime?Date.parse(p.endTime):NaN;
+      return Number.isFinite(s)&&Number.isFinite(e)&&s<=now&&now<e;
+    });
+    if(curIdx<0) curIdx=0;
+    const periods=allPeriods.slice(curIdx,curIdx+5);
     const period=periods[0]||null;
     const alerts=(aR.value?.features||[]).filter(a=>/warning|watch|advisory/i.test(a.properties?.event||'')&&(a.properties?.status||'').toLowerCase()==='actual');
     _wxInfo={loc,period,periods,alerts,ts:Date.now()};
@@ -3031,10 +3060,18 @@ async function _fetchNowPlaying(){
   if(_nowPlayingFetching) return;
   _nowPlayingFetching=true;
   const station=_getBoardStation();
+  const fetchStationId=station.id;
+  // Ignore this fetch's result if the user has switched to a different
+  // station while the request was in flight — otherwise the new station's
+  // display ends up showing the previous station's song.
+  const isCurrent=()=>_boardStationId===fetchStationId;
+  const prev=_nowPlayingInfo;
   if(!station.nowPlayingUrl){
-    _nowPlayingInfo={track:station.name,artist:'',ts:Date.now(),err:null,station:station.name,quality:station.quality};
+    if(isCurrent()){
+      _nowPlayingInfo={track:station.name,artist:'',ts:Date.now(),err:null,station:station.name,quality:station.quality};
+      _renderBoardNowPlaying();
+    }
     _nowPlayingFetching=false;
-    _renderBoardNowPlaying();
     return;
   }
   try{
@@ -3045,17 +3082,22 @@ async function _fetchNowPlaying(){
     if(station.parse==='wocn-xml'){
       const resp=await fetchWithTimeout(proxyUrl,8000);
       const text=await resp.text();
+      if(!isCurrent()){ _nowPlayingFetching=false; return; }
       const doc=new DOMParser().parseFromString(text,'application/xml');
       const first=doc.querySelector('song');
       const track=first?.querySelector('title')?.textContent||station.name;
       const artist=first?.querySelector('artist')?.textContent||'';
-      const cover=first?.querySelector('cover')?.textContent||null;
+      let cover=first?.querySelector('cover')?.textContent||null;
+      // Keep the previous artwork if this poll returned the same song
+      // without a cover — avoids the image flickering to the fallback.
+      if(!cover&&prev&&prev.track===track&&prev.artist===artist&&prev.cover) cover=prev.cover;
       _nowPlayingInfo={track,artist,cover,ts:Date.now(),err:null,station:station.name,quality:station.quality};
-      _nowPlayingFetching=false;
       _renderBoardNowPlaying();
+      _nowPlayingFetching=false;
       return;
     }
     const data=await getJson(proxyUrl);
+    if(!isCurrent()){ _nowPlayingFetching=false; return; }
     const fallbackRaw=[
       data?.streams?.[0]?.currenttrack,
       data?.songtitle,
@@ -3065,26 +3107,40 @@ async function _fetchNowPlaying(){
       data?.icestats?.source?.title
     ].find(Boolean)||'';
     const parsed=_parseNowPlayingSong(fallbackRaw,station);
-    let cover=null;
+    const sameSong=prev&&prev.track===parsed.track&&prev.artist===parsed.artist&&prev.station===station.name;
+    // Carry forward the previous cover for the same song so a transient
+    // iTunes failure doesn't blank out the artwork between polls.
+    let cover=sameSong?(prev.cover||null):null;
     if(station.albumArt==='itunes'&&parsed.artist&&parsed.track&&parsed.track!==station.name){
       try{
         const term=encodeURIComponent(`${parsed.artist} ${parsed.track}`);
         const ar=await fetchWithTimeout(`https://itunes.apple.com/search?term=${term}&entity=song&limit=1`,5000);
         const ad=await ar.json();
-        const artUrl=ad?.results?.[0]?.artworkUrl100;
+        let artUrl=ad?.results?.[0]?.artworkUrl100;
+        // Fall back to an artist search — many live-radio titles include
+        // "(feat. …)" or remix tags that defeat the exact-song lookup.
+        if(!artUrl){
+          const ar2=await fetchWithTimeout(`https://itunes.apple.com/search?term=${encodeURIComponent(parsed.artist)}&entity=musicTrack&limit=1`,5000);
+          const ad2=await ar2.json();
+          artUrl=ad2?.results?.[0]?.artworkUrl100;
+        }
         if(artUrl) cover=artUrl.replace('100x100bb','600x600bb');
       }catch{}
     }
+    if(!isCurrent()){ _nowPlayingFetching=false; return; }
     _nowPlayingInfo={...parsed,cover,ts:Date.now(),err:null,station:station.name,quality:station.quality};
   }catch{
-    _nowPlayingInfo={
-      track:_nowPlayingInfo?.track||'Unavailable',
-      artist:_nowPlayingInfo?.artist||station.name,
-      ts:Date.now(),err:'unavailable',station:station.name,quality:station.quality
-    };
+    if(isCurrent()){
+      _nowPlayingInfo={
+        track:_nowPlayingInfo?.track||'Unavailable',
+        artist:_nowPlayingInfo?.artist||station.name,
+        cover:_nowPlayingInfo?.cover||null,
+        ts:Date.now(),err:'unavailable',station:station.name,quality:station.quality
+      };
+    }
   }
   _nowPlayingFetching=false;
-  _renderBoardNowPlaying();
+  if(isCurrent()) _renderBoardNowPlaying();
 }
 
 function _renderBoardWeatherBar(){
@@ -3847,7 +3903,15 @@ function renderBoardView(results){
     _renderBoardNowPlaying();
     _stopBoardRadio();
     await _startBoardRadio();
-    _fetchNowPlaying();
+    // An in-flight fetch for the previous station will discard its result
+    // (see isCurrent() in _fetchNowPlaying). Retry briefly until its guard
+    // clears so the new station gets fresh metadata without waiting for
+    // the next poll tick.
+    const tryFetch=(attempt=0)=>{
+      if(!_nowPlayingFetching){ _fetchNowPlaying(); return; }
+      if(attempt<25) setTimeout(()=>tryFetch(attempt+1),400);
+    };
+    tryFetch();
   });
   _applyBoardRadioToggle();
   _applyBoardRadioMuteBtn();
@@ -4931,14 +4995,23 @@ window.addEventListener('DOMContentLoaded',()=>{
     if(!lastSuccessfulRefresh || Date.now() - lastSuccessfulRefresh > staleThreshold){
       _startRefresh();
     }
+    // Weather interval is throttled heavily in background tabs, so the
+    // displayed conditions can be stale by many minutes when the user
+    // returns. Force a refresh if it's been more than 5 minutes.
+    const wxStale = 5 * 60 * 1000;
+    if(!_wxInfo?.ts || Date.now() - _wxInfo.ts > wxStale){
+      _fetchWeather();
+    }
   });
 
   init().then(()=>startPerServicePolling());
   scheduleRefresh();
 
-  // Weather: fetch on load, then refresh every 15 minutes
+  // Weather: fetch on load, then refresh every 10 minutes. Background
+  // tabs have setInterval throttled, so the visibilitychange listener
+  // below also force-refreshes when the page becomes visible after a gap.
   _fetchWeather();
-  _wxTimer=setInterval(_fetchWeather, 15*60*1000);
+  _wxTimer=setInterval(_fetchWeather, 10*60*1000);
   _fetchNowPlaying();
   _setNowPlayingPollRate(NP_POLL_NORMAL);
   // Running "time ago" timer — updates all card age timestamps every 30s
