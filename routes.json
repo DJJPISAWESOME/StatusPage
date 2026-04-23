@@ -39,6 +39,8 @@
 
     "doh-cloudflare": "https://cloudflare-dns.com/dns-query?name=whoami.cloudflare&type=TXT&ct=application/dns-json",
     "google-204": "https://dns.google/generate_204",
+    "wror-triton-nowplaying": "https://np.tritondigital.com/public/nowplaying?mountName=WRORFM&numberToFetch=1&eventType=track",
+    "iheart-hjy-meta": "https://us.api.iheart.com/api/v3/live-meta/stream/2049/currentTrackMeta?defaultMetadata=true",
     "x1023-now-playing": "https://stream.x1023.fm/stats?sid=1&json=1",
     "quad9-summary": "https://uptime.quad9.net/api/v2/summary.json",
     "quad9-pops": "https://status.quad9.net/smap/assets/data.csv",
