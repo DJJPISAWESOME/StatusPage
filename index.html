@@ -3364,43 +3364,78 @@ async function _fetchWeather(){
 }
 
 function _parseERideCalendar(html,now=new Date()){
-  const doc=new DOMParser().parseFromString(String(html||''),'text/html');
-  const cal=doc.querySelector('#Calendar1');
-  if(!cal) return [];
+  const source=String(html||'');
   const monthNames=['january','february','march','april','may','june','july','august','september','october','november','december'];
-  const captionMatch=(cal.textContent||'').match(/\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{4})\b/i);
-  const captionMonth=captionMatch?monthNames.indexOf(captionMatch[1].toLowerCase()):now.getMonth();
-  const captionYear=captionMatch?Number(captionMatch[2]):now.getFullYear();
+  const captionFromSource=source.match(/<b>\s*(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{4})\s*<\/b>/i)
+    || source.match(/\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{4})\b/i);
+  const captionMonth=captionFromSource?monthNames.indexOf(captionFromSource[1].toLowerCase()):now.getMonth();
+  const captionYear=captionFromSource?Number(captionFromSource[2]):now.getFullYear();
   const start=new Date(now.getFullYear(),now.getMonth(),now.getDate());
   const end=new Date(start);
   end.setDate(end.getDate()+14);
+  const parseDateTitle=dateTitle=>{
+    const m=String(dateTitle||'').match(/^([A-Za-z]+)\s+(\d{1,2})$/);
+    if(!m) return null;
+    const month=monthNames.indexOf(m[1].toLowerCase());
+    if(month<0) return null;
+    let year=captionYear;
+    if(month-captionMonth>6) year--;
+    else if(captionMonth-month>6) year++;
+    return new Date(year,month,Number(m[2]));
+  };
+  const inWindow=date=>date&&date>=start&&date<=end;
+  const cleanTitle=value=>String(value||'').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();
+  const makeKind=title=>{
+    const lower=String(title||'').toLowerCase();
+    return /due/.test(lower)?'Due':/open/.test(lower)?'Opens':/close/.test(lower)?'Closes':'Event';
+  };
+  const addEvent=(events,seen,date,title,href)=>{
+    const clean=cleanTitle(title);
+    if(!clean) return;
+    let url=href||'';
+    try{ url=new URL(url,ERIDE_CALENDAR_URL).href; }catch{}
+    const key=`${date.toISOString().slice(0,10)}|${clean}|${url}`;
+    if(seen.has(key)) return;
+    seen.add(key);
+    events.push({date:date.getTime(),title:clean,kind:makeKind(clean),url});
+  };
+
+  const parseRaw=()=>{
+    const events=[];
+    const seen=new Set();
+    const cellRe=/<td\b[^>]*height=["']?90["']?[^>]*>([\s\S]*?)(?=<td\b[^>]*height=["']?90["']?|<\/tr>|<\/table>)/gi;
+    for(const match of source.matchAll(cellRe)){
+      const cellHtml=match[1]||'';
+      const dateTitle=(cellHtml.match(/title=["']([A-Za-z]+\s+\d{1,2})["']/i)||[])[1];
+      const date=parseDateTitle(dateTitle);
+      if(!inWindow(date)) continue;
+      const linkRe=/<a\b([^>]*href\s*=\s*['"]?[^>]*ViewDetails\.aspx\?ID=\d+[^>]*)>([\s\S]*?)<\/a>/gi;
+      for(const linkMatch of cellHtml.matchAll(linkRe)){
+        const attr=linkMatch[1]||'';
+        const href=(attr.match(/href\s*=\s*["']?([^"'\s>]+)/i)||[])[1]||'';
+        addEvent(events,seen,date,linkMatch[2],href);
+      }
+    }
+    return events;
+  };
+
+  const doc=new DOMParser().parseFromString(String(html||''),'text/html');
+  const cal=doc.querySelector('#Calendar1');
+  if(!cal) return parseRaw().sort((a,b)=>a.date-b.date||a.title.localeCompare(b.title)).slice(0,12);
   const cells=[...cal.querySelectorAll('td[height="90"]')];
   const seen=new Set();
   const events=[];
   for(const cell of cells){
     const dayLink=[...cell.querySelectorAll('a')].find(a=>/Calendar1/.test(a.getAttribute('href')||'')&&a.getAttribute('title'));
     const dateTitle=dayLink?.getAttribute('title')||'';
-    const m=dateTitle.match(/^([A-Za-z]+)\s+(\d{1,2})$/);
-    if(!m) continue;
-    const month=monthNames.indexOf(m[1].toLowerCase());
-    if(month<0) continue;
-    let year=captionYear;
-    if(month-captionMonth>6) year--;
-    else if(captionMonth-month>6) year++;
-    const date=new Date(year,month,Number(m[2]));
-    if(date<start||date>end) continue;
+    const date=parseDateTitle(dateTitle);
+    if(!inWindow(date)) continue;
     for(const link of cell.querySelectorAll('a[href*="ViewDetails.aspx"]')){
-      const title=(link.textContent||'').replace(/\s+/g,' ').trim();
-      if(!title) continue;
-      let href=link.getAttribute('href')||'';
-      try{ href=new URL(href,ERIDE_CALENDAR_URL).href; }catch{}
-      const key=`${date.toISOString().slice(0,10)}|${title}|${href}`;
-      if(seen.has(key)) continue;
-      seen.add(key);
-      const lower=title.toLowerCase();
-      const kind=/due/.test(lower)?'Due':/open/.test(lower)?'Opens':/close/.test(lower)?'Closes':'Event';
-      events.push({date:date.getTime(),title,kind,url:href});
+      addEvent(events,seen,date,link.textContent,link.getAttribute('href')||'');
     }
+  }
+  if(!events.length&&/ViewDetails\.aspx\?ID=/i.test(source)){
+    events.push(...parseRaw());
   }
   return events.sort((a,b)=>a.date-b.date||a.title.localeCompare(b.title)).slice(0,12);
 }
