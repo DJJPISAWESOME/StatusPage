@@ -84,6 +84,13 @@
     .light-mode .tv-issue-tile.cm { background:rgba(59,130,246,0.06); }
     .light-mode .tv-issue-logo-fb { background:rgba(0,0,0,0.08); }
     .light-mode .tv-wx-card { background:rgba(0,0,0,0.03); }
+    .light-mode .tv-board .tv-tile { background:rgba(255,255,255,0.045); border-color:rgba(255,255,255,0.08); }
+    .light-mode .tv-board .tv-tile:hover { background:rgba(255,255,255,0.08); }
+    .light-mode .tv-board .tv-issue-tile { background:linear-gradient(180deg, rgba(255,255,255,0.105), rgba(255,255,255,0.04)); border-color:rgba(255,255,255,0.12); }
+    .light-mode .tv-board .tv-issue-tile.cb { background:linear-gradient(180deg, rgba(239,68,68,0.18), rgba(255,255,255,0.045)); border-color:rgba(248,113,113,0.34); }
+    .light-mode .tv-board .tv-issue-tile.cw { background:linear-gradient(180deg, rgba(245,158,11,0.16), rgba(255,255,255,0.045)); border-color:rgba(251,191,36,0.32); }
+    .light-mode .tv-board .tv-issue-tile.cm { background:linear-gradient(180deg, rgba(59,130,246,0.15), rgba(255,255,255,0.045)); border-color:rgba(96,165,250,0.28); }
+    .light-mode .tv-board .tv-issue-logo-fb { background:rgba(255,255,255,0.12); }
     .light-mode .inc-body { scrollbar-color:rgba(0,0,0,0.15) transparent; }
     *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
     html, body {
@@ -378,11 +385,14 @@
       pointer-events:none;
     }
     .status-banner {
-      border-radius:16px;
-      border:1px solid transparent;
-      background:linear-gradient(165deg, rgba(24,24,27,0.97), rgba(9,9,11,0.93));
-      backdrop-filter:blur(10px);
-      box-shadow:0 18px 48px rgba(0,0,0,0.55);
+      position:relative;
+      border-radius:20px;
+      border:1px solid rgba(255,255,255,0.12);
+      background:
+        radial-gradient(circle at 12% 12%, rgba(255,255,255,0.14), transparent 36%),
+        linear-gradient(165deg, rgba(24,24,27,0.98), rgba(9,9,11,0.94));
+      backdrop-filter:blur(22px) saturate(1.25);
+      box-shadow:0 24px 70px rgba(0,0,0,0.62), inset 0 1px 0 rgba(255,255,255,0.12);
       overflow:hidden;
       opacity:0;
       visibility:hidden;
@@ -403,21 +413,42 @@
       opacity:1;
       animation:bannerShine 0.75s ease;
     }
-    .status-banner.degraded { border-color:rgba(245,158,11,0.78); }
-    .status-banner.outage { border-color:rgba(239,68,68,0.86); animation:outagePulse 0.95s ease-in-out infinite; }
-    .status-banner.restored { border-color:rgba(34,197,94,0.72); }
-    .status-banner-main { display:flex; align-items:center; gap:18px; padding:22px 26px; animation:bannerContentIn 0.45s cubic-bezier(.22,1,.36,1); }
-    .status-banner-icon { font-size:42px; line-height:1; animation:iconBounce 1.4s ease-in-out infinite; }
+    .status-banner.degraded { border-color:rgba(245,158,11,0.52); box-shadow:0 24px 70px rgba(245,158,11,0.18), 0 18px 48px rgba(0,0,0,0.55); }
+    .status-banner.outage { border-color:rgba(239,68,68,0.62); animation:outagePulse 0.95s ease-in-out infinite; }
+    .status-banner.restored { border-color:rgba(34,197,94,0.52); box-shadow:0 24px 70px rgba(34,197,94,0.16), 0 18px 48px rgba(0,0,0,0.55); }
+    .status-banner-main { display:flex; align-items:center; gap:18px; padding:24px 28px 22px; animation:bannerContentIn 0.45s cubic-bezier(.22,1,.36,1); }
+    .status-banner-icon {
+      width:62px;
+      height:62px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      flex:0 0 auto;
+      border-radius:18px;
+      font-size:34px;
+      line-height:1;
+      background:rgba(255,255,255,0.08);
+      border:1px solid rgba(255,255,255,0.12);
+      box-shadow:inset 0 1px 0 rgba(255,255,255,0.1);
+      animation:iconBounce 1.4s ease-in-out infinite;
+    }
     .status-banner-text { min-width:0; }
     .status-banner-heading {
-      font-size:16px;
-      letter-spacing:0.09em;
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      font-size:12px;
+      letter-spacing:0;
       text-transform:uppercase;
       font-weight:800;
-      margin-bottom:4px;
+      margin-bottom:6px;
+      padding:4px 9px;
+      border-radius:999px;
+      background:rgba(255,255,255,0.06);
+      border:1px solid rgba(255,255,255,0.08);
     }
-    .status-banner-title { font-size:32px; font-weight:800; letter-spacing:-0.02em; line-height:1.1; }
-    .status-banner-sub { font-size:18px; color:var(--sub); margin-top:6px; }
+    .status-banner-title { font-size:32px; font-weight:800; letter-spacing:0; line-height:1.08; }
+    .status-banner-sub { font-size:16px; color:rgba(226,232,240,0.72); margin-top:7px; line-height:1.4; }
     .status-banner.degraded .status-banner-heading { color:#fcd34d; }
     .status-banner.outage .status-banner-heading { color:#fecaca; }
     .status-banner.restored .status-banner-heading { color:#86efac; }
@@ -592,45 +623,199 @@
     .filter-chip.active.fc-maint{ background:rgba(59,130,246,0.1);  color:#93c5fd; border-color:rgba(59,130,246,0.25); }
 
     /* ── TV / Status board mode ──────────────────────────────────────────────── */
-    .tv-board { position:fixed; inset:0; background:var(--bg); z-index:200; display:flex; flex-direction:column; padding:clamp(16px,1.8vh,28px) clamp(22px,2.2vw,40px) clamp(12px,1.4vh,22px); overflow:hidden; animation:board-in 0.4s cubic-bezier(.22,1,.36,1) both; }
+    .tv-board {
+      position:fixed;
+      inset:0;
+      isolation:isolate;
+      z-index:200;
+      display:flex;
+      flex-direction:column;
+      gap:16px;
+      min-height:100vh;
+      padding:24px 32px 20px;
+      overflow:hidden;
+      color:#f8fafc;
+      background:
+        linear-gradient(125deg, rgba(20,184,166,0.08) 0%, transparent 28%),
+        linear-gradient(235deg, rgba(59,130,246,0.1) 0%, transparent 32%),
+        linear-gradient(180deg, #071014 0%, #080b10 45%, #0c1015 100%);
+      animation:board-in 0.4s cubic-bezier(.22,1,.36,1) both;
+    }
+    .tv-board::before {
+      content:'';
+      position:absolute;
+      inset:0;
+      z-index:-2;
+      pointer-events:none;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.035) 1px, transparent 1px);
+      background-size:54px 54px;
+      mask-image:linear-gradient(180deg, rgba(0,0,0,0.72), rgba(0,0,0,0.08));
+    }
+    .tv-board::after {
+      content:'';
+      position:absolute;
+      inset:0;
+      z-index:-1;
+      pointer-events:none;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.055), transparent 14%),
+        linear-gradient(90deg, rgba(255,255,255,0.04), transparent 18%, transparent 82%, rgba(255,255,255,0.035));
+    }
+    .tv-board > * { position:relative; z-index:1; }
     @keyframes board-in { from{opacity:0;transform:scale(0.997)} to{opacity:1;transform:scale(1)} }
     .board-page .shell,
     .board-page .status-banner-wrap { display:none !important; }
     .board-page .tv-board { position:relative; inset:auto; min-height:100vh; }
     /* Header */
-    .tv-hdr { display:grid; grid-template-columns:minmax(0,1.5fr) minmax(0,1fr) auto; align-items:center; gap:clamp(16px,1.8vw,30px); padding-bottom:clamp(10px,1.2vh,18px); border-bottom:1px solid rgba(255,255,255,0.08); flex-shrink:0; margin-bottom:clamp(10px,1.1vh,18px); }
+    .tv-hdr {
+      display:grid;
+      grid-template-columns:minmax(340px, 1.05fr) minmax(360px, 1.25fr) minmax(280px, 0.85fr) auto;
+      align-items:stretch;
+      gap:14px;
+      flex-shrink:0;
+    }
+    .tv-panel {
+      border:1px solid rgba(255,255,255,0.1);
+      border-radius:18px;
+      background:linear-gradient(180deg, rgba(255,255,255,0.09), rgba(255,255,255,0.035));
+      box-shadow:0 18px 54px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.08);
+      backdrop-filter:blur(18px) saturate(1.25);
+    }
+    .tv-status-panel {
+      display:flex;
+      align-items:center;
+      gap:16px;
+      min-width:0;
+      overflow:hidden;
+      padding:16px 18px;
+    }
+    .tv-status-ring {
+      width:56px;
+      height:56px;
+      border-radius:50%;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      flex:0 0 auto;
+      font-size:26px;
+      font-weight:800;
+      color:#fff;
+      box-shadow:inset 0 0 0 1px rgba(255,255,255,0.2), 0 0 28px rgba(34,197,94,0.24);
+      background:rgba(34,197,94,0.2);
+    }
+    .tv-status-panel.warn .tv-status-ring { background:rgba(245,158,11,0.22); box-shadow:inset 0 0 0 1px rgba(255,255,255,0.18), 0 0 32px rgba(245,158,11,0.2); }
+    .tv-status-panel.bad .tv-status-ring { background:rgba(239,68,68,0.24); box-shadow:inset 0 0 0 1px rgba(255,255,255,0.18), 0 0 34px rgba(239,68,68,0.25); }
+    .tv-status-panel.unknown .tv-status-ring { background:rgba(148,163,184,0.2); box-shadow:inset 0 0 0 1px rgba(255,255,255,0.16), 0 0 28px rgba(148,163,184,0.14); }
+    .tv-status-copy { min-width:0; flex:1 1 auto; }
+    .tv-status-eyebrow,
+    .tv-section-hdr,
+    .tv-ticker-hdr,
+    .tv-now-playing-label,
+    .tv-net-lbl {
+      font-size:11px;
+      font-weight:800;
+      letter-spacing:0;
+      text-transform:uppercase;
+      color:rgba(226,232,240,0.58);
+    }
+    .tv-status-head {
+      margin-top:4px;
+      color:#fff;
+      font-size:30px;
+      font-weight:800;
+      line-height:1.05;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    .tv-status-sub {
+      margin-top:7px;
+      color:rgba(226,232,240,0.66);
+      font-size:13px;
+      line-height:1.3;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    .tv-status-counts {
+      display:flex;
+      align-items:stretch;
+      gap:8px;
+      flex:0 0 auto;
+    }
+    .tv-count {
+      display:flex;
+      min-width:64px;
+      flex-direction:column;
+      justify-content:center;
+      gap:2px;
+      padding:8px 10px;
+      border-radius:12px;
+      border:1px solid rgba(255,255,255,0.08);
+      background:rgba(255,255,255,0.045);
+      color:rgba(226,232,240,0.6);
+      font-size:10px;
+      font-weight:700;
+      text-transform:uppercase;
+      letter-spacing:0;
+    }
+    .tv-count strong { color:#fff; font-size:22px; line-height:1; font-variant-numeric:tabular-nums; }
+    .tv-count-bad strong { color:#fca5a5; }
+    .tv-count-warn strong { color:#fcd34d; }
+    .tv-count-maint strong { color:#93c5fd; }
+    .tv-count-unknown strong { color:#cbd5e1; }
     /* Weather in header */
-    .tv-hdr-weather { display:flex; align-items:center; gap:clamp(12px,1.4vw,22px); min-width:0; overflow:hidden; }
-    .tv-hdr-weather .tv-wx-now { gap:clamp(10px,1.1vw,18px); }
-    .tv-hdr-weather .tv-wx-icon-big { font-size:clamp(44px,4.8vw,74px); }
-    .tv-hdr-weather .tv-wx-temp-big { font-size:clamp(32px,3.6vw,56px); letter-spacing:-0.02em; }
-    .tv-hdr-weather .tv-wx-cond { font-size:clamp(16px,1.6vw,26px); }
-    .tv-hdr-weather .tv-wx-loc { font-size:clamp(13px,1.1vw,19px); }
-    .tv-hdr-weather .tv-wx-alert-tag { font-size:clamp(12px,1.1vw,18px); padding:5px 12px; }
-    .tv-hdr-weather .tv-wx-hr-icon { font-size:clamp(22px,2.6vw,38px); }
-    .tv-hdr-weather .tv-wx-hr-temp { font-size:clamp(14px,1.4vw,21px); }
-    .tv-hdr-weather .tv-wx-hr-time { font-size:clamp(10px,0.9vw,15px); }
-    .tv-hdr-weather .tv-wx-divider { margin:0 clamp(4px,0.4vw,8px); }
-    .tv-hdr-weather .tv-wx-forecast { gap:clamp(10px,1vw,16px); }
-    .tv-hdr-weather .tv-wx-hour { min-width:clamp(34px,3.5vw,54px); }
+    .tv-hdr-weather {
+      display:grid;
+      grid-template-columns:minmax(0,1fr) auto;
+      align-items:center;
+      gap:14px;
+      min-width:0;
+      overflow:hidden;
+      padding:14px 16px;
+      background:
+        radial-gradient(circle at 12% 18%, rgba(14,165,233,0.22), transparent 40%),
+        linear-gradient(180deg, rgba(255,255,255,0.1), rgba(255,255,255,0.035));
+    }
+    .tv-hdr-weather .tv-wx-now { display:flex; align-items:center; gap:13px; min-width:0; }
+    .tv-hdr-weather .tv-wx-icon-big { width:54px; height:54px; display:flex; align-items:center; justify-content:center; flex:0 0 auto; border-radius:18px; font-size:34px; background:rgba(255,255,255,0.09); border:1px solid rgba(255,255,255,0.12); box-shadow:inset 0 1px 0 rgba(255,255,255,0.12); }
+    .tv-hdr-weather .tv-wx-details-col { min-width:0; }
+    .tv-hdr-weather .tv-wx-temp-row { display:flex; align-items:baseline; gap:9px; min-width:0; }
+    .tv-hdr-weather .tv-wx-temp-big { font-size:36px; font-weight:850; line-height:1; letter-spacing:0; color:#fff; }
+    .tv-hdr-weather .tv-wx-cond { font-size:15px; font-weight:700; color:rgba(248,250,252,0.86); max-width:210px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .tv-hdr-weather .tv-wx-loc { margin-top:5px; font-size:12px; font-weight:700; color:rgba(226,232,240,0.54); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .tv-hdr-weather .tv-wx-alert-tag { font-size:11px; padding:5px 9px; border-radius:999px; }
+    .tv-hdr-weather .tv-wx-alerts { grid-column:1/-1; flex-direction:row; padding:0; margin:2px 0 0; overflow:hidden; }
+    .tv-hdr-weather .tv-wx-divider { display:none; }
+    .tv-hdr-weather .tv-wx-forecast { display:flex; align-items:center; gap:7px; min-width:max-content; }
+    .tv-hdr-weather .tv-wx-hour { min-width:44px; padding:7px 7px 6px; border-radius:12px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.08); text-align:center; }
+    .tv-hdr-weather .tv-wx-hr-icon { font-size:19px; line-height:1.1; }
+    .tv-hdr-weather .tv-wx-hr-temp { margin-top:2px; font-size:13px; font-weight:800; color:#fff; }
+    .tv-hdr-weather .tv-wx-hr-time { font-size:10px; font-weight:800; letter-spacing:0; color:rgba(226,232,240,0.48); text-transform:uppercase; }
     /* Now playing + audio in header */
-    .tv-hdr-media { display:flex; flex-direction:column; align-items:flex-start; gap:clamp(5px,0.6vh,9px); min-width:0; justify-content:center; }
-    .tv-now-playing { display:flex; flex-direction:row; align-items:center; gap:clamp(8px,0.9vw,14px); min-width:0; width:100%; }
+    .tv-hdr-media { display:grid; grid-template-columns:1fr; gap:10px; min-width:0; justify-content:center; padding:13px 15px; background:radial-gradient(circle at 12% 20%, rgba(34,197,94,0.14), transparent 38%), linear-gradient(180deg, rgba(255,255,255,0.1), rgba(255,255,255,0.035)); }
+    .tv-now-playing { display:flex; flex-direction:row; align-items:center; gap:12px; min-width:0; width:100%; }
     .tv-np-text { display:flex; flex-direction:column; gap:2px; min-width:0; flex:1; }
-    .tv-np-cover { width:clamp(36px,3.8vw,60px); height:clamp(36px,3.8vw,60px); border-radius:6px; object-fit:cover; flex-shrink:0; }
-    .tv-now-playing-label { font-size:clamp(10px,0.85vw,14px); font-weight:700; letter-spacing:0.12em; text-transform:uppercase; color:var(--muted); display:flex; align-items:center; gap:5px; }
-    .tv-now-playing-track { font-size:clamp(18px,1.9vw,32px); font-weight:700; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
+    .tv-np-art-wrap { position:relative; flex:0 0 auto; width:58px; height:58px; }
+    .tv-np-cover,
+    .tv-np-cover-fallback { width:58px; height:58px; border-radius:15px; object-fit:cover; box-shadow:0 12px 30px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.1); }
+    .tv-np-cover-fallback { display:flex; align-items:center; justify-content:center; color:#dcfce7; font-size:25px; font-weight:850; background:linear-gradient(135deg, rgba(34,197,94,0.22), rgba(59,130,246,0.16)); border:1px solid rgba(255,255,255,0.12); }
+    .tv-np-live-dot { position:absolute; right:-2px; bottom:-2px; width:16px; height:16px; border-radius:50%; background:#22c55e; border:3px solid #101418; box-shadow:0 0 16px rgba(34,197,94,0.7); }
+    .tv-now-playing-label { display:flex; align-items:center; gap:6px; }
+    .tv-now-playing-track { font-size:22px; font-weight:850; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; letter-spacing:0; }
     .tv-now-playing-track.tv-np-stale { opacity:0.5; font-style:italic; }
-    .tv-now-playing-meta { font-size:clamp(14px,1.4vw,22px); color:var(--sub); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
-    .tv-np-duck-label { display:none; font-size:clamp(10px,0.82vw,13px); font-weight:600; color:var(--muted); letter-spacing:0.06em; text-transform:uppercase; }
+    .tv-now-playing-meta { font-size:14px; color:rgba(226,232,240,0.64); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
+    .tv-np-duck-label { display:none; font-size:11px; font-weight:700; color:rgba(226,232,240,0.5); letter-spacing:0; text-transform:uppercase; }
     .tv-np-ducked .tv-now-playing-track,
     .tv-np-ducked .tv-now-playing-meta { opacity:0.35; transition:opacity 0.4s; }
     .tv-np-ducked .tv-np-duck-label { display:block; }
-    .tv-ctx-audio { display:flex; align-items:center; gap:12px; flex-shrink:0; }
-    .tv-station-select { border:none; border-bottom:1px solid rgba(255,255,255,0.22); background:transparent; color:var(--text); border-radius:0; padding:3px 18px 3px 0; font-size:clamp(11px,0.88vw,14px); font-weight:600; font-family:var(--font); }
-    .tv-station-select:focus { outline:none; border-bottom-color:rgba(59,130,246,0.8); }
+    .tv-ctx-audio { display:grid; grid-template-columns:minmax(0,1fr) auto auto minmax(58px,72px); align-items:center; gap:8px; flex-shrink:0; width:100%; padding:7px; border-radius:15px; background:rgba(0,0,0,0.18); border:1px solid rgba(255,255,255,0.07); }
+    .tv-station-select { min-width:0; width:100%; border:1px solid rgba(255,255,255,0.12); background:rgba(255,255,255,0.075); color:#f8fafc; border-radius:11px; padding:7px 24px 7px 10px; font-size:12px; font-weight:800; font-family:var(--font); }
+    .tv-station-select:focus { outline:none; border-color:rgba(59,130,246,0.8); box-shadow:0 0 0 3px rgba(59,130,246,0.18); }
 
-    .tv-radio-vol-slider { -webkit-appearance:none; appearance:none; width:clamp(44px,4.5vw,72px); height:3px; border-radius:2px; background:rgba(255,255,255,0.2); outline:none; cursor:pointer; flex-shrink:0; align-self:center; }
+    .tv-radio-vol-slider { -webkit-appearance:none; appearance:none; width:100%; height:4px; border-radius:999px; background:linear-gradient(90deg, rgba(34,197,94,0.8), rgba(255,255,255,0.2)); outline:none; cursor:pointer; flex-shrink:0; align-self:center; }
     .tv-radio-vol-slider::-webkit-slider-thumb { -webkit-appearance:none; width:11px; height:11px; border-radius:50%; background:var(--text); cursor:pointer; }
     .tv-radio-vol-slider::-moz-range-thumb { width:11px; height:11px; border-radius:50%; background:var(--text); border:none; cursor:pointer; }
     /* Equalizer bars – animated while radio plays */
@@ -638,86 +823,208 @@
     @keyframes tv-eq2{0%,100%{height:8px}25%{height:5px}50%{height:14px}75%{height:6px}}
     @keyframes tv-eq3{0%,100%{height:12px}25%{height:8px}50%{height:4px}75%{height:14px}}
     @keyframes tv-eq4{0%,100%{height:6px}25%{height:12px}50%{height:10px}75%{height:4px}}
-    .tv-np-eq { display:inline-flex; align-items:flex-end; gap:2px; height:clamp(10px,1vw,16px); flex-shrink:0; }
-    .tv-np-eq span { width:clamp(2px,0.2vw,3px); border-radius:1px; background:#22c55e; animation-timing-function:ease-in-out; animation-iteration-count:infinite; animation-duration:1.1s; }
+    .tv-np-eq { display:inline-flex; align-items:flex-end; gap:2px; height:14px; flex-shrink:0; }
+    .tv-np-eq span { width:3px; border-radius:1px; background:#22c55e; animation-timing-function:ease-in-out; animation-iteration-count:infinite; animation-duration:1.1s; }
     .tv-np-eq span:nth-child(1){animation-name:tv-eq1;animation-delay:0s;}
     .tv-np-eq span:nth-child(2){animation-name:tv-eq2;animation-delay:0.18s;}
     .tv-np-eq span:nth-child(3){animation-name:tv-eq3;animation-delay:0.09s;}
     .tv-np-eq span:nth-child(4){animation-name:tv-eq4;animation-delay:0.27s;}
     .tv-np-eq.paused span { animation-play-state:paused; height:3px!important; }
     /* Radio play/pause icon button */
-    .tv-radio-playbtn { display:inline-flex; align-items:center; justify-content:center; width:clamp(24px,2.2vw,36px); height:clamp(24px,2.2vw,36px); border-radius:50%; border:none; background:rgba(255,255,255,0.1); color:var(--text); cursor:pointer; flex-shrink:0; transition:background 0.15s,color 0.15s; padding:0; }
-    .tv-radio-playbtn:hover { background:rgba(255,255,255,0.2); }
-    .tv-radio-playbtn.playing { background:rgba(34,197,94,0.18); color:#22c55e; }
+    .tv-radio-playbtn { display:inline-flex; align-items:center; justify-content:center; width:34px; height:34px; border-radius:12px; border:1px solid rgba(255,255,255,0.11); background:rgba(255,255,255,0.09); color:#f8fafc; cursor:pointer; flex-shrink:0; transition:background 0.15s,color 0.15s,transform 0.15s; padding:0; }
+    .tv-radio-playbtn:hover { background:rgba(255,255,255,0.2); transform:translateY(-1px); }
+    .tv-radio-playbtn.playing { background:rgba(34,197,94,0.18); color:#86efac; border-color:rgba(34,197,94,0.24); }
     /* Radio mute button */
-    .tv-radio-mute-btn { display:inline-flex; align-items:center; justify-content:center; width:clamp(18px,1.6vw,26px); height:clamp(18px,1.6vw,26px); border:none; background:transparent; color:var(--muted); cursor:pointer; flex-shrink:0; padding:0; transition:color 0.15s; }
-    .tv-radio-mute-btn:hover { color:var(--text); }
+    .tv-radio-mute-btn { display:inline-flex; align-items:center; justify-content:center; width:34px; height:34px; border-radius:12px; border:1px solid rgba(255,255,255,0.08); background:rgba(255,255,255,0.045); color:rgba(226,232,240,0.62); cursor:pointer; flex-shrink:0; padding:0; transition:color 0.15s,background 0.15s; }
+    .tv-radio-mute-btn:hover { color:var(--text); background:rgba(255,255,255,0.1); }
     .tv-radio-mute-btn.muted { color:rgba(248,113,113,0.75); }
-    /* Album art fallback (when no cover URL) */
-    .tv-np-cover-fallback { width:clamp(36px,3.8vw,60px); height:clamp(36px,3.8vw,60px); border-radius:6px; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:clamp(14px,1.4vw,22px); font-weight:800; color:rgba(255,255,255,0.45); background:rgba(255,255,255,0.07); letter-spacing:-0.02em; }
     /* Clock */
-    .tv-clock-block { display:flex; flex-direction:column; align-items:flex-end; gap:0; flex-shrink:0; }
-    .tv-clock { font-size:clamp(28px,3.2vw,54px); font-weight:800; font-variant-numeric:tabular-nums; color:var(--text); letter-spacing:-0.02em; line-height:1.1; }
-    .tv-date { font-size:clamp(11px,0.95vw,16px); color:var(--muted); font-weight:500; letter-spacing:0.03em; white-space:nowrap; font-variant-numeric:tabular-nums; }
+    .tv-clock-block { display:flex; flex-direction:column; align-items:flex-end; justify-content:center; gap:4px; flex-shrink:0; padding:14px 18px; min-width:184px; }
+    .tv-clock { font-size:38px; font-weight:800; font-variant-numeric:tabular-nums; color:#fff; letter-spacing:0; line-height:1.05; }
+    .tv-date { font-size:12px; color:rgba(226,232,240,0.54); font-weight:700; letter-spacing:0; white-space:nowrap; font-variant-numeric:tabular-nums; text-transform:uppercase; }
+    .tv-eride-panel {
+      display:grid;
+      grid-template-columns:auto minmax(0,1fr);
+      align-items:center;
+      gap:14px;
+      min-height:74px;
+      padding:12px 14px;
+      background:
+        radial-gradient(circle at 4% 24%, rgba(59,130,246,0.16), transparent 34%),
+        linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.032));
+      overflow:hidden;
+    }
+    .tv-eride-head { display:flex; align-items:center; gap:10px; min-width:180px; }
+    .tv-eride-icon { width:38px; height:38px; border-radius:13px; display:flex; align-items:center; justify-content:center; color:#bfdbfe; background:rgba(59,130,246,0.14); border:1px solid rgba(96,165,250,0.22); font-size:20px; font-weight:850; }
+    .tv-eride-title { color:#fff; font-size:15px; font-weight:850; line-height:1.1; }
+    .tv-eride-sub { margin-top:3px; color:rgba(226,232,240,0.52); font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:0; }
+    .tv-eride-events { display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:8px; min-width:0; }
+    .tv-eride-event { display:grid; grid-template-columns:auto minmax(0,1fr); align-items:center; gap:9px; min-width:0; padding:9px 10px; border-radius:13px; background:rgba(255,255,255,0.055); border:1px solid rgba(255,255,255,0.08); text-decoration:none; }
+    .tv-eride-event:hover { background:rgba(255,255,255,0.09); border-color:rgba(255,255,255,0.15); }
+    .tv-eride-date { min-width:46px; color:#bfdbfe; font-size:12px; font-weight:850; text-transform:uppercase; line-height:1.05; text-align:center; }
+    .tv-eride-name { min-width:0; color:rgba(248,250,252,0.9); font-size:13px; font-weight:750; line-height:1.22; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .tv-eride-kind { margin-top:2px; color:rgba(226,232,240,0.5); font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .tv-eride-empty { color:rgba(226,232,240,0.62); font-size:13px; font-weight:700; }
+    .tv-board-main { flex:1 1 auto; min-height:0; display:flex; flex-direction:column; }
     /* Section label */
-    .tv-section-hdr { font-size:clamp(10px,0.85vw,14px); font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:var(--muted); margin-bottom:clamp(6px,0.7vh,10px); display:flex; align-items:center; gap:6px; flex-shrink:0; }
+    .tv-section-hdr { margin-bottom:10px; display:flex; align-items:center; gap:8px; flex-shrink:0; }
     .tv-section-hdr.issue-hdr { color:rgba(248,113,113,0.85); }
     /* Issue tiles */
-    .tv-issues-section { flex:1 1 auto; margin-bottom:clamp(8px,1vh,16px); min-height:0; display:flex; flex-direction:column; }
-    .tv-issue-tiles { display:grid; gap:clamp(10px,1.1vw,18px); flex:1 1 auto; min-height:0; }
-    .tv-issue-tile { background:rgba(255,255,255,0.03); border:2px solid rgba(255,255,255,0.1); border-radius:18px; padding:clamp(16px,2vw,30px); display:flex; flex-direction:column; gap:clamp(8px,0.9vh,13px); cursor:pointer; transition:border-color 0.2s,background 0.2s; overflow:hidden; min-height:clamp(130px,17vh,240px); box-shadow:0 2px 12px rgba(0,0,0,0.25); }
-    .tv-issue-tile:hover { filter:brightness(1.07); }
-    .tv-issue-tile.cb { background:rgba(239,68,68,0.1);  border-color:rgba(239,68,68,0.5);  box-shadow:0 4px 24px rgba(239,68,68,0.1); }
-    .tv-issue-tile.cw { background:rgba(245,158,11,0.08); border-color:rgba(245,158,11,0.45); box-shadow:0 4px 24px rgba(245,158,11,0.08); }
-    .tv-issue-tile.cm { background:rgba(59,130,246,0.08); border-color:rgba(59,130,246,0.4);  box-shadow:0 4px 24px rgba(59,130,246,0.08); }
-    .tv-issue-tile-top { display:flex; align-items:center; gap:clamp(10px,1.2vw,18px); }
-    .tv-issue-logo { width:clamp(28px,2.8vw,46px); height:clamp(28px,2.8vw,46px); border-radius:9px; background:#fff; object-fit:contain; flex-shrink:0; }
-    .tv-issue-logo-fb { width:clamp(28px,2.8vw,46px); height:clamp(28px,2.8vw,46px); border-radius:9px; background:rgba(255,255,255,0.1); display:flex; align-items:center; justify-content:center; font-size:clamp(14px,1.4vw,22px); font-weight:700; flex-shrink:0; }
-    .tv-issue-name { font-size:clamp(15px,1.8vw,30px); font-weight:700; letter-spacing:-0.02em; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; line-height:1.2; }
-    .tv-issue-badge { font-size:clamp(13px,1.3vw,20px); font-weight:700; letter-spacing:0.08em; text-transform:uppercase; }
-    .tv-issue-badge.warn   { color:var(--warn); }
-    .tv-issue-badge.bad    { color:var(--bad); }
-    .tv-issue-badge.maint  { color:var(--maint); }
-    .tv-issue-badge.reroute{ color:var(--reroute); }
-    .tv-issue-title { font-size:clamp(17px,1.8vw,28px); font-weight:600; color:var(--text); overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; white-space:pre-wrap; line-height:1.35; }
-    .tv-issue-body { font-size:clamp(14px,1.4vw,22px); color:rgba(255,255,255,0.78); line-height:1.55; overflow-y:auto; overflow-x:hidden; flex:1 1 auto; min-height:0; white-space:pre-wrap; overflow-wrap:anywhere; position:relative; scrollbar-width:thin; scrollbar-color:rgba(255,255,255,0.2) transparent; }
+    .tv-issues-section { flex:1 1 auto; min-height:0; display:flex; flex-direction:column; }
+    .tv-issue-tiles { display:grid; gap:14px; flex:1 1 auto; min-height:0; grid-auto-rows:minmax(0,1fr); }
+    .tv-issue-tile {
+      position:relative;
+      background:linear-gradient(180deg, rgba(255,255,255,0.105), rgba(255,255,255,0.04));
+      border:1px solid rgba(255,255,255,0.12);
+      border-radius:20px;
+      padding:20px;
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+      cursor:pointer;
+      transition:border-color 0.2s, background 0.2s, transform 0.2s;
+      overflow:hidden;
+      min-height:0;
+      box-shadow:0 22px 60px rgba(0,0,0,0.24), inset 0 1px 0 rgba(255,255,255,0.08);
+      backdrop-filter:blur(14px) saturate(1.16);
+    }
+    .tv-issue-tile::before {
+      content:'';
+      position:absolute;
+      inset:0 auto 0 0;
+      width:5px;
+      background:rgba(255,255,255,0.16);
+    }
+    .tv-issue-tile:hover { transform:translateY(-1px); border-color:rgba(255,255,255,0.22); }
+    .tv-issue-tile.cb { background:linear-gradient(180deg, rgba(239,68,68,0.18), rgba(255,255,255,0.045)); border-color:rgba(248,113,113,0.34); box-shadow:0 24px 70px rgba(239,68,68,0.13), inset 0 1px 0 rgba(255,255,255,0.08); }
+    .tv-issue-tile.cw { background:linear-gradient(180deg, rgba(245,158,11,0.16), rgba(255,255,255,0.045)); border-color:rgba(251,191,36,0.32); box-shadow:0 24px 70px rgba(245,158,11,0.11), inset 0 1px 0 rgba(255,255,255,0.08); }
+    .tv-issue-tile.cm { background:linear-gradient(180deg, rgba(59,130,246,0.15), rgba(255,255,255,0.045)); border-color:rgba(96,165,250,0.28); box-shadow:0 24px 70px rgba(59,130,246,0.1), inset 0 1px 0 rgba(255,255,255,0.08); }
+    .tv-issue-tile.cr { background:linear-gradient(180deg, rgba(20,184,166,0.15), rgba(255,255,255,0.045)); border-color:rgba(45,212,191,0.28); box-shadow:0 24px 70px rgba(20,184,166,0.1), inset 0 1px 0 rgba(255,255,255,0.08); }
+    .tv-issue-tile.cu { background:linear-gradient(180deg, rgba(148,163,184,0.12), rgba(255,255,255,0.04)); border-color:rgba(203,213,225,0.18); }
+    .tv-issue-tile.cb::before { background:#ef4444; }
+    .tv-issue-tile.cw::before { background:#f59e0b; }
+    .tv-issue-tile.cm::before { background:#3b82f6; }
+    .tv-issue-tile.cr::before { background:#14b8a6; }
+    .tv-issue-tile.cu::before { background:#64748b; }
+    .tv-issue-tile-top { display:flex; align-items:flex-start; justify-content:space-between; gap:14px; min-width:0; }
+    .tv-issue-service { display:flex; align-items:center; gap:12px; min-width:0; }
+    .tv-issue-logo { width:42px; height:42px; border-radius:12px; background:#fff; object-fit:contain; flex-shrink:0; padding:4px; box-shadow:0 12px 24px rgba(0,0,0,0.22); }
+    .tv-issue-logo-fb { width:42px; height:42px; border-radius:12px; background:rgba(255,255,255,0.12); display:flex; align-items:center; justify-content:center; font-size:18px; font-weight:800; flex-shrink:0; color:#fff; }
+    .tv-issue-name { font-size:22px; font-weight:800; letter-spacing:0; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; line-height:1.18; color:#fff; }
+    .tv-issue-badge {
+      flex:0 0 auto;
+      border-radius:999px;
+      padding:6px 10px;
+      border:1px solid rgba(255,255,255,0.12);
+      background:rgba(255,255,255,0.06);
+      font-size:12px;
+      font-weight:800;
+      letter-spacing:0;
+      text-transform:uppercase;
+      white-space:nowrap;
+    }
+    .tv-issue-badge.warn   { color:#fcd34d; background:rgba(245,158,11,0.14); border-color:rgba(245,158,11,0.22); }
+    .tv-issue-badge.bad    { color:#fca5a5; background:rgba(239,68,68,0.16); border-color:rgba(239,68,68,0.25); }
+    .tv-issue-badge.maint  { color:#93c5fd; background:rgba(59,130,246,0.14); border-color:rgba(59,130,246,0.22); }
+    .tv-issue-badge.reroute{ color:#5eead4; background:rgba(20,184,166,0.14); border-color:rgba(20,184,166,0.22); }
+    .tv-issue-title { font-size:24px; font-weight:800; color:#f8fafc; overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; white-space:pre-wrap; line-height:1.24; }
+    .tv-issue-body { font-size:16px; color:rgba(226,232,240,0.76); line-height:1.48; overflow-y:auto; overflow-x:hidden; flex:1 1 auto; min-height:0; white-space:pre-wrap; overflow-wrap:anywhere; position:relative; scrollbar-width:thin; scrollbar-color:rgba(255,255,255,0.2) transparent; }
     .tv-issue-body-inner { display:block; }
     .tv-issue-body-inner.tv-scrolling { animation:tv-body-scroll var(--tv-scroll-dur,35s) ease-in-out 2.5s infinite; }
     @keyframes tv-body-scroll { 0%,35%{transform:translateY(0)} 75%,100%{transform:translateY(var(--tv-scroll-dist,0px))} }
     /* Issue tile structured content — route pills, DC badges */
-    .tv-issue-routes { display:flex; flex-wrap:wrap; gap:clamp(4px,0.5vw,8px); margin-bottom:clamp(4px,0.5vh,8px); }
-    .tv-issue-route { background:rgba(255,255,255,0.12); border:1px solid rgba(255,255,255,0.2); border-radius:100px; padding:2px clamp(7px,0.8vw,13px); font-size:clamp(11px,1.1vw,17px); font-weight:600; white-space:nowrap; color:var(--text); }
-    .tv-issue-effect { background:rgba(245,158,11,0.18); border:1px solid rgba(245,158,11,0.4); border-radius:100px; padding:2px clamp(7px,0.8vw,13px); font-size:clamp(11px,1.1vw,17px); font-weight:600; white-space:nowrap; color:var(--warn); }
-    .tv-issue-timeframe { font-size:clamp(12px,1.2vw,19px); color:rgba(255,255,255,0.6); line-height:1.4; }
-    .tv-issue-dc-list { display:flex; flex-wrap:wrap; gap:clamp(4px,0.5vw,8px); }
-    .tv-issue-dc-item { border-radius:8px; padding:clamp(3px,0.3vh,5px) clamp(8px,0.9vw,14px); font-size:clamp(11px,1.1vw,17px); font-weight:700; letter-spacing:0.04em; }
+    .tv-issue-routes { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:8px; }
+    .tv-issue-route { background:rgba(255,255,255,0.12); border:1px solid rgba(255,255,255,0.18); border-radius:100px; padding:3px 10px; font-size:13px; font-weight:700; white-space:nowrap; color:#f8fafc; }
+    .tv-issue-effect { background:rgba(245,158,11,0.18); border:1px solid rgba(245,158,11,0.34); border-radius:100px; padding:3px 10px; font-size:13px; font-weight:700; white-space:nowrap; color:#fcd34d; }
+    .tv-issue-timeframe { font-size:14px; color:rgba(226,232,240,0.66); line-height:1.4; }
+    .tv-issue-dc-list { display:flex; flex-wrap:wrap; gap:8px; }
+    .tv-issue-dc-item { border-radius:9px; padding:4px 10px; font-size:13px; font-weight:800; letter-spacing:0; }
     .tv-issue-dc-item.reroute { background:rgba(20,184,166,0.18); border:1px solid rgba(20,184,166,0.45); color:var(--reroute); }
     .tv-issue-dc-item.maint   { background:rgba(59,130,246,0.18); border:1px solid rgba(59,130,246,0.45); color:#60a5fa; }
     .tv-issue-dc-item.warn    { background:rgba(245,158,11,0.18); border:1px solid rgba(245,158,11,0.4); color:var(--warn); }
     .tv-issue-dc-item.bad     { background:rgba(239,68,68,0.18); border:1px solid rgba(239,68,68,0.4); color:var(--bad); }
-    .tv-issue-cf-body { font-size:clamp(13px,1.2vw,18px); color:rgba(255,255,255,0.7); line-height:1.45; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
-    .tv-issue-section-hdr { font-size:clamp(9px,0.75vw,12px); font-weight:700; text-transform:uppercase; letter-spacing:0.1em; color:rgba(255,255,255,0.32); margin-top:clamp(6px,0.7vh,10px); padding-bottom:clamp(3px,0.3vh,4px); border-bottom:1px solid rgba(255,255,255,0.08); }
+    .tv-issue-cf-body { font-size:14px; color:rgba(226,232,240,0.7); line-height:1.45; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+    .tv-issue-section-hdr { font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:0; color:rgba(226,232,240,0.38); margin-top:10px; padding-bottom:4px; border-bottom:1px solid rgba(255,255,255,0.08); }
     /* Issue page dots */
-    .tv-page-dots { display:flex; align-items:center; justify-content:center; gap:8px; padding-top:clamp(6px,0.7vh,12px); flex-shrink:0; }
+    .tv-page-dots { display:flex; align-items:center; justify-content:center; gap:8px; padding-top:12px; flex-shrink:0; }
     .tv-page-dot { width:8px; height:8px; border-radius:50%; background:rgba(255,255,255,0.18); transition:background 0.3s, width 0.3s, border-radius 0.3s; flex-shrink:0; cursor:pointer; border:none; padding:0; appearance:none; -webkit-appearance:none; }
     .tv-page-dot:hover { background:rgba(255,255,255,0.45); }
     .tv-page-dot:focus-visible { outline:2px solid rgba(255,255,255,0.5); outline-offset:3px; }
     .tv-page-dot.active { width:24px; border-radius:4px; background:rgba(255,255,255,0.7); }
+    .tv-ok-section {
+      flex:1 1 auto;
+      min-height:0;
+      display:grid;
+      place-items:center;
+      padding:10px 0 6px;
+    }
+    .tv-ok-panel {
+      width:min(760px, 100%);
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      gap:14px;
+      padding:44px 48px;
+      text-align:center;
+    }
+    .tv-ok-mark {
+      width:74px;
+      height:74px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      border-radius:50%;
+      color:#86efac;
+      font-size:40px;
+      font-weight:800;
+      background:rgba(34,197,94,0.12);
+      border:1px solid rgba(134,239,172,0.26);
+      box-shadow:0 18px 50px rgba(34,197,94,0.12), inset 0 1px 0 rgba(255,255,255,0.08);
+    }
+    .tv-ok-panel.unknown .tv-ok-mark {
+      color:#cbd5e1;
+      background:rgba(148,163,184,0.12);
+      border-color:rgba(203,213,225,0.22);
+      box-shadow:0 18px 50px rgba(148,163,184,0.1), inset 0 1px 0 rgba(255,255,255,0.08);
+    }
+    .tv-ok-title { font-size:42px; font-weight:800; line-height:1.08; color:#fff; letter-spacing:0; }
+    .tv-ok-sub { max-width:620px; color:rgba(226,232,240,0.66); font-size:17px; line-height:1.45; }
     /* Operational ticker */
-    .tv-ticker-wrap { flex-shrink:0; margin-bottom:clamp(8px,0.9vh,14px); }
-    .tv-ticker-hdr { font-size:clamp(9px,0.78vw,13px); font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:var(--muted); margin-bottom:4px; display:flex; align-items:center; gap:6px; }
-    .tv-ticker-ok-dot { width:6px; height:6px; border-radius:50%; background:var(--ok); flex-shrink:0; }
-    .tv-tiles { overflow:hidden; height:clamp(88px,11vh,130px); position:relative; }
-    .tv-tiles-track { display:flex; align-items:center; gap:clamp(8px,0.9vw,14px); height:100%; width:max-content; animation:tv-ticker 70s linear infinite; }
+    .tv-ticker-wrap { flex-shrink:0; }
+    .tv-ticker-hdr { margin-bottom:7px; display:flex; align-items:center; gap:7px; }
+    .tv-ticker-ok-dot { width:7px; height:7px; border-radius:50%; background:#22c55e; flex-shrink:0; box-shadow:0 0 16px rgba(34,197,94,0.65); }
+    .tv-tiles {
+      overflow:hidden;
+      height:100px;
+      position:relative;
+      border:1px solid rgba(255,255,255,0.08);
+      border-radius:18px;
+      background:rgba(255,255,255,0.035);
+      box-shadow:inset 0 1px 0 rgba(255,255,255,0.05);
+    }
+    .tv-tiles::before,
+    .tv-tiles::after {
+      content:'';
+      position:absolute;
+      top:0;
+      bottom:0;
+      width:72px;
+      z-index:2;
+      pointer-events:none;
+    }
+    .tv-tiles::before { left:0; background:linear-gradient(90deg, rgba(8,11,16,0.96), transparent); }
+    .tv-tiles::after { right:0; background:linear-gradient(270deg, rgba(8,11,16,0.96), transparent); }
+    .tv-tiles-track { display:flex; align-items:center; gap:10px; height:100%; width:max-content; animation:tv-ticker 70s linear infinite; padding:10px; }
     .tv-tiles-track:hover { animation-play-state:paused; }
     @keyframes tv-ticker { 0%{transform:translateX(0)} 100%{transform:translateX(-50%)} }
-    .tv-tile { background:rgba(255,255,255,0.025); border:1px solid rgba(255,255,255,0.07); border-radius:11px; padding:clamp(10px,1.1vw,17px); display:flex; flex-direction:column; gap:5px; cursor:pointer; transition:all 0.2s; overflow:hidden; height:100%; box-sizing:border-box; justify-content:center; opacity:0.55; flex-shrink:0; min-width:clamp(130px,13vw,200px); }
-    .tv-tile:hover { background:rgba(255,255,255,0.07); opacity:1; }
-    .tv-tile-top { display:flex; align-items:center; gap:7px; min-width:0; }
-    .tv-tile-logo { width:clamp(16px,1.5vw,24px); height:clamp(16px,1.5vw,24px); border-radius:4px; background:#fff; object-fit:contain; flex-shrink:0; }
-    .tv-tile-logo-fb { width:clamp(16px,1.5vw,24px); height:clamp(16px,1.5vw,24px); border-radius:4px; background:rgba(255,255,255,0.1); display:flex; align-items:center; justify-content:center; font-size:clamp(8px,0.78vw,12px); font-weight:700; flex-shrink:0; }
-    .tv-tile-name { font-size:clamp(11px,1vw,16px); font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-    .tv-tile-badge { font-size:clamp(9px,0.78vw,13px); font-weight:700; letter-spacing:0.07em; text-transform:uppercase; }
+    .tv-tile { background:rgba(255,255,255,0.045); border:1px solid rgba(255,255,255,0.08); border-radius:13px; padding:12px 14px; display:flex; flex-direction:column; gap:7px; cursor:pointer; transition:all 0.2s; overflow:hidden; height:100%; box-sizing:border-box; justify-content:center; opacity:0.78; flex-shrink:0; min-width:176px; }
+    .tv-tile:hover { background:rgba(255,255,255,0.08); opacity:1; }
+    .tv-tile-top { display:flex; align-items:center; gap:8px; min-width:0; }
+    .tv-tile-logo { width:24px; height:24px; border-radius:6px; background:#fff; object-fit:contain; flex-shrink:0; padding:2px; }
+    .tv-tile-logo-fb { width:24px; height:24px; border-radius:6px; background:rgba(255,255,255,0.1); display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:800; flex-shrink:0; }
+    .tv-tile-name { font-size:14px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:#f8fafc; }
+    .tv-tile-badge { font-size:11px; font-weight:800; letter-spacing:0; text-transform:uppercase; }
     .tv-tile-badge.ok    { color:var(--ok); }
     .tv-tile-badge.warn  { color:var(--warn); }
     .tv-tile-badge.bad   { color:var(--bad); }
@@ -725,40 +1032,68 @@
     .tv-tile-badge.reroute{ color:var(--reroute); }
     .tv-tile-badge.unknown{ color:var(--unknown); }
     /* Board alert card */
-    .tv-board-alert-card { position:absolute; top:clamp(16px,2.2vh,32px); left:50%; transform:translateX(-50%); width:min(640px,70vw); background:rgba(10,10,13,0.97); border-bottom:4px solid transparent; border-radius:20px; padding:clamp(20px,2.2vw,32px); z-index:350; backdrop-filter:blur(28px) saturate(1.4); box-shadow:0 28px 70px rgba(0,0,0,0.75); animation:board-alert-in 0.45s cubic-bezier(.22,1,.36,1) both; transition:opacity 0.55s ease,transform 0.55s ease; pointer-events:none; text-align:center; }
-    .tv-board-alert-card::before { content:''; position:absolute; inset:0; border-radius:20px; border:1px solid rgba(255,255,255,0.09); pointer-events:none; }
-    .tv-board-alert-card.ind-major { border-left-color:#ef4444; box-shadow:0 28px 70px rgba(239,68,68,0.28); }
-    .tv-board-alert-card.ind-minor { border-left-color:#f59e0b; box-shadow:0 28px 70px rgba(245,158,11,0.22); }
-    .tv-board-alert-card.ind-none  { border-left-color:#22c55e; box-shadow:0 28px 70px rgba(34,197,94,0.22); }
+    .tv-board-alert-card { position:absolute; top:24px; left:50%; transform:translateX(-50%); width:min(760px,74vw); background:radial-gradient(circle at 16% 10%, rgba(255,255,255,0.16), transparent 38%), rgba(10,10,13,0.96); border:1px solid rgba(255,255,255,0.12); border-bottom:4px solid transparent; border-radius:24px; padding:22px; z-index:350; backdrop-filter:blur(30px) saturate(1.45); box-shadow:0 32px 80px rgba(0,0,0,0.72), inset 0 1px 0 rgba(255,255,255,0.1); animation:board-alert-in 0.45s cubic-bezier(.22,1,.36,1) both; transition:opacity 0.55s ease,transform 0.55s ease; pointer-events:none; text-align:center; overflow:hidden; }
+    .tv-board-alert-card::before { content:''; position:absolute; inset:0; border-radius:24px; border:1px solid rgba(255,255,255,0.08); pointer-events:none; }
+    .tv-board-alert-card::after { content:''; position:absolute; left:0; right:0; bottom:0; height:4px; transform-origin:left; animation:board-alert-life 9s linear forwards; }
+    .tv-board-alert-card.ind-major { border-color:rgba(239,68,68,0.38); box-shadow:0 32px 80px rgba(239,68,68,0.26), 0 24px 70px rgba(0,0,0,0.64); }
+    .tv-board-alert-card.ind-minor { border-color:rgba(245,158,11,0.34); box-shadow:0 32px 80px rgba(245,158,11,0.22), 0 24px 70px rgba(0,0,0,0.64); }
+    .tv-board-alert-card.ind-none  { border-color:rgba(34,197,94,0.34); box-shadow:0 32px 80px rgba(34,197,94,0.2), 0 24px 70px rgba(0,0,0,0.64); }
+    .tv-board-alert-card.ind-major::after { background:linear-gradient(90deg,#ef4444,#fb7185); }
+    .tv-board-alert-card.ind-minor::after { background:linear-gradient(90deg,#f59e0b,#facc15); }
+    .tv-board-alert-card.ind-none::after { background:linear-gradient(90deg,#22c55e,#14b8a6); }
     .tv-board-alert-card.tv-alert-hide { opacity:0; transform:translateX(-50%) translateY(-12px); }
-    .tv-board-alert-inner { display:flex; align-items:center; gap:clamp(16px,2vw,28px); }
-    .tv-board-alert-icon { font-size:clamp(36px,4vw,58px); line-height:1; flex-shrink:0; }
+    .tv-board-alert-inner { display:flex; align-items:center; gap:22px; }
+    .tv-board-alert-icon { width:72px; height:72px; display:flex; align-items:center; justify-content:center; border-radius:22px; font-size:42px; line-height:1; flex-shrink:0; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.12); box-shadow:inset 0 1px 0 rgba(255,255,255,0.11); }
     .tv-board-alert-text { text-align:left; min-width:0; }
-    .tv-board-alert-heading { font-size:clamp(10px,0.85vw,14px); font-weight:800; letter-spacing:0.14em; text-transform:uppercase; margin-bottom:4px; }
+    .tv-board-alert-heading { display:inline-flex; align-items:center; gap:7px; font-size:12px; font-weight:850; letter-spacing:0; text-transform:uppercase; margin-bottom:6px; padding:5px 10px; border-radius:999px; background:rgba(255,255,255,0.07); border:1px solid rgba(255,255,255,0.09); }
     .tv-board-alert-heading.ind-major { color:#fca5a5; }
     .tv-board-alert-heading.ind-minor { color:#fcd34d; }
     .tv-board-alert-heading.ind-none  { color:#86efac; }
-    .tv-board-alert-svc { font-size:clamp(24px,2.8vw,44px); font-weight:800; letter-spacing:-0.02em; line-height:1.1; color:var(--text); margin-bottom:4px; }
-    .tv-board-alert-msg { font-size:clamp(14px,1.3vw,20px); color:var(--sub); line-height:1.4; }
+    .tv-board-alert-svc { font-size:36px; font-weight:850; letter-spacing:0; line-height:1.08; color:var(--text); margin-bottom:5px; }
+    .tv-board-alert-msg { font-size:17px; color:rgba(226,232,240,0.74); line-height:1.4; }
     @keyframes board-alert-in { from{opacity:0;transform:translateX(-50%) translateY(-18px) scale(0.97)} to{opacity:1;transform:translateX(-50%) translateY(0) scale(1)} }
+    @keyframes board-alert-life { from{transform:scaleX(1)} to{transform:scaleX(0)} }
     /* Footer */
-    .tv-board-footer { display:flex; align-items:center; gap:12px; flex-shrink:0; padding-top:clamp(8px,0.9vh,14px); border-top:1px solid rgba(255,255,255,0.07); }
-    .tv-net-bar { display:flex; align-items:center; flex-wrap:wrap; gap:3px 10px; font-size:clamp(12px,1.05vw,17px); color:var(--sub); flex:1; min-width:0; }
+    .tv-board-footer { display:flex; align-items:center; gap:12px; flex-shrink:0; padding:12px 14px; border:1px solid rgba(255,255,255,0.08); border-radius:16px; background:rgba(255,255,255,0.035); }
+    .tv-net-bar { display:flex; align-items:center; flex-wrap:wrap; gap:4px 10px; font-size:13px; color:rgba(226,232,240,0.66); flex:1; min-width:0; }
     .tv-net-item { display:inline-flex; align-items:center; gap:4px; white-space:nowrap; }
-    .tv-net-lbl { font-weight:700; font-size:0.8em; letter-spacing:0.07em; text-transform:uppercase; color:var(--muted); margin-right:2px; }
-    .tv-net-sep { color:var(--border); user-select:none; }
+    .tv-net-lbl { margin-right:1px; }
+    .tv-net-sep { color:rgba(255,255,255,0.15); user-select:none; }
     .tv-net-ok { color:var(--ok); font-weight:600; }
     .tv-net-warn { color:var(--warn); font-weight:600; }
-    .tv-net-ts { font-size:0.78em; color:var(--muted); white-space:nowrap; }
+    .tv-net-ts { font-size:11px; color:rgba(226,232,240,0.44); white-space:nowrap; }
     .tv-footer-right { display:flex; align-items:center; gap:12px; flex-shrink:0; }
-    .tv-updated { font-size:clamp(10px,0.82vw,13px); color:var(--muted); white-space:nowrap; }
-    .tv-exit-btn { border:1px solid rgba(255,255,255,0.12); background:rgba(255,255,255,0.05); color:var(--sub); border-radius:8px; padding:6px 16px; font-size:11px; font-weight:600; letter-spacing:0.05em; text-transform:uppercase; cursor:pointer; font-family:var(--font); transition:all 0.2s; }
+    .tv-updated { font-size:12px; color:rgba(226,232,240,0.5); white-space:nowrap; }
+    .tv-exit-btn { border:1px solid rgba(255,255,255,0.12); background:rgba(255,255,255,0.05); color:rgba(226,232,240,0.66); border-radius:999px; padding:7px 14px; font-size:11px; font-weight:800; letter-spacing:0; text-transform:uppercase; cursor:pointer; font-family:var(--font); transition:all 0.2s; }
     .tv-exit-btn:hover { background:rgba(255,255,255,0.1); color:var(--text); }
-    .tv-test-btn { border:1px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.04); color:var(--sub); border-radius:7px; padding:6px 12px; font-size:11px; font-weight:600; letter-spacing:0.05em; text-transform:uppercase; cursor:pointer; font-family:var(--font); white-space:nowrap; transition:opacity 0.3s ease,background 0.2s,color 0.2s,border-color 0.2s; }
+    .tv-test-btn { border:1px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.04); color:rgba(226,232,240,0.62); border-radius:999px; padding:7px 12px; font-size:11px; font-weight:800; letter-spacing:0; text-transform:uppercase; cursor:pointer; font-family:var(--font); white-space:nowrap; transition:opacity 0.3s ease,background 0.2s,color 0.2s,border-color 0.2s; }
     .tv-test-btn:hover { background:rgba(255,255,255,0.09); color:var(--text); border-color:rgba(255,255,255,0.18); }
-    .tv-board-footer:not(:hover) .tv-test-btn { opacity:0; pointer-events:none; }
+    .tv-board-footer:not(:hover) .tv-test-btn { opacity:0.3; }
     .f-board-btn { border:1px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.04); color:var(--sub); border-radius:7px; padding:5px 11px; font-size:11px; font-weight:600; letter-spacing:0.05em; text-transform:uppercase; cursor:pointer; font-family:var(--font); transition:all 0.2s; }
     .f-board-btn:hover { background:rgba(255,255,255,0.09); color:var(--text); }
+    @media (max-width: 1700px) {
+      .tv-board { padding:20px 22px 18px; gap:12px; }
+      .tv-hdr { grid-template-columns:minmax(320px,1fr) minmax(320px,1fr) auto; }
+      .tv-clock-block { align-items:flex-end; }
+      .tv-status-panel { grid-column:1 / -1; }
+    }
+    @media (max-width: 820px) {
+      .tv-board { padding:14px; overflow:auto; }
+      .tv-hdr { grid-template-columns:1fr; }
+      .tv-status-panel,
+      .tv-hdr-weather,
+      .tv-hdr-media,
+      .tv-clock-block { min-width:0; }
+      .tv-status-panel { flex-wrap:wrap; }
+      .tv-status-counts { width:100%; flex-wrap:wrap; }
+      .tv-count { flex:1 1 70px; }
+      .tv-clock-block { align-items:flex-start; }
+      .tv-board-footer { align-items:flex-start; flex-direction:column; }
+      .tv-footer-right { width:100%; justify-content:space-between; }
+      .tv-eride-panel { grid-template-columns:1fr; }
+      .tv-eride-events { grid-template-columns:1fr; }
+      .tv-tiles { height:92px; }
+    }
     .f-theme-btn { border:1px solid var(--border); background:rgba(128,128,128,0.06); color:var(--sub); border-radius:7px; padding:5px 9px; font-size:13px; cursor:pointer; font-family:var(--font); transition:all 0.2s; line-height:1; }
     .f-theme-btn:hover { background:rgba(128,128,128,0.12); color:var(--text); }
 
@@ -885,7 +1220,8 @@
 
     /* ── Board minimal mode ─────────────────────────────────────────────────── */
     .tv-board-minimal .tv-ticker-wrap,
-    .tv-board-minimal .tv-issues-section { display:none !important; }
+    .tv-board-minimal .tv-eride-panel,
+    .tv-board-minimal .tv-board-main { display:none !important; }
     .tv-minimal-status { display:none; flex:1; align-items:center; justify-content:center; flex-direction:column; gap:clamp(10px,2vh,20px); }
     .tv-board-minimal .tv-minimal-status { display:flex; }
     .tv-minimal-msg { font-size:clamp(48px,8vw,120px); font-weight:800; letter-spacing:-0.03em; line-height:1.1; text-align:center; }
@@ -1266,10 +1602,24 @@ function fmtIataName(n){
 }
 
 const BOARD_STATIONS=[
-  {id:'wror',name:'105.7 WROR',streamUrl:'https://18163.live.streamtheworld.com/WRORFM_SC',nowPlayingUrl:'special://wror-now-playing',parse:'artist-track',quality:'96k (highest available)',baseVolume:0.6,duckVolume:0.25,albumArt:'itunes'},
-  {id:'x1023',name:"Cape Cod's X",streamUrl:'https://stream.x1023.fm/HD1',nowPlayingUrl:'special://x1023-now-playing',parse:'artist-track',quality:'128k',baseVolume:0.35,duckVolume:0.12,albumArt:'itunes'},
-  {id:'wocn',name:'Ocean 104.7',streamUrl:'https://ice7.securenetsystems.net/WOCN?play',nowPlayingUrl:'special://wocn-nowplaying',parse:'wocn-xml',quality:'128k',baseVolume:0.5,duckVolume:0.2},
-  {id:'hjy',name:'94HJY',streamUrl:'https://stream.revma.ihrhls.com/zc2049',nowPlayingUrl:'special://iheart-hjy-now-playing',parse:'artist-track',quality:'128k',baseVolume:0.5,duckVolume:0.2,albumArt:'itunes'},
+  {id:'wror',name:'105.7 WROR',streamUrl:'https://18163.live.streamtheworld.com/WRORFM_SC',quality:'96k (highest available)',baseVolume:0.6,duckVolume:0.25,albumArt:'itunes',
+    nowPlayingSources:[
+      {url:'https://np.tritondigital.com/public/nowplaying?mountName=WRORFM&numberToFetch=1&eventType=track',parse:'triton-xml'},
+      {url:'special://wror-now-playing',parse:'artist-track',deployedOnly:true},
+    ]},
+  {id:'x1023',name:"Cape Cod's X",streamUrl:'https://stream.x1023.fm/HD1',quality:'128k',baseVolume:0.35,duckVolume:0.12,albumArt:'itunes',
+    nowPlayingSources:[
+      {url:'https://stream.x1023.fm/stats?sid=1&json=1',parse:'stats-json'},
+    ]},
+  {id:'wocn',name:'Ocean 104.7',streamUrl:'https://ice7.securenetsystems.net/WOCN?play',quality:'128k',baseVolume:0.5,duckVolume:0.2,albumArt:'itunes',
+    nowPlayingSources:[
+      {url:'https://streamdb3web.securenetsystems.net/player_status_update/WOCN_history.xml',parse:'wocn-xml'},
+    ]},
+  {id:'hjy',name:'94HJY',streamUrl:'https://stream.revma.ihrhls.com/zc2049',quality:'128k',baseVolume:0.5,duckVolume:0.2,albumArt:'itunes',
+    nowPlayingSources:[
+      {url:'special://iheart-hjy-now-playing',parse:'artist-track',deployedOnly:true},
+      {url:'https://us.api.iheart.com/api/v3/live-meta/stream/2049/currentTrackMeta?defaultMetadata=true',parse:'iheart-json'},
+    ]},
 ];
 const BOARD_RADIO_BASE_VOLUME=0.35;
 const BOARD_RADIO_DUCK_VOLUME=0.12;
@@ -1342,22 +1692,36 @@ function getPreferredVoice(){
   if(!('speechSynthesis' in window)) return null;
   const voices=window.speechSynthesis.getVoices();
   if(!voices.length) return null;
-  const preferred=voices.find((v)=>PREFERRED_TTS_VOICES.includes(v.name));
-  if(preferred) return preferred;
-  return voices.find((v)=>/en[-_](US|GB)/i.test(v.lang)) || voices.find((v)=>/^en/i.test(v.lang)) || null;
+  const scoreVoice=v=>{
+    const name=String(v.name||'');
+    const lang=String(v.lang||'');
+    let score=0;
+    if(PREFERRED_TTS_VOICES.includes(name)) score+=100;
+    if(/natural|neural|premium|enhanced|online|aria|jenny|ava|guy|samantha|google/i.test(name)) score+=45;
+    if(/en[-_]?US/i.test(lang)) score+=30;
+    else if(/^en/i.test(lang)) score+=20;
+    if(v.localService===false) score+=12;
+    if(/compact|novelty|whisper|bad news|bells|cellos|organ|superstar|trinoids/i.test(name)) score-=80;
+    return score;
+  };
+  return [...voices]
+    .filter(v=>/^en/i.test(v.lang||''))
+    .sort((a,b)=>scoreVoice(b)-scoreVoice(a))[0] || null;
 }
 
 function speakBannerStatus(serviceName, kind){
   if(_alertsMuted) return;
   if(!('speechSynthesis' in window)) return;
   const status=TTS_STATUS_LABEL[kind] || 'Status Updated';
-  const spokenText=`${serviceName}. ${status}.`;
+  const spokenText=kind==='restored'
+    ?`${serviceName} is back online.`
+    :`${serviceName}. ${status} alert.`;
   const utterance=new SpeechSynthesisUtterance(spokenText);
   const voice=getPreferredVoice();
   if(voice) utterance.voice=voice;
-  utterance.rate=1;
-  utterance.pitch=1;
-  utterance.volume=1;
+  utterance.rate=0.92;
+  utterance.pitch=0.96;
+  utterance.volume=0.96;
   const estimatedMs=Math.max(2600,Math.round((spokenText.length/14)*1000));
   utterance.onstart=()=>_duckBoardRadio(estimatedMs+900);
   window.speechSynthesis.cancel();
@@ -1674,8 +2038,6 @@ const ROUTE_KEYS = {
   "https://www.apple.com/support/systemstatus/data/system_status_en_US.js": "apple-status",
   "https://developer.apple.com/system-status/data/system_status_en_US.js": "appledev-status",
   "https://www.cloudflarestatus.com/api/v2/summary.json": "cf-summary",
-  "https://uptime.quad9.net/api/v2/summary.json": "quad9-summary",
-  "https://status.quad9.net/smap/assets/data.csv": "quad9-pops",
   "https://status.dnsfilter.com/api/v2/summary.json": "dnsfilter-summary",
   "https://status.meraki.net/api/v2/summary.json": "meraki-summary",
   "https://status.aws.amazon.com/rss/all.rss": "aws-rss",
@@ -1689,19 +2051,24 @@ const ROUTE_KEYS = {
   "https://status.bunny.net/api/v2/summary.json": "bunny-summary",
   "https://www.cacheflystatus.com/api/v2/summary.json": "cachefly-summary",
   "https://api.status.io/1.0/status/5d849b1c02e65b3ec45369d4": "mimecast-summary",
+  "https://status.tailscale.com/api/v2/summary.json": "tailscale-summary",
   "https://status.wasabi.com/api/v2/summary.json": "wasabi-summary",
   "https://api-v3.mbta.com/alerts?filter[route]=CR-Providence&filter[activity]=BOARD,EXIT,RIDE": "mbta-providence",
   "https://api-v3.mbta.com/alerts?filter[route]=CR-NewBedford,CR-FallRiver&filter[activity]=BOARD,EXIT,RIDE": "mbta-southcoast",
   "https://cloudflare.com/cdn-cgi/trace": "cf-trace",
   "https://speed.cloudflare.com/meta": "speed-meta",
-
   "https://cloudflare-dns.com/dns-query?name=whoami.cloudflare&type=TXT&ct=application/dns-json": "doh-cloudflare",
   "https://dns.google/generate_204": "google-204",
+  "https://np.tritondigital.com/public/nowplaying?mountName=WRORFM&numberToFetch=1&eventType=track": "wror-triton-nowplaying",
+  "https://us.api.iheart.com/api/v3/live-meta/stream/2049/currentTrackMeta?defaultMetadata=true": "iheart-hjy-meta",
   "https://stream.x1023.fm/stats?sid=1&json=1": "x1023-now-playing",
+  "https://uptime.quad9.net/api/v2/summary.json": "quad9-summary",
+  "https://status.quad9.net/smap/assets/data.csv": "quad9-pops",
   "https://status.openai.com/api/v2/summary.json": "openai-summary",
-  "https://streamdb3web.securenetsystems.net/player_status_update/WOCN_history.xml": "wocn-nowplaying"
+  "https://streamdb3web.securenetsystems.net/player_status_update/WOCN_history.xml": "wocn-nowplaying",
+  "https://www.eride.ri.gov/eRide40/DataDictionary/Calendar.aspx": "eride-calendar"
 };
-const SPECIAL_KEYS = new Set(["ioda-na-outages","radar-us-anomalies","wror-now-playing"]);
+const SPECIAL_KEYS = new Set(["ioda-na-outages","iheart-hjy-now-playing","radar-us-anomalies","wror-now-playing","adobe-registry","adobe-events","time-gov"]);
 /* @routes-end */
 
 // Build proxy URL using route key if available.
@@ -1710,6 +2077,7 @@ const SPECIAL_KEYS = new Set(["ioda-na-outages","radar-us-anomalies","wror-now-p
 const PROXIES=_IS_DEPLOYED
   ?[u=>{ const k=ROUTE_KEYS[u]; return k?`/proxy?svc=${k}`:undefined; }, u=>u]
   :[u=>u];
+const ROUTE_URLS=Object.fromEntries(Object.entries(ROUTE_KEYS).map(([url,key])=>[key,url]));
 
 async function fetchWithTimeout(url, timeout=15000){
   const controller=new AbortController();
@@ -1798,6 +2166,19 @@ function mk(name,ind,title,body,updated,url,labelOverride,labels=[],details=null
 
 function errSvc(s){
   return {name:s.name,ind:'unknown',label:'Stale / Unknown',title:'Cannot reach status API',body:'We are currently unable to reach the status API. Check the status page manually.',updated:'—',url:s.hu,fetchedAt:Date.now()};
+}
+
+function localCorsLimitedSvc(s, sourceLabel='status feed'){
+  return mk(
+    s.name,
+    'none',
+    'Live feed uses the deployed proxy',
+    `${sourceLabel} blocks direct browser reads from local file mode. The deployed page will use the proxy route for live status.`,
+    new Date().toLocaleString(),
+    s.hu,
+    'Proxy Ready',
+    ['Local fallback']
+  );
 }
 
 function fmtFetchAge(fetchedAt){
@@ -2455,7 +2836,10 @@ async function fetchOne(s){
         ?new Date(items[0].querySelector('pubDate').textContent).toLocaleString()
         :new Date().toLocaleString();
       return mk(s.name,ind,title,body,updated,s.hu);
-    }catch{return errSvc(s);}
+    }catch{
+      if(!_IS_DEPLOYED) return localCorsLimitedSvc(s,'IBM Cloud RSS');
+      return errSvc(s);
+    }
   }
 
   if(s.p==='apple'){
@@ -2528,7 +2912,10 @@ async function fetchOne(s){
       else if(/re.?rout/i.test(tl)) ind='rerouting';
       else ind='maintenance'; // expansion, capacity, new DC, upcoming/scheduled maintenance, informational
       return mk(s.name,ind,title,body,new Date().toLocaleString(),s.hu);
-    }catch{return errSvc(s);}
+    }catch{
+      if(!_IS_DEPLOYED) return localCorsLimitedSvc(s,'Fastly RSS');
+      return errSvc(s);
+    }
   }
 
 
@@ -2772,7 +3159,10 @@ async function fetchOne(s){
       }
       const details=detailsDcs.length?{type:'quad9',maintenance:[],dataCenters:detailsDcs}:null;
       return mk(s.name,ind,title,body,updated,s.hu,undefined,[],details);
-    }catch{return errSvc(s);}
+    }catch{
+      if(!_IS_DEPLOYED) return localCorsLimitedSvc(s,'Quad9 status feeds');
+      return errSvc(s);
+    }
   }
 
   try {
@@ -2914,8 +3304,10 @@ function _msUntilNextClockPage(dwellSecs){
   // Avoid sub-500 ms races by bumping to the following slot
   return ms<500?ms+slot:ms;
 }
+const ERIDE_CALENDAR_URL='https://www.eride.ri.gov/eRide40/DataDictionary/Calendar.aspx';
 let _wxInfo=null,_wxTimer=null,_wxFetching=false,_deviceLocation=null;
 let _nowPlayingInfo=null,_nowPlayingTimer=null,_nowPlayingFetching=false;
+let _erideInfo=null,_erideTimer=null,_erideFetching=false;
 const NP_POLL_NORMAL=30000, NP_POLL_FAST=5000;
 function _setNowPlayingPollRate(ms){
   if(_nowPlayingTimer){ clearInterval(_nowPlayingTimer); _nowPlayingTimer=null; }
@@ -2971,6 +3363,147 @@ async function _fetchWeather(){
   _renderWeather();
 }
 
+function _parseERideCalendar(html,now=new Date()){
+  const source=String(html||'');
+  const monthNames=['january','february','march','april','may','june','july','august','september','october','november','december'];
+  const captionFromSource=source.match(/<b>\s*(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{4})\s*<\/b>/i)
+    || source.match(/\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{4})\b/i);
+  const captionMonth=captionFromSource?monthNames.indexOf(captionFromSource[1].toLowerCase()):now.getMonth();
+  const captionYear=captionFromSource?Number(captionFromSource[2]):now.getFullYear();
+  const start=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+  const end=new Date(start);
+  end.setDate(end.getDate()+14);
+  const parseDateTitle=dateTitle=>{
+    const m=String(dateTitle||'').match(/^([A-Za-z]+)\s+(\d{1,2})$/);
+    if(!m) return null;
+    const month=monthNames.indexOf(m[1].toLowerCase());
+    if(month<0) return null;
+    let year=captionYear;
+    if(month-captionMonth>6) year--;
+    else if(captionMonth-month>6) year++;
+    return new Date(year,month,Number(m[2]));
+  };
+  const inWindow=date=>date&&date>=start&&date<=end;
+  const cleanTitle=value=>String(value||'').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();
+  const makeKind=title=>{
+    const lower=String(title||'').toLowerCase();
+    return /due/.test(lower)?'Due':/open/.test(lower)?'Opens':/close/.test(lower)?'Closes':'Event';
+  };
+  const addEvent=(events,seen,date,title,href)=>{
+    const clean=cleanTitle(title);
+    if(!clean) return;
+    let url=href||'';
+    try{ url=new URL(url,ERIDE_CALENDAR_URL).href; }catch{}
+    const key=`${date.toISOString().slice(0,10)}|${clean}|${url}`;
+    if(seen.has(key)) return;
+    seen.add(key);
+    events.push({date:date.getTime(),title:clean,kind:makeKind(clean),url});
+  };
+
+  const parseRaw=()=>{
+    const events=[];
+    const seen=new Set();
+    const cellRe=/<td\b[^>]*height=["']?90["']?[^>]*>([\s\S]*?)(?=<td\b[^>]*height=["']?90["']?|<\/tr>|<\/table>)/gi;
+    for(const match of source.matchAll(cellRe)){
+      const cellHtml=match[1]||'';
+      const dateTitle=(cellHtml.match(/title=["']([A-Za-z]+\s+\d{1,2})["']/i)||[])[1];
+      const date=parseDateTitle(dateTitle);
+      if(!inWindow(date)) continue;
+      const linkRe=/<a\b([^>]*href\s*=\s*['"]?[^>]*ViewDetails\.aspx\?ID=\d+[^>]*)>([\s\S]*?)<\/a>/gi;
+      for(const linkMatch of cellHtml.matchAll(linkRe)){
+        const attr=linkMatch[1]||'';
+        const href=(attr.match(/href\s*=\s*["']?([^"'\s>]+)/i)||[])[1]||'';
+        addEvent(events,seen,date,linkMatch[2],href);
+      }
+    }
+    return events;
+  };
+
+  const doc=new DOMParser().parseFromString(String(html||''),'text/html');
+  const cal=doc.querySelector('#Calendar1');
+  if(!cal) return parseRaw().sort((a,b)=>a.date-b.date||a.title.localeCompare(b.title)).slice(0,12);
+  const cells=[...cal.querySelectorAll('td[height="90"]')];
+  const seen=new Set();
+  const events=[];
+  for(const cell of cells){
+    const dayLink=[...cell.querySelectorAll('a')].find(a=>/Calendar1/.test(a.getAttribute('href')||'')&&a.getAttribute('title'));
+    const dateTitle=dayLink?.getAttribute('title')||'';
+    const date=parseDateTitle(dateTitle);
+    if(!inWindow(date)) continue;
+    for(const link of cell.querySelectorAll('a[href*="ViewDetails.aspx"]')){
+      addEvent(events,seen,date,link.textContent,link.getAttribute('href')||'');
+    }
+  }
+  if(!events.length&&/ViewDetails\.aspx\?ID=/i.test(source)){
+    events.push(...parseRaw());
+  }
+  return events.sort((a,b)=>a.date-b.date||a.title.localeCompare(b.title)).slice(0,12);
+}
+
+async function _fetchERideCalendar(){
+  if(_erideFetching) return;
+  _erideFetching=true;
+  try{
+    if(!_IS_DEPLOYED){
+      _erideInfo={events:[],err:'proxy-required',localOnly:true,ts:Date.now()};
+    }else{
+      const html=await getText(ERIDE_CALENDAR_URL);
+      _erideInfo={events:_parseERideCalendar(html),err:null,ts:Date.now()};
+    }
+  }catch{
+    _erideInfo={events:[],err:'unavailable',ts:Date.now()};
+  }
+  _erideFetching=false;
+  _renderBoardERidePanel();
+}
+
+function _startERideCalendar(){
+  if(_erideTimer) return;
+  _fetchERideCalendar();
+  _erideTimer=setInterval(_fetchERideCalendar,6*60*60*1000);
+}
+
+function _formatERideDate(ms){
+  const d=new Date(ms);
+  return d.toLocaleDateString('en-US',{month:'short',day:'numeric'}).toUpperCase();
+}
+
+function _renderBoardERidePanel(){
+  const panel=document.getElementById('tv-eride-panel');
+  if(!panel) return;
+  const info=_erideInfo;
+  const updated=info?.ts?`updated ${fmtFetchAge(info.ts)} ago`:'loading';
+  let body='';
+  if(!info){
+    body='<div class="tv-eride-empty">Loading RIDE data collection calendar…</div>';
+  }else if(info.localOnly){
+    body='<div class="tv-eride-empty">Live calendar requires the deployed proxy. It will populate on the published board.</div>';
+  }else if(info.err){
+    body='<div class="tv-eride-empty">RIDE calendar is temporarily unavailable.</div>';
+  }else if(!info.events?.length){
+    body='<div class="tv-eride-empty">No upcoming RIDE data collection events in the next 14 days.</div>';
+  }else{
+    body=`<div class="tv-eride-events">${info.events.slice(0,4).map(ev=>`
+      <a class="tv-eride-event" href="${esc(ev.url||ERIDE_CALENDAR_URL)}" target="_blank" rel="noopener">
+        <div class="tv-eride-date">${esc(_formatERideDate(ev.date))}</div>
+        <div class="tv-eride-copy">
+          <div class="tv-eride-name" title="${esc(ev.title)}">${esc(ev.title)}</div>
+          <div class="tv-eride-kind">${esc(ev.kind)}</div>
+        </div>
+      </a>`).join('')}</div>`;
+  }
+  const count=info?.events?.length||0;
+  panel.innerHTML=`
+    <div class="tv-eride-head">
+      <div class="tv-eride-icon">RI</div>
+      <div>
+        <div class="tv-eride-title">RIDE Calendar</div>
+        <div class="tv-eride-sub">${count?`${count} in next 14 days`:updated}</div>
+      </div>
+    </div>
+    ${body}`;
+}
+
 function _renderWeather(){
   const bar=document.getElementById('weather-bar');
   if(!bar) return;
@@ -3015,71 +3548,184 @@ function _wxIcon(cond,isDaytime){
   return '🌡';
 }
 
-function _parseNowPlayingSong(songtitle,station=_getBoardStation()){
+function _parseNowPlayingSong(songtitle,station=_getBoardStation(),parseMode=station.parse){
   const raw=String(songtitle||'').trim();
-  if(!raw) return {track:'Station ID',artist:station.name};
+  if(!raw) return null;
   const cleaned=raw.replace(/^"+|"+$/g,'').trim();
   const parts=cleaned.split(' - ').map(v=>v.trim()).filter(Boolean);
   if(parts.length>=2){
-    if(station.parse==='track-artist') return {track:parts[0],artist:parts.slice(1).join(' - ')};
+    if(parseMode==='track-artist') return {track:parts[0],artist:parts.slice(1).join(' - ')};
     return {artist:parts[0],track:parts[1]||parts[0]};
   }
   return {track:cleaned,artist:station.name};
+}
+
+function _stationNowPlayingSources(station){
+  const srcs=station.nowPlayingSources||[];
+  if(srcs.length) return srcs.map(src=>typeof src==='string'?{url:src}:src);
+  return station.nowPlayingUrl?[{url:station.nowPlayingUrl,parse:station.parse}]:[];
+}
+
+function _nowPlayingFetchUrl(src){
+  const raw=src?.url||'';
+  if(!raw) return null;
+  if(raw.startsWith('special://')){
+    const key=raw.replace('special://','');
+    if(_IS_DEPLOYED) return '/proxy?svc='+key;
+    return ROUTE_URLS[key]||null;
+  }
+  return raw;
+}
+
+function _cleanNowPlayingValue(value){
+  const compact=String(value||'').replace(/\s+/g,' ').trim();
+  if(!/&(?:#\d+|#x[\da-f]+|[a-z]+);/i.test(compact)) return compact;
+  try{
+    const doc=new DOMParser().parseFromString('<!doctype html><body>'+compact,'text/html');
+    return (doc.body?.textContent||compact).replace(/\s+/g,' ').trim();
+  }catch{return compact;}
+}
+
+function _isUsefulNowPlaying(info,station){
+  const track=_cleanNowPlayingValue(info?.track);
+  if(!track) return false;
+  if(/^station\s+id$/i.test(track)) return false;
+  if(/^unavailable$/i.test(track)) return false;
+  if(track.toLowerCase()===station.name.toLowerCase()) return false;
+  return true;
+}
+
+function _liveNowPlaying(station,reason='Metadata unavailable'){
+  return {track:'Live Programming',artist:reason?`${station.name} · ${reason}`:station.name,cover:null,live:true};
+}
+
+async function _lookupItunesCover(artist,track){
+  if(!artist||!track) return null;
+  try{
+    const term=encodeURIComponent(`${artist} ${track}`);
+    const ar=await fetchWithTimeout(`https://itunes.apple.com/search?term=${term}&entity=song&limit=1`,5000);
+    if(!ar.ok) return null;
+    const ad=await ar.json();
+    const artUrl=ad?.results?.[0]?.artworkUrl100;
+    return artUrl?artUrl.replace('100x100bb','600x600bb'):null;
+  }catch{return null;}
+}
+
+function _parseIheartNowPlaying(data,station){
+  const root=data?.data||data?.track||data?.currentTrack||data?.currentTrackMeta||data;
+  const track=[
+    root?.title, root?.trackTitle, root?.trackName, root?.songTitle,
+    root?.song?.title, root?.track?.title, data?.title
+  ].find(Boolean);
+  const artist=[
+    root?.artistName, root?.artist, root?.artistNameRaw, root?.artist_name,
+    root?.song?.artist, root?.track?.artistName, root?.track?.artist, data?.artistName
+  ].find(Boolean);
+  const cover=[
+    root?.imagePath, root?.imageUrl, root?.artworkUrl, root?.albumArt,
+    root?.track?.imagePath, root?.track?.artworkUrl, data?.imagePath
+  ].find(Boolean);
+  const parsed={track:_cleanNowPlayingValue(track),artist:_cleanNowPlayingValue(artist)||station.name,cover:cover||null};
+  return _isUsefulNowPlaying(parsed,station)?parsed:null;
+}
+
+async function _readNowPlayingSource(src,station){
+  if(src.deployedOnly&&!_IS_DEPLOYED) return null;
+  const url=_nowPlayingFetchUrl(src);
+  if(!url) return null;
+  const parseMode=src.parse||station.parse||'artist-track';
+  const resp=await fetchWithTimeout(url,src.timeout||8000);
+  if(!resp.ok&&resp.status!==204) throw new Error(String(resp.status));
+  if(resp.status===204) return null;
+  const text=await resp.text();
+  if(!text.trim()) return null;
+
+  if(parseMode==='wocn-xml'){
+    const doc=new DOMParser().parseFromString(text,'application/xml');
+    const first=doc.querySelector('song');
+    if(!first) return null;
+    const info={
+      track:_cleanNowPlayingValue(first.querySelector('title')?.textContent),
+      artist:_cleanNowPlayingValue(first.querySelector('artist')?.textContent)||station.name,
+      cover:_cleanNowPlayingValue(first.querySelector('cover')?.textContent)||null,
+    };
+    return _isUsefulNowPlaying(info,station)?info:null;
+  }
+
+  if(parseMode==='triton-xml'){
+    const doc=new DOMParser().parseFromString(text,'application/xml');
+    const prop=name=>_cleanNowPlayingValue(doc.querySelector(`property[name="${name}"]`)?.textContent);
+    const info={track:prop('cue_title'),artist:prop('track_artist_name')||station.name,cover:null};
+    return _isUsefulNowPlaying(info,station)?info:null;
+  }
+
+  const data=JSON.parse(text.replace(/^\uFEFF/,''));
+  if(parseMode==='iheart-json') return _parseIheartNowPlaying(data,station);
+
+  const directTrack=[
+    data?.trackTitle, data?.trackName, data?.track, data?.songTitle,
+    data?.song?.title, data?.currentSong?.title, data?.now_playing?.song?.title,
+    data?.current_track?.title, data?.icestats?.source?.title
+  ].find(Boolean);
+  const directArtist=[
+    data?.artistName, data?.artist, data?.song?.artist, data?.currentSong?.artist,
+    data?.now_playing?.song?.artist, data?.current_track?.artist
+  ].find(Boolean);
+  const directCover=[
+    data?.cover, data?.art, data?.artwork, data?.artworkUrl, data?.albumArt,
+    data?.image, data?.imageUrl, data?.song?.art, data?.now_playing?.song?.art,
+    data?.current_track?.artwork_url
+  ].find(Boolean);
+  if(directTrack||directArtist){
+    const info={
+      track:_cleanNowPlayingValue(directTrack)||_cleanNowPlayingValue(directArtist),
+      artist:_cleanNowPlayingValue(directArtist)||station.name,
+      cover:_cleanNowPlayingValue(directCover)||null,
+    };
+    if(_isUsefulNowPlaying(info,station)) return info;
+  }
+
+  const fallbackRaw=[
+    data?.streams?.[0]?.currenttrack,
+    data?.songtitle,
+    data?.title,
+    data?.currentSong,
+    data?.now_playing?.song?.text,
+    data?.icestats?.source?.title
+  ].find(Boolean)||'';
+  const parsed=_parseNowPlayingSong(fallbackRaw,station,parseMode);
+  return _isUsefulNowPlaying(parsed,station)?parsed:null;
 }
 
 async function _fetchNowPlaying(){
   if(_nowPlayingFetching) return;
   _nowPlayingFetching=true;
   const station=_getBoardStation();
-  if(!station.nowPlayingUrl){
-    _nowPlayingInfo={track:station.name,artist:'',ts:Date.now(),err:null,station:station.name,quality:station.quality};
+  const sources=_stationNowPlayingSources(station);
+  if(!sources.length){
+    _nowPlayingInfo={..._liveNowPlaying(station,''),ts:Date.now(),err:null,station:station.name,quality:station.quality};
     _nowPlayingFetching=false;
     _renderBoardNowPlaying();
     return;
   }
+  let found=null;
+  let hadError=false;
   try{
-    const proxyUrl=station.nowPlayingUrl.startsWith('special://')
-      ?'/proxy?svc='+station.nowPlayingUrl.replace('special://','')
-      :station.nowPlayingUrl;
-    // WOCN: XML history feed — <playHistory><song><title>/<artist>/<cover>
-    if(station.parse==='wocn-xml'){
-      const resp=await fetchWithTimeout(proxyUrl,8000);
-      const text=await resp.text();
-      const doc=new DOMParser().parseFromString(text,'application/xml');
-      const first=doc.querySelector('song');
-      const track=first?.querySelector('title')?.textContent||station.name;
-      const artist=first?.querySelector('artist')?.textContent||'';
-      const cover=first?.querySelector('cover')?.textContent||null;
-      _nowPlayingInfo={track,artist,cover,ts:Date.now(),err:null,station:station.name,quality:station.quality};
-      _nowPlayingFetching=false;
-      _renderBoardNowPlaying();
-      return;
-    }
-    const data=await getJson(proxyUrl);
-    const fallbackRaw=[
-      data?.streams?.[0]?.currenttrack,
-      data?.songtitle,
-      data?.title,
-      data?.currentSong,
-      data?.now_playing?.song?.text,
-      data?.icestats?.source?.title
-    ].find(Boolean)||'';
-    const parsed=_parseNowPlayingSong(fallbackRaw,station);
-    let cover=null;
-    if(station.albumArt==='itunes'&&parsed.artist&&parsed.track&&parsed.track!==station.name){
+    for(const src of sources){
       try{
-        const term=encodeURIComponent(`${parsed.artist} ${parsed.track}`);
-        const ar=await fetchWithTimeout(`https://itunes.apple.com/search?term=${term}&entity=song&limit=1`,5000);
-        const ad=await ar.json();
-        const artUrl=ad?.results?.[0]?.artworkUrl100;
-        if(artUrl) cover=artUrl.replace('100x100bb','600x600bb');
-      }catch{}
+        const info=await _readNowPlayingSource(src,station);
+        if(info){ found=info; break; }
+      }catch{
+        hadError=true;
+      }
     }
-    _nowPlayingInfo={...parsed,cover,ts:Date.now(),err:null,station:station.name,quality:station.quality};
+    if(found&&station.albumArt==='itunes'&&!found.cover){
+      found.cover=await _lookupItunesCover(found.artist,found.track);
+    }
+    _nowPlayingInfo={...(found||_liveNowPlaying(station,hadError?'Metadata unavailable':'No song metadata')),ts:Date.now(),err:null,station:station.name,quality:station.quality};
   }catch{
     _nowPlayingInfo={
-      track:_nowPlayingInfo?.track||'Unavailable',
-      artist:_nowPlayingInfo?.artist||station.name,
+      ...(_nowPlayingInfo?.station===station.name?_nowPlayingInfo:_liveNowPlaying(station,'Metadata unavailable')),
       ts:Date.now(),err:'unavailable',station:station.name,quality:station.quality
     };
   }
@@ -3112,11 +3758,13 @@ function _renderBoardWeatherBar(){
     </div>`;
   }).join('');
   bwb.innerHTML=`
-    <div class="tv-wx-now">
+      <div class="tv-wx-now">
       <div class="tv-wx-icon-big">${icon}</div>
       <div class="tv-wx-details-col">
-        ${temp?`<div class="tv-wx-temp-big">${esc(temp)}</div>`:''}
-        ${cond?`<div class="tv-wx-cond">${esc(cond.substring(0,40))}</div>`:''}
+        <div class="tv-wx-temp-row">
+          ${temp?`<div class="tv-wx-temp-big">${esc(temp)}</div>`:''}
+          ${cond?`<div class="tv-wx-cond">${esc(cond.substring(0,40))}</div>`:''}
+        </div>
         ${loc?`<div class="tv-wx-loc">${esc(loc)}</div>`:''}
       </div>
       ${alertsHTML?`<div class="tv-wx-alerts">${alertsHTML}</div>`:''}
@@ -3138,8 +3786,8 @@ function _renderBoardNowPlaying(){
   // Album art or fallback initial
   const stInit=esc(_getBoardStation().name.charAt(0).toUpperCase());
   const coverEl=cover
-    ?`<img class="tv-np-cover" src="${esc(cover)}" alt="" loading="lazy" decoding="async">`
-    :`<div class="tv-np-cover-fallback" aria-hidden="true">${stInit}</div>`;
+    ?`<span class="tv-np-art-wrap"><img class="tv-np-cover" src="${esc(cover)}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer"><span class="tv-np-live-dot" aria-hidden="true"></span></span>`
+    :`<span class="tv-np-art-wrap"><span class="tv-np-cover-fallback" aria-hidden="true">${stInit}</span><span class="tv-np-live-dot" aria-hidden="true"></span></span>`;
   // Equalizer bars
   const eqPaused=!_boardRadioEnabled?'paused':'';
   const eqEl=`<span class="tv-np-eq ${eqPaused}" aria-hidden="true"><span></span><span></span><span></span><span></span></span>`;
@@ -3467,18 +4115,19 @@ async function _fetchBoardNet(){
   const bar=document.getElementById('tv-net-bar');
   if(bar) bar.dataset.loading='1';
   try{
-    const [cfR,metaR,latR,gLatR,resolverR]=await Promise.allSettled([
+    const [cfR,metaR,ipInfoR,latR,gLatR,resolverR]=await Promise.allSettled([
       _netDirectText('https://cloudflare.com/cdn-cgi/trace').then(parseCFTrace),
       _netDirectJson('https://speed.cloudflare.com/meta'),
-      measureLatency('https://cloudflare.com/cdn-cgi/trace',3),
+      fetchIpInfoFallback(),
+      measureLatency('https://cloudflare.com/cdn-cgi/trace',3,true),
       measureLatency('https://dns.google/generate_204',3,true),
       detectDohResolver(),
     ]);
-    _boardNetInfo={cf:cfR.value||{},meta:metaR.value||{},lat:latR.value||null,gLat:gLatR.value||null,resolver:resolverR.value||null,ts:Date.now()};
+    _boardNetInfo={cf:cfR.value||{},meta:metaR.value||{},ipInfo:ipInfoR.value||{},lat:latR.value||null,gLat:gLatR.value||null,resolver:resolverR.value||null,ts:Date.now()};
     _boardNetFailCount=0;
   }catch{
     _boardNetFailCount++;
-    if(!_boardNetInfo) _boardNetInfo={cf:{},meta:{},lat:null,gLat:null,resolver:null,ts:null};
+    if(!_boardNetInfo) _boardNetInfo={cf:{},meta:{},ipInfo:{},lat:null,gLat:null,resolver:null,ts:null};
   }
   _boardNetFetching=false;
   _renderBoardNetBar();
@@ -3489,9 +4138,9 @@ function _renderBoardNetBar(){
   if(!bar) return;
   if(!_boardNetInfo){ bar.innerHTML='<span class="tv-net-lbl">Network</span> Loading…'; return; }
   if(_boardNetFailCount>=2){ bar.innerHTML='<span class="tv-net-lbl">Network</span> ⚠ Unavailable'; return; }
-  const {cf,meta,lat,gLat,resolver,ts}=_boardNetInfo;
-  const ip=cf.ip||'—';
-  const isp=meta.asOrganization||'—';
+  const {cf,meta,ipInfo,lat,gLat,resolver,ts}=_boardNetInfo;
+  const ip=cf.ip||ipInfo.ip||ipInfo.query||'—';
+  const isp=meta.asOrganization||ipInfo.org||ipInfo.isp||'—';
   const metaColo=(meta.colo&&typeof meta.colo==='object')?meta.colo:null;
   const colo=metaColo?.iata||(typeof meta.colo==='string'?meta.colo:null)||cf.colo||'—';
   const city=metaColo?.city||'';
@@ -3646,8 +4295,10 @@ function _buildIssueTilesHTML(svcs){
     const bodyEl=bodyInnerHtml
       ?`<div class="tv-issue-body"><span class="tv-issue-body-inner">${bodyInnerHtml}</span></div>`:'';
     return `<div class="tv-issue-tile ${CC[svc.ind]||''}" data-url="${esc(svc.url||'')}" data-weight="${_cardWeight(svc)}">
-      <div class="tv-issue-tile-top">${logoEl}<span class="tv-issue-name">${esc(svc.name)}</span></div>
-      <div class="tv-issue-badge ${IC[svc.ind]||'ok'}">${esc(svc.label)}</div>
+      <div class="tv-issue-tile-top">
+        <div class="tv-issue-service">${logoEl}<span class="tv-issue-name">${esc(svc.name)}</span></div>
+        <div class="tv-issue-badge ${IC[svc.ind]||'ok'}">${esc(svc.label)}</div>
+      </div>
       ${svc.title?`<div class="tv-issue-title">${esc(svc.title)}</div>`:''}
       ${bodyEl}
     </div>`;
@@ -3715,6 +4366,7 @@ function renderBoardView(results){
   if(!_boardNetTimer) _startBoardNet();
   if(!_wxInfo) _fetchWeather();
   if(!_nowPlayingInfo) _fetchNowPlaying();
+  if(!_erideTimer) _startERideCalendar();
   // Sync clock to time.gov (NIST Eastern time) once on first render, then every 5 minutes
   if(!_timeGovSyncTimer){
     _syncTimeGov();
@@ -3730,18 +4382,27 @@ function renderBoardView(results){
   }
   const srt=(arr)=>[...arr].sort((a,b)=>(PRI[a.ind]||9)-(PRI[b.ind]||9)||a.name.localeCompare(b.name));
   const sorted=srt(results);
-  const techSvcs=results.filter(s=>{const sv=SVCS.find(x=>x.name===s.name);return !sv||sv.cat!=='transit';});
-  const issueCount=techSvcs.filter(s=>s.ind!=='none'&&s.ind!=='unknown').length;
-  const outageCount=techSvcs.filter(s=>s.ind==='major').length;
-  const warnCount=techSvcs.filter(s=>s.ind==='minor'||s.ind==='reroute').length;
-  const maintCount=techSvcs.filter(s=>s.ind==='maint').length;
-  const okCount=techSvcs.filter(s=>s.ind==='none').length;
-  const statusCls=outageCount>0?'bad':issueCount>0?'warn':'ok';
-  const statusMsg=outageCount>0?`${outageCount} Down`:issueCount>0?`${issueCount} Issue${issueCount!==1?'s':''}`:'\u2713 All Systems Operational';
-  const statusColor=outageCount>0?'var(--bad)':issueCount>0?'var(--warn)':'var(--ok)';
-  // Split into services with active issues vs healthy services
   const issueSvcs=sorted.filter(s=>s.ind!=='none'&&s.ind!=='unknown');
   const normalSvcs=sorted.filter(s=>s.ind==='none'||s.ind==='unknown');
+  const outageCount=sorted.filter(s=>s.ind==='major').length;
+  const warnCount=sorted.filter(s=>s.ind==='minor'||s.ind==='rerouting'||s.ind==='reroute').length;
+  const maintCount=sorted.filter(s=>s.ind==='maintenance'||s.ind==='maint').length;
+  const unknownCount=sorted.filter(s=>s.ind==='unknown').length;
+  const okCount=sorted.filter(s=>s.ind==='none').length;
+  const issueCount=issueSvcs.length;
+  const statusCls=outageCount>0?'bad':issueCount>0?'warn':unknownCount>0?'unknown':'ok';
+  const statusIcon=statusCls==='bad'?'!':statusCls==='warn'?'!':statusCls==='unknown'?'?':'\u2713';
+  const statusMsg=outageCount>0?`${outageCount} Down`:issueCount>0?`${issueCount} Active Issue${issueCount!==1?'s':''}`:unknownCount>0?'Status Data Limited':'All Systems Operational';
+  const statusColor=outageCount>0?'var(--bad)':issueCount>0?'var(--warn)':unknownCount>0?'var(--unknown)':'var(--ok)';
+  const statusSub=issueCount>0
+    ?`${okCount} operational · ${unknownCount} unknown`
+    : unknownCount>0
+      ?`${okCount} operational · ${unknownCount} status feed${unknownCount!==1?'s':''} unavailable`
+      :`${okCount} services reporting normal status`;
+  const clearTitle=unknownCount>0?'No active incidents reported':'All systems operational';
+  const clearSub=unknownCount>0
+    ?`${unknownCount} status feed${unknownCount!==1?'s are':' is'} unavailable, but no active incident has been reported by reachable services.`
+    :`${okCount} monitored services are reporting normal status.`;
   // Explode MBTA/CF into one tile per alert/event for better use of board space
   const explodedIssues=_explodeIssueTiles(issueSvcs);
   // Build pages — smart packing avoids orphaned single-card last pages
@@ -3755,6 +4416,9 @@ function renderBoardView(results){
   const issueDotsHTML=totalIssuePages>1
     ?`<div class="tv-page-dots" id="tv-page-dots">${Array.from({length:totalIssuePages},(_,i)=>`<button class="tv-page-dot${i===_initPage?' active':''}" data-page="${i}" aria-label="Page ${i+1}" type="button"></button>`).join('')}</div>`
     :'';
+  const tickerLabel=unknownCount>0
+    ?`${okCount} Operational · ${unknownCount} Unknown`
+    :`${normalSvcs.length} Operational`;
   // Build compact subdued normal-service tiles
   const normalTilesHTML=normalSvcs.map(svc=>{
     const logos=logoSources(svc);
@@ -3772,8 +4436,22 @@ function renderBoardView(results){
   board.className='tv-board'+(_boardMinimal?' tv-board-minimal':'');
   board.innerHTML=`
     <div class="tv-hdr">
-      <div class="tv-hdr-weather" id="tv-wx-bar" style="display:none"></div>
-      <div class="tv-hdr-media">
+      <div class="tv-status-panel tv-panel ${statusCls}">
+        <div class="tv-status-ring">${statusIcon}</div>
+        <div class="tv-status-copy">
+          <div class="tv-status-eyebrow">Service Status</div>
+          <div class="tv-status-head">${esc(statusMsg)}</div>
+          <div class="tv-status-sub">${esc(statusSub)}</div>
+        </div>
+        <div class="tv-status-counts" aria-label="Status counts">
+          <div class="tv-count tv-count-bad"><strong>${outageCount}</strong><span>Down</span></div>
+          <div class="tv-count tv-count-warn"><strong>${warnCount}</strong><span>Degraded</span></div>
+          <div class="tv-count tv-count-maint"><strong>${maintCount}</strong><span>Maint</span></div>
+          <div class="tv-count tv-count-unknown"><strong>${unknownCount}</strong><span>Unknown</span></div>
+        </div>
+      </div>
+      <div class="tv-hdr-weather tv-panel" id="tv-wx-bar" style="display:none"></div>
+      <div class="tv-hdr-media tv-panel">
         <div class="tv-now-playing" id="tv-now-playing"></div>
         <div class="tv-ctx-audio">
           <select class="tv-station-select" id="tv-station-select" title="Choose radio station">${BOARD_STATIONS.map(st=>`<option value="${esc(st.id)}">${esc(st.name)}</option>`).join('')}</select>
@@ -3782,7 +4460,7 @@ function renderBoardView(results){
 <input type="range" id="tv-radio-vol" class="tv-radio-vol-slider" min="0" max="1" step="0.05" title="Volume">
         </div>
       </div>
-      <div class="tv-clock-block">
+      <div class="tv-clock-block tv-panel">
         <div class="tv-clock" id="tv-clock"></div>
         <div class="tv-date" id="tv-date"></div>
       </div>
@@ -3791,14 +4469,24 @@ function renderBoardView(results){
       <div class="tv-minimal-msg" style="color:${statusColor}">${statusMsg}</div>
       <div class="tv-minimal-clock" id="tv-minimal-clock"></div>
     </div>
+    <div class="tv-eride-panel tv-panel" id="tv-eride-panel"></div>
+    <div class="tv-board-main">
     ${issueSvcs.length?`
     <div class="tv-issues-section">
       <div class="tv-section-hdr issue-hdr"><svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L1 21h22L12 2zm0 3.5L20.5 19h-17L12 5.5zM11 10v4h2v-4h-2zm0 6v2h2v-2h-2z"/></svg> Active Issues &middot; ${issueSvcs.length} service${issueSvcs.length!==1?'s':''} affected${totalIssuePages>1?` &middot; page <span id="tv-page-num">${_initPage+1}</span>/${totalIssuePages}`:''}</div>
       <div class="tv-issue-tiles" id="tv-issue-tiles">${issueTilesHTML}</div>
       ${issueDotsHTML}
-    </div>`:''}
+    </div>`:`
+    <div class="tv-ok-section">
+      <div class="tv-ok-panel tv-panel ${statusCls}">
+        <div class="tv-ok-mark">${statusIcon}</div>
+        <div class="tv-ok-title">${esc(clearTitle)}</div>
+        <div class="tv-ok-sub">${esc(clearSub)}</div>
+      </div>
+    </div>`}
+    </div>
     <div class="tv-ticker-wrap">
-      ${normalSvcs.length?`<div class="tv-ticker-hdr"><span class="tv-ticker-ok-dot"></span>${normalSvcs.length} Operational</div>`:''}
+      ${normalSvcs.length?`<div class="tv-ticker-hdr"><span class="tv-ticker-ok-dot"></span>${esc(tickerLabel)}</div>`:''}
       <div class="tv-tiles" id="tv-tiles"><div class="tv-tiles-track" id="tv-tiles-track">${normalTilesHTML}${normalTilesHTML}</div></div>
     </div>
     <div class="tv-board-footer">
@@ -3813,6 +4501,7 @@ function renderBoardView(results){
   _savedAlertCards.forEach(card=>board.appendChild(card));
   _renderBoardNetBar();
   _renderBoardWeatherBar();
+  _renderBoardERidePanel();
   _optimizeBoardLayout();
   _initIssuePagination(issuePages);
   // Re-optimize on window resize
@@ -4373,17 +5062,17 @@ async function _netProxyJson(key) {
   return r.json();
 }
 
-async function measureLatency(url, count, noCors) {
+async function measureLatency(url, count, noCors, timeoutMs=2500) {
   count = count || 5;
   const times = [];
   let lost = 0;
-  const baseOpts = noCors ? { mode: 'no-cors' } : {};
+  const baseOpts = noCors ? { mode: 'no-cors', cache: 'no-store' } : { cache: 'no-store' };
   for (let i = 0; i < count; i++) {
     const sep = url.includes('?') ? '&' : '?';
     const t = performance.now();
     try {
       const ctrl = new AbortController();
-      const timer = setTimeout(() => ctrl.abort(), 6000);
+      const timer = setTimeout(() => ctrl.abort(), timeoutMs);
       await fetch(url + sep + '_t=' + Date.now(), { ...baseOpts, signal: ctrl.signal });
       clearTimeout(timer);
       times.push(performance.now() - t);
@@ -4426,7 +5115,7 @@ async function detectDohResolver() {
     // Has Access-Control-Allow-Origin: * — works directly from browsers.
     // whoami.cloudflare returns NXDOMAIN; cloudflare-dns.com DoH always shows CF's own resolver IP.
     const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 8000);
+    const timer = setTimeout(() => ctrl.abort(), 5000);
     const r = await fetch('https://edns.ip-api.com/json', { signal: ctrl.signal });
     clearTimeout(timer);
     if (!r.ok) return null;
@@ -4435,6 +5124,41 @@ async function detectDohResolver() {
     if (!ip) return null;
     return { ip, geo: data.dns.geo || null };
   } catch(e) { return null; }
+}
+
+async function fetchIpInfoFallback(){
+  const normalize=data=>{
+    if(!data||data.error) return {};
+    const connection=data.connection||{};
+    const rawOrg=data.org||connection.org||connection.isp||null;
+    const orgMatch=rawOrg&&String(rawOrg).match(/^(AS\d+)\s+(.+)$/i);
+    const cleanOrg=orgMatch?orgMatch[2]:rawOrg;
+    const asnFromOrg=orgMatch?orgMatch[1]:null;
+    return {
+      ...data,
+      ip:data.ip||data.query||null,
+      query:data.query||data.ip||null,
+      org:cleanOrg,
+      isp:data.isp||connection.isp||cleanOrg,
+      as:data.as||asnFromOrg||data.asn||(connection.asn?`AS${connection.asn}`:null),
+      asn:data.asn||connection.asn||null,
+      city:data.city||null,
+      region:data.region||data.region_name||null,
+      country:data.country_name||data.country||data.country_code||null,
+      countryCode:data.country_code||data.countryCode||null,
+    };
+  };
+  const endpoints=['https://ipwho.is/','https://ipinfo.io/json','https://ipapi.co/json/'];
+  for(const url of endpoints){
+    try{
+      const r=await fetchWithTimeout(url,6000);
+      if(!r.ok) continue;
+      const data=await r.json();
+      const info=normalize(data);
+      if(info.ip||info.org||info.isp) return info;
+    }catch{}
+  }
+  return {};
 }
 
 async function measureDownloadSpeed() {
@@ -4672,7 +5396,7 @@ function _renderNetCards(cf, meta, ip, resolverIp, cfLat, gLat, traceHops, iodaD
 
 // Traceroute-lite: parallel latency to several major network endpoints
 const _TRACE_HOPS=[
-  {label:'Cloudflare CDN', url:'https://cloudflare.com/cdn-cgi/trace', noCors:false},
+  {label:'Cloudflare CDN', url:'https://cloudflare.com/cdn-cgi/trace', noCors:true},
   {label:'Google Anycast',  url:'https://dns.google/generate_204',      noCors:true},
   {label:'Amazon AWS',      url:'https://checkip.amazonaws.com/',        noCors:true},
   // azure.microsoft.com is CDN-served and handles no-cors latency probes cleanly;
@@ -4716,12 +5440,13 @@ async function runNetworkDiag() {
     // so the returned IP/ISP/colo data reflects the *user's* connection, not the proxy server's.
     _netDirectText('https://cloudflare.com/cdn-cgi/trace').then(parseCFTrace),
     _netDirectJson('https://speed.cloudflare.com/meta'),
-    // ISP/ASN/city covered by speed.cloudflare.com/meta; no separate IP-geolocation call needed.
-    Promise.resolve({}),
+    // Optional fallback enrichment for Chrome/local runs where speed.cloudflare.com/meta
+    // returns a sparse object or is blocked by policy.
+    fetchIpInfoFallback(),
     // DoH resolver check — asks what DNS resolver Cloudflare sees
     detectDohResolver(),
     // Latency pings are already direct (fetchWithTimeout, no proxy)
-    measureLatency('https://cloudflare.com/cdn-cgi/trace', 5),
+    measureLatency('https://cloudflare.com/cdn-cgi/trace', 5, true),
     measureLatency('https://dns.google/generate_204', 5, true),
     // Traceroute-lite — parallel latency to major CDN/cloud endpoints
     measureTraceroute(),
@@ -4956,8 +5681,8 @@ window.addEventListener('DOMContentLoaded',()=>{
     clearInterval(refreshInterval);
     clearInterval(_wxTimer);
     clearInterval(_nowPlayingTimer);
-    clearTimeout(_uptimeFlushTimer);
-    _flushUptimeLog();
+    if(typeof _uptimeFlushTimer!=='undefined') clearTimeout(_uptimeFlushTimer);
+    if(typeof _flushUptimeLog==='function') _flushUptimeLog();
   });
 });
 </script>
