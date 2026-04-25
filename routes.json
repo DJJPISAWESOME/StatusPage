@@ -45,7 +45,8 @@
     "quad9-summary": "https://uptime.quad9.net/api/v2/summary.json",
     "quad9-pops": "https://status.quad9.net/smap/assets/data.csv",
     "openai-summary": "https://status.openai.com/api/v2/summary.json",
-    "wocn-nowplaying": "https://streamdb3web.securenetsystems.net/player_status_update/WOCN_history.xml"
+    "wocn-nowplaying": "https://streamdb3web.securenetsystems.net/player_status_update/WOCN_history.xml",
+    "eride-calendar": "https://www.eride.ri.gov/eRide40/DataDictionary/Calendar.aspx"
   },
   "special": [
     "ioda-na-outages",

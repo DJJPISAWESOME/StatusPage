@@ -842,6 +842,29 @@
     .tv-clock-block { display:flex; flex-direction:column; align-items:flex-end; justify-content:center; gap:4px; flex-shrink:0; padding:14px 18px; min-width:184px; }
     .tv-clock { font-size:38px; font-weight:800; font-variant-numeric:tabular-nums; color:#fff; letter-spacing:0; line-height:1.05; }
     .tv-date { font-size:12px; color:rgba(226,232,240,0.54); font-weight:700; letter-spacing:0; white-space:nowrap; font-variant-numeric:tabular-nums; text-transform:uppercase; }
+    .tv-eride-panel {
+      display:grid;
+      grid-template-columns:auto minmax(0,1fr);
+      align-items:center;
+      gap:14px;
+      min-height:74px;
+      padding:12px 14px;
+      background:
+        radial-gradient(circle at 4% 24%, rgba(59,130,246,0.16), transparent 34%),
+        linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.032));
+      overflow:hidden;
+    }
+    .tv-eride-head { display:flex; align-items:center; gap:10px; min-width:180px; }
+    .tv-eride-icon { width:38px; height:38px; border-radius:13px; display:flex; align-items:center; justify-content:center; color:#bfdbfe; background:rgba(59,130,246,0.14); border:1px solid rgba(96,165,250,0.22); font-size:20px; font-weight:850; }
+    .tv-eride-title { color:#fff; font-size:15px; font-weight:850; line-height:1.1; }
+    .tv-eride-sub { margin-top:3px; color:rgba(226,232,240,0.52); font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:0; }
+    .tv-eride-events { display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:8px; min-width:0; }
+    .tv-eride-event { display:grid; grid-template-columns:auto minmax(0,1fr); align-items:center; gap:9px; min-width:0; padding:9px 10px; border-radius:13px; background:rgba(255,255,255,0.055); border:1px solid rgba(255,255,255,0.08); text-decoration:none; }
+    .tv-eride-event:hover { background:rgba(255,255,255,0.09); border-color:rgba(255,255,255,0.15); }
+    .tv-eride-date { min-width:46px; color:#bfdbfe; font-size:12px; font-weight:850; text-transform:uppercase; line-height:1.05; text-align:center; }
+    .tv-eride-name { min-width:0; color:rgba(248,250,252,0.9); font-size:13px; font-weight:750; line-height:1.22; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .tv-eride-kind { margin-top:2px; color:rgba(226,232,240,0.5); font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .tv-eride-empty { color:rgba(226,232,240,0.62); font-size:13px; font-weight:700; }
     .tv-board-main { flex:1 1 auto; min-height:0; display:flex; flex-direction:column; }
     /* Section label */
     .tv-section-hdr { margin-bottom:10px; display:flex; align-items:center; gap:8px; flex-shrink:0; }
@@ -1067,6 +1090,8 @@
       .tv-clock-block { align-items:flex-start; }
       .tv-board-footer { align-items:flex-start; flex-direction:column; }
       .tv-footer-right { width:100%; justify-content:space-between; }
+      .tv-eride-panel { grid-template-columns:1fr; }
+      .tv-eride-events { grid-template-columns:1fr; }
       .tv-tiles { height:92px; }
     }
     .f-theme-btn { border:1px solid var(--border); background:rgba(128,128,128,0.06); color:var(--sub); border-radius:7px; padding:5px 9px; font-size:13px; cursor:pointer; font-family:var(--font); transition:all 0.2s; line-height:1; }
@@ -1195,6 +1220,7 @@
 
     /* ── Board minimal mode ─────────────────────────────────────────────────── */
     .tv-board-minimal .tv-ticker-wrap,
+    .tv-board-minimal .tv-eride-panel,
     .tv-board-minimal .tv-board-main { display:none !important; }
     .tv-minimal-status { display:none; flex:1; align-items:center; justify-content:center; flex-direction:column; gap:clamp(10px,2vh,20px); }
     .tv-board-minimal .tv-minimal-status { display:flex; }
@@ -2039,7 +2065,8 @@ const ROUTE_KEYS = {
   "https://uptime.quad9.net/api/v2/summary.json": "quad9-summary",
   "https://status.quad9.net/smap/assets/data.csv": "quad9-pops",
   "https://status.openai.com/api/v2/summary.json": "openai-summary",
-  "https://streamdb3web.securenetsystems.net/player_status_update/WOCN_history.xml": "wocn-nowplaying"
+  "https://streamdb3web.securenetsystems.net/player_status_update/WOCN_history.xml": "wocn-nowplaying",
+  "https://www.eride.ri.gov/eRide40/DataDictionary/Calendar.aspx": "eride-calendar"
 };
 const SPECIAL_KEYS = new Set(["ioda-na-outages","iheart-hjy-now-playing","radar-us-anomalies","wror-now-playing","adobe-registry","adobe-events","time-gov"]);
 /* @routes-end */
@@ -3277,8 +3304,10 @@ function _msUntilNextClockPage(dwellSecs){
   // Avoid sub-500 ms races by bumping to the following slot
   return ms<500?ms+slot:ms;
 }
+const ERIDE_CALENDAR_URL='https://www.eride.ri.gov/eRide40/DataDictionary/Calendar.aspx';
 let _wxInfo=null,_wxTimer=null,_wxFetching=false,_deviceLocation=null;
 let _nowPlayingInfo=null,_nowPlayingTimer=null,_nowPlayingFetching=false;
+let _erideInfo=null,_erideTimer=null,_erideFetching=false;
 const NP_POLL_NORMAL=30000, NP_POLL_FAST=5000;
 function _setNowPlayingPollRate(ms){
   if(_nowPlayingTimer){ clearInterval(_nowPlayingTimer); _nowPlayingTimer=null; }
@@ -3332,6 +3361,112 @@ async function _fetchWeather(){
   }catch{_wxInfo={err:'Weather unavailable'};}
   _wxFetching=false;
   _renderWeather();
+}
+
+function _parseERideCalendar(html,now=new Date()){
+  const doc=new DOMParser().parseFromString(String(html||''),'text/html');
+  const cal=doc.querySelector('#Calendar1');
+  if(!cal) return [];
+  const monthNames=['january','february','march','april','may','june','july','august','september','october','november','december'];
+  const captionMatch=(cal.textContent||'').match(/\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{4})\b/i);
+  const captionMonth=captionMatch?monthNames.indexOf(captionMatch[1].toLowerCase()):now.getMonth();
+  const captionYear=captionMatch?Number(captionMatch[2]):now.getFullYear();
+  const start=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+  const end=new Date(start);
+  end.setDate(end.getDate()+14);
+  const cells=[...cal.querySelectorAll('td[height="90"]')];
+  const seen=new Set();
+  const events=[];
+  for(const cell of cells){
+    const dayLink=[...cell.querySelectorAll('a')].find(a=>/Calendar1/.test(a.getAttribute('href')||'')&&a.getAttribute('title'));
+    const dateTitle=dayLink?.getAttribute('title')||'';
+    const m=dateTitle.match(/^([A-Za-z]+)\s+(\d{1,2})$/);
+    if(!m) continue;
+    const month=monthNames.indexOf(m[1].toLowerCase());
+    if(month<0) continue;
+    let year=captionYear;
+    if(month-captionMonth>6) year--;
+    else if(captionMonth-month>6) year++;
+    const date=new Date(year,month,Number(m[2]));
+    if(date<start||date>end) continue;
+    for(const link of cell.querySelectorAll('a[href*="ViewDetails.aspx"]')){
+      const title=(link.textContent||'').replace(/\s+/g,' ').trim();
+      if(!title) continue;
+      let href=link.getAttribute('href')||'';
+      try{ href=new URL(href,ERIDE_CALENDAR_URL).href; }catch{}
+      const key=`${date.toISOString().slice(0,10)}|${title}|${href}`;
+      if(seen.has(key)) continue;
+      seen.add(key);
+      const lower=title.toLowerCase();
+      const kind=/due/.test(lower)?'Due':/open/.test(lower)?'Opens':/close/.test(lower)?'Closes':'Event';
+      events.push({date:date.getTime(),title,kind,url:href});
+    }
+  }
+  return events.sort((a,b)=>a.date-b.date||a.title.localeCompare(b.title)).slice(0,12);
+}
+
+async function _fetchERideCalendar(){
+  if(_erideFetching) return;
+  _erideFetching=true;
+  try{
+    if(!_IS_DEPLOYED){
+      _erideInfo={events:[],err:'proxy-required',localOnly:true,ts:Date.now()};
+    }else{
+      const html=await getText(ERIDE_CALENDAR_URL);
+      _erideInfo={events:_parseERideCalendar(html),err:null,ts:Date.now()};
+    }
+  }catch{
+    _erideInfo={events:[],err:'unavailable',ts:Date.now()};
+  }
+  _erideFetching=false;
+  _renderBoardERidePanel();
+}
+
+function _startERideCalendar(){
+  if(_erideTimer) return;
+  _fetchERideCalendar();
+  _erideTimer=setInterval(_fetchERideCalendar,6*60*60*1000);
+}
+
+function _formatERideDate(ms){
+  const d=new Date(ms);
+  return d.toLocaleDateString('en-US',{month:'short',day:'numeric'}).toUpperCase();
+}
+
+function _renderBoardERidePanel(){
+  const panel=document.getElementById('tv-eride-panel');
+  if(!panel) return;
+  const info=_erideInfo;
+  const updated=info?.ts?`updated ${fmtFetchAge(info.ts)} ago`:'loading';
+  let body='';
+  if(!info){
+    body='<div class="tv-eride-empty">Loading RIDE data collection calendar…</div>';
+  }else if(info.localOnly){
+    body='<div class="tv-eride-empty">Live calendar requires the deployed proxy. It will populate on the published board.</div>';
+  }else if(info.err){
+    body='<div class="tv-eride-empty">RIDE calendar is temporarily unavailable.</div>';
+  }else if(!info.events?.length){
+    body='<div class="tv-eride-empty">No upcoming RIDE data collection events in the next 14 days.</div>';
+  }else{
+    body=`<div class="tv-eride-events">${info.events.slice(0,4).map(ev=>`
+      <a class="tv-eride-event" href="${esc(ev.url||ERIDE_CALENDAR_URL)}" target="_blank" rel="noopener">
+        <div class="tv-eride-date">${esc(_formatERideDate(ev.date))}</div>
+        <div class="tv-eride-copy">
+          <div class="tv-eride-name" title="${esc(ev.title)}">${esc(ev.title)}</div>
+          <div class="tv-eride-kind">${esc(ev.kind)}</div>
+        </div>
+      </a>`).join('')}</div>`;
+  }
+  const count=info?.events?.length||0;
+  panel.innerHTML=`
+    <div class="tv-eride-head">
+      <div class="tv-eride-icon">RI</div>
+      <div>
+        <div class="tv-eride-title">RIDE Calendar</div>
+        <div class="tv-eride-sub">${count?`${count} in next 14 days`:updated}</div>
+      </div>
+    </div>
+    ${body}`;
 }
 
 function _renderWeather(){
@@ -4196,6 +4331,7 @@ function renderBoardView(results){
   if(!_boardNetTimer) _startBoardNet();
   if(!_wxInfo) _fetchWeather();
   if(!_nowPlayingInfo) _fetchNowPlaying();
+  if(!_erideTimer) _startERideCalendar();
   // Sync clock to time.gov (NIST Eastern time) once on first render, then every 5 minutes
   if(!_timeGovSyncTimer){
     _syncTimeGov();
@@ -4298,6 +4434,7 @@ function renderBoardView(results){
       <div class="tv-minimal-msg" style="color:${statusColor}">${statusMsg}</div>
       <div class="tv-minimal-clock" id="tv-minimal-clock"></div>
     </div>
+    <div class="tv-eride-panel tv-panel" id="tv-eride-panel"></div>
     <div class="tv-board-main">
     ${issueSvcs.length?`
     <div class="tv-issues-section">
@@ -4329,6 +4466,7 @@ function renderBoardView(results){
   _savedAlertCards.forEach(card=>board.appendChild(card));
   _renderBoardNetBar();
   _renderBoardWeatherBar();
+  _renderBoardERidePanel();
   _optimizeBoardLayout();
   _initIssuePagination(issuePages);
   // Re-optimize on window resize
