@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <title>Service Status</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="mobile-web-app-capable" content="yes">
@@ -879,6 +879,9 @@
     .inc-sub-card-badge.minor { background:rgba(245,158,11,0.1); color:var(--warn); border:1px solid rgba(245,158,11,0.2); }
     .inc-sub-card-badge.major { background:rgba(239,68,68,0.1); color:var(--bad); border:1px solid rgba(239,68,68,0.2); }
     .inc-sub-card-badge.maintenance { background:rgba(59,130,246,0.1); color:var(--maint); border:1px solid rgba(59,130,246,0.2); }
+    .inc-sub-card-badge.info { background:rgba(107,114,128,0.08); color:var(--sub); border:1px solid rgba(107,114,128,0.15); }
+    .inc-sub-card.info-alert { opacity:0.75; }
+    .inc-sub-card.info-alert .inc-sub-card-title { color:var(--sub); }
     .inc-sub-card-meta { display:flex; flex-wrap:wrap; align-items:center; gap:4px; }
     .inc-sub-card-route { font-size:10.5px; color:var(--sub); background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:999px; padding:1px 6px; white-space:nowrap; }
     .inc-sub-card-time { font-size:10.5px; color:var(--muted); }
@@ -1031,7 +1034,7 @@ const SVCS=[
   // Infrastructure Providers
   {name:'Cloudflare',su:'https://www.cloudflarestatus.com/api/v2/summary.json',hu:'https://www.cloudflarestatus.com',p:'cloudflare',cat:'infra'},
   {name:'Tailscale',su:'https://status.tailscale.com/api/v2/summary.json',hu:'https://status.tailscale.com',cat:'infra'},
-  {name:'Quad9',su:'https://uptime.quad9.net/api/v2/summary.json',hu:'https://uptime.quad9.net/',cat:'infra'},
+  {name:'Quad9',su:'https://uptime.quad9.net/index.json',hu:'https://uptime.quad9.net/',p:'betterstack',cat:'infra'},
   {name:'DNSFilter',su:'https://status.dnsfilter.com/api/v2/summary.json',hu:'https://status.dnsfilter.com',cat:'infra'},
   {name:'Meraki',su:'https://status.meraki.net/api/v2/summary.json',hu:'https://status.meraki.net',cat:'infra'},
   {name:'AWS',su:'https://status.aws.amazon.com/rss/all.rss',hu:'https://health.aws.amazon.com/health/status',p:'aws',cat:'infra'},
@@ -1696,7 +1699,7 @@ const ROUTE_KEYS = {
   "https://cloudflare-dns.com/dns-query?name=whoami.cloudflare&type=TXT&ct=application/dns-json": "doh-cloudflare",
   "https://dns.google/generate_204": "google-204",
   "https://stream.x1023.fm/stats?sid=1&json=1": "x1023-now-playing",
-  "https://uptime.quad9.net/api/v2/summary.json": "quad9-summary",
+  "https://uptime.quad9.net/index.json": "quad9-status",
   "https://status.openai.com/api/v2/summary.json": "openai-summary",
   "https://streamdb3web.securenetsystems.net/player_status_update/WOCN_history.xml": "wocn-nowplaying"
 };
@@ -1919,7 +1922,8 @@ async function fetchOne(s){
         else if(/outage|critical|down/.test(statusBarText)) ind='major';
       } else {
         const statusCode=h.match(/return\s+status\s*===\s*(\d+)/i);
-        ind = statusCode ? (Number(statusCode[1])>=500 ? 'major' : Number(statusCode[1])>=300 ? 'minor' : Number(statusCode[1])===200 ? 'maintenance' : 'none') : 'none';
+        if(statusCode) ind=Number(statusCode[1])>=500?'major':Number(statusCode[1])>=300?'minor':Number(statusCode[1])===200?'maintenance':'none';
+        else return errSvc(s);
       }
       return mk(s.name,ind,'','',new Date().toLocaleString(),s.hu);
     } catch { return errSvc(s); }
@@ -2092,7 +2096,14 @@ async function fetchOne(s){
         return SCHED_EFFECTS.has(eff)&&isActiveOrUpcoming(a,4*3600*1000);
       }).sort((a,b)=>(b.attributes?.severity||0)-(a.attributes?.severity||0));
 
-      if(!serviceAlerts.length&&!schedAlerts.length) return mk(s.name,'none','','',new Date().toLocaleString(),s.hu);
+      // Informational alerts: severity=1, shown with muted treatment per MBTA guidelines
+      const infoAlerts=(data?.data||[]).filter(a=>{
+        const lc=(a.attributes?.lifecycle||'').toUpperCase();
+        if(lc!=='NEW'&&lc!=='ONGOING') return false;
+        return (a.attributes?.severity||0)===1&&isActiveOrUpcoming(a);
+      });
+
+      if(!serviceAlerts.length&&!schedAlerts.length&&!infoAlerts.length) return mk(s.name,'none','','',new Date().toLocaleString(),s.hu);
 
       // Helper: readable route names from alert relationships
       const routeNamesFor=(alert)=>{
@@ -2106,10 +2117,10 @@ async function fetchOne(s){
       };
 
       // Helper: build a structured alert item from an MBTA alert object
-      const mkAlertItem=(a,isSchedChange=false)=>{
+      const mkAlertItem=(a,isSchedChange=false,isInfo=false)=>{
         const aAttr=a.attributes||{};
         const aEff=aAttr.effect||'';
-        const aInd=isSchedChange?'maintenance':(EFFECT_IND[aEff]||'minor');
+        const aInd=isInfo?'info':isSchedChange?'maintenance':(EFFECT_IND[aEff]||'minor');
         const aLbl=EFFECT_LABEL[aEff]||aEff.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
         const aCause=aAttr.cause?CAUSE_LABEL[aAttr.cause]||null:null;
         const aHdr=aAttr.short_header||aAttr.header||'';
@@ -2124,16 +2135,16 @@ async function fetchOne(s){
         };
       };
 
-      // Schedule-only path: no service disruptions, only schedule changes
+      // Schedule-only path: no service disruptions, only schedule changes (+ optional info)
       if(!serviceAlerts.length){
-        const attrS=schedAlerts[0].attributes||{};
+        const attrS=schedAlerts[0]?.attributes||{};
         const effS=attrS.effect||'';
         const lblS=EFFECT_LABEL[effS]||effS.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
-        // Count-based summary title — full text shows in sub-cards
         const titleS=schedAlerts.length===1?lblS:`${schedAlerts.length} Schedule Changes`;
         const updatedS=new Date(attrS.updated_at||now).toLocaleString();
         const schedDetails=schedAlerts.map(a=>mkAlertItem(a,true));
-        return mk(s.name,'maintenance',titleS,'',updatedS,s.hu,lblS,[],{type:'mbta',alerts:[],schedChanges:schedDetails});
+        const detailInfoA=infoAlerts.map(a=>mkAlertItem(a,false,true));
+        return mk(s.name,'maintenance',titleS,'',updatedS,s.hu,lblS,[],{type:'mbta',alerts:[],schedChanges:schedDetails,infoAlerts:detailInfoA});
       }
 
       // Service disruption path
@@ -2147,7 +2158,8 @@ async function fetchOne(s){
       // Build structured alert items for details (full text lives in sub-cards only)
       const detailAlerts=serviceAlerts.map(a=>mkAlertItem(a,false));
       const detailSchedChanges=schedAlerts.map(a=>mkAlertItem(a,true));
-      const mbtaDetails={type:'mbta',alerts:detailAlerts,schedChanges:detailSchedChanges};
+      const detailInfoAlerts=infoAlerts.map(a=>mkAlertItem(a,false,true));
+      const mbtaDetails={type:'mbta',alerts:detailAlerts,schedChanges:detailSchedChanges,infoAlerts:detailInfoAlerts};
 
       // Use a count-based summary for the card title so the full alert text
       // appears only in the structured sub-cards, never duplicated in the heading
@@ -2692,6 +2704,32 @@ async function fetchOne(s){
     }catch{return errSvc(s);}
   }
 
+  if(s.p==='betterstack'){
+    // BetterStack status page API (index.json)
+    // aggregate_state: 'operational'|'degraded'|'downtime'|'maintenance'|'paused'
+    try{
+      const data=await getJson(s.su);
+      const page=data?.data?.attributes||{};
+      const included=data?.included||[];
+      const BETTER_IND={'operational':'none','degraded':'minor','downtime':'major','maintenance':'maintenance','paused':'unknown'};
+      const ind=BETTER_IND[page.aggregate_state||'']||'major';
+      const updated=page.updated_at?new Date(page.updated_at).toLocaleString():new Date().toLocaleString();
+      // Active status reports (not yet resolved)
+      const reports=included.filter(x=>x.type==='status_report'&&x.attributes?.aggregate_state!=='resolved');
+      const updates=included.filter(x=>x.type==='status_update');
+      let title='',body='';
+      if(reports.length){
+        const r=reports[0];
+        title=r.attributes?.title||'';
+        const updateIds=new Set((r.relationships?.status_updates?.data||[]).map(u=>u.id));
+        const sorted=updates.filter(u=>updateIds.has(u.id))
+          .sort((a,b)=>Date.parse(b.attributes?.published_at)-Date.parse(a.attributes?.published_at));
+        if(sorted.length) body=sorted[0].attributes?.message||'';
+      }
+      return mk(s.name,ind,title,body,updated,s.hu);
+    }catch{return errSvc(s);}
+  }
+
   try {
     const sum=await getJson(s.su);
     const [sd,id]=[sum,sum];
@@ -2886,6 +2924,7 @@ async function _fetchWeather(){
   }catch{_wxInfo={err:'Weather unavailable'};}
   _wxFetching=false;
   _renderWeather();
+  if(document.getElementById('tv-wx-bar')) _renderBoardWeatherBar();
 }
 
 function _renderWeather(){
@@ -3455,7 +3494,8 @@ function _explodeIssueTiles(issueSvcs){
     if(svc.details?.type==='mbta'){
       const alerts=svc.details.alerts||[];
       const schedChanges=svc.details.schedChanges||[];
-      if(!alerts.length&&!schedChanges.length){ result.push(svc); continue; }
+      const infoAlerts=svc.details.infoAlerts||[];
+      if(!alerts.length&&!schedChanges.length&&!infoAlerts.length){ result.push(svc); continue; }
       for(const a of alerts){
         const routeNames=(a.routes||[]).join(' / ');
         const tileTitle=routeNames||(a.effectLabel+(a.cause?' — '+a.cause:''))||'Service Alert';
@@ -3968,6 +4008,21 @@ function mkIncCard(svc){
       }).join('');
       detailsHtml+=`<div class="inc-detail-section"><div class="inc-detail-hdr">Schedule Changes</div><div class="inc-sub-cards">${schedCards}</div></div>`;
     }
+    // Informational alerts — severity=1, muted per MBTA real-time display guidelines
+    if(det.infoAlerts?.length){
+      const infoCards=det.infoAlerts.map(a=>{
+        const routePills=(a.routes||[]).map(r=>`<span class="inc-sub-card-route">${esc(r)}</span>`).join('');
+        const timeHtml=a.timeframe?`<span class="inc-sub-card-time">${esc(a.timeframe)}</span>`:'';
+        return `<div class="inc-sub-card info-alert">
+          <div class="inc-sub-card-header">
+            <span class="inc-sub-card-title">${esc(a.title)}</span>
+            <span class="inc-sub-card-badge info">${esc(a.effectLabel)}</span>
+          </div>
+          ${(routePills||timeHtml)?`<div class="inc-sub-card-meta">${routePills}${timeHtml}</div>`:''}
+        </div>`;
+      }).join('');
+      detailsHtml+=`<div class="inc-detail-section"><div class="inc-detail-hdr">Service Information</div><div class="inc-sub-cards">${infoCards}</div></div>`;
+    }
   }
 
   d.innerHTML=`
@@ -4205,7 +4260,7 @@ async function pollService(svc){
       // Data unchanged but poll succeeded — still refresh the "Updated X ago" timestamp
       _boardLastUpdate=Date.now();
     }
-  }catch(e){}
+  }catch(e){ refreshFailCount=(refreshFailCount||0)+1; }
 }
 
 const _pollIntervals=[];
@@ -4236,7 +4291,7 @@ function scheduleRefresh(){
 }
 
 function _startRefresh(){
-  init();
+  init().catch(()=>{});
 }
 
 
@@ -4512,7 +4567,10 @@ function _renderNetCards(cf, meta, ip, resolverIp, cfLat, gLat, traceHops, iodaD
     : `<div class="net-err">Path quality unavailable.</div>`;
 
   const navConnSaveData = navConn && navConn.saveData;
-  const saveDataWarn = navConnSaveData ? `<div class="net-err" style="color:var(--warn);margin-bottom:8px">⚠ Data Saver is enabled — this test uses ~40 MB.</div>` : '';
+  const navConnMetered = navConn && (navConn.type === 'cellular' || navConn.effectiveType === '2g' || navConn.effectiveType === '3g');
+  const saveDataWarn = (navConnSaveData || navConnMetered)
+    ? `<div class="net-err" style="color:var(--warn);margin-bottom:8px">⚠ ${navConnSaveData ? 'Data Saver is enabled' : 'Metered/cellular connection detected'} — this test uses ~40 MB.</div>`
+    : '';
   const speedCard = `<div class="net-note" style="margin:0 0 10px">Tests download speed via 4 parallel streams to Cloudflare's nearest edge. Uses ~40 MB of data.</div>${saveDataWarn}<button class="net-run-btn" id="net-speed-run-btn" type="button">▶ Run Speed Test</button>`;
 
   // ── Internet Health cards ──────────────────────────────────────────────────
