@@ -1031,7 +1031,7 @@ const SVCS=[
   // Infrastructure Providers
   {name:'Cloudflare',su:'https://www.cloudflarestatus.com/api/v2/summary.json',hu:'https://www.cloudflarestatus.com',p:'cloudflare',cat:'infra'},
   {name:'Tailscale',su:'https://status.tailscale.com/api/v2/summary.json',hu:'https://status.tailscale.com',cat:'infra'},
-  {name:'Quad9',su:'https://uptime.quad9.net/api/v2/summary.json',hu:'https://quad9.net/service/status',p:'quad9',cat:'infra'},
+  {name:'Quad9',su:'https://uptime.quad9.net/api/v2/summary.json',hu:'https://uptime.quad9.net/',cat:'infra'},
   {name:'DNSFilter',su:'https://status.dnsfilter.com/api/v2/summary.json',hu:'https://status.dnsfilter.com',cat:'infra'},
   {name:'Meraki',su:'https://status.meraki.net/api/v2/summary.json',hu:'https://status.meraki.net',cat:'infra'},
   {name:'AWS',su:'https://status.aws.amazon.com/rss/all.rss',hu:'https://health.aws.amazon.com/health/status',p:'aws',cat:'infra'},
@@ -1674,8 +1674,6 @@ const ROUTE_KEYS = {
   "https://www.apple.com/support/systemstatus/data/system_status_en_US.js": "apple-status",
   "https://developer.apple.com/system-status/data/system_status_en_US.js": "appledev-status",
   "https://www.cloudflarestatus.com/api/v2/summary.json": "cf-summary",
-  "https://uptime.quad9.net/api/v2/summary.json": "quad9-summary",
-  "https://status.quad9.net/smap/assets/data.csv": "quad9-pops",
   "https://status.dnsfilter.com/api/v2/summary.json": "dnsfilter-summary",
   "https://status.meraki.net/api/v2/summary.json": "meraki-summary",
   "https://status.aws.amazon.com/rss/all.rss": "aws-rss",
@@ -1689,19 +1687,20 @@ const ROUTE_KEYS = {
   "https://status.bunny.net/api/v2/summary.json": "bunny-summary",
   "https://www.cacheflystatus.com/api/v2/summary.json": "cachefly-summary",
   "https://api.status.io/1.0/status/5d849b1c02e65b3ec45369d4": "mimecast-summary",
+  "https://status.tailscale.com/api/v2/summary.json": "tailscale-summary",
   "https://status.wasabi.com/api/v2/summary.json": "wasabi-summary",
   "https://api-v3.mbta.com/alerts?filter[route]=CR-Providence&filter[activity]=BOARD,EXIT,RIDE": "mbta-providence",
   "https://api-v3.mbta.com/alerts?filter[route]=CR-NewBedford,CR-FallRiver&filter[activity]=BOARD,EXIT,RIDE": "mbta-southcoast",
   "https://cloudflare.com/cdn-cgi/trace": "cf-trace",
   "https://speed.cloudflare.com/meta": "speed-meta",
-
   "https://cloudflare-dns.com/dns-query?name=whoami.cloudflare&type=TXT&ct=application/dns-json": "doh-cloudflare",
   "https://dns.google/generate_204": "google-204",
   "https://stream.x1023.fm/stats?sid=1&json=1": "x1023-now-playing",
+  "https://uptime.quad9.net/api/v2/summary.json": "quad9-summary",
   "https://status.openai.com/api/v2/summary.json": "openai-summary",
   "https://streamdb3web.securenetsystems.net/player_status_update/WOCN_history.xml": "wocn-nowplaying"
 };
-const SPECIAL_KEYS = new Set(["ioda-na-outages","radar-us-anomalies","wror-now-playing"]);
+const SPECIAL_KEYS = new Set(["ioda-na-outages","iheart-hjy-now-playing","radar-us-anomalies","wror-now-playing","adobe-registry","adobe-events","time-gov"]);
 /* @routes-end */
 
 // Build proxy URL using route key if available.
@@ -2693,88 +2692,6 @@ async function fetchOne(s){
     }catch{return errSvc(s);}
   }
 
-  if(s.p==='quad9'){
-    // Quad9 — Atlassian Statuspage (uptime.quad9.net) + per-PoP CSV (status.quad9.net/smap/)
-    // Incidents are named "City (CODE) - Description"; filter to North America PoPs only.
-    try{
-      // Fetch Statuspage summary and PoP CSV in parallel
-      const [sum, csvText]=await Promise.all([
-        getJson(s.su),
-        getText('https://status.quad9.net/smap/assets/data.csv').catch(()=>null),
-      ]);
-      const updated=sum?.page?.updated_at?new Date(sum.page.updated_at).toLocaleString():new Date().toLocaleString();
-
-      // Countries considered North America for Quad9 PoP filtering
-      const NA_COUNTRIES=new Set(['United States','Canada','Mexico','Puerto Rico','Guatemala','Curaçao','Curacao']);
-
-      // Parse PoP CSV — best-effort; used for both NA code resolution and DC details.
-      // Columns: status, pop_code, city, country, [ixp…]
-      let naCodes=null; // Set<string> built from CSV; null if CSV unavailable
-      let detailsDcs=[];
-      if(csvText){
-        const rows=csvText.trim().split('\n');
-        if(rows.length>1){
-          const hdr=rows[0].split(',').map(h=>h.trim().toLowerCase());
-          const si=hdr.findIndex(h=>/status/.test(h));
-          const ci=hdr.findIndex(h=>/pop|code/.test(h));
-          const cityI=hdr.findIndex(h=>h==='city');
-          const countryI=hdr.findIndex(h=>h==='country');
-          naCodes=new Set();
-          for(const row of rows.slice(1)){
-            if(!row.trim()) continue;
-            const cols=row.split(',');
-            const status=((si>=0?cols[si]:cols[0])||'').trim().toUpperCase();
-            const code=((ci>=0?cols[ci]:cols[1])||'').trim();
-            const city=((cityI>=0?cols[cityI]:cols[2])||'').trim();
-            const country=((countryI>=0?cols[countryI]:cols[3])||'').trim();
-            if(!code) continue;
-            if(NA_COUNTRIES.has(country)) naCodes.add(code);
-            if(!NA_COUNTRIES.has(country)||status==='ONLINE'||status==='COMING SOON'||!status) continue;
-            const popInd=status==='DEGRADED'?'minor':status==='OFFLINE'?'major':status==='BYPASS'?'rerouting':null;
-            if(!popInd) continue;
-            detailsDcs.push({name:`${code} · ${city}`,ind:popInd,status});
-          }
-        }
-      }
-
-      // Fallback NA codes used when CSV is unreachable (from last-known smap data)
-      const FALLBACK_NA=new Set([
-        'SJC','PAO','ORD','LGA','PDX','IAD','DFW','MIA','ATL','BUR','SNA',
-        'YYC','YUL','SFO','PHX','MSP','SJU','DAL','CAK','SLC','DTW','CMH',
-        'YYZ','YVR2','YOW2','QLAX1','QMEX2','QMIA2','QLGA2','QDFW4','QEWR1',
-        'QMCI2','QATL4','QDEN1','QORD4','QBOS2','QPIT2','PDX2','QPAH1','QYUL1',
-      ]);
-      const resolvedNaCodes=naCodes||FALLBACK_NA;
-
-      // Incidents are named "City (CODE) - Description"; extract code and check if NA.
-      // Incidents with no parenthesised code are assumed global and always shown.
-      const extractPopCode=name=>{const m=/\(([A-Z]{2,6}\d*)\)/.exec(name||'');return m?.[1]||null;};
-      const isNAIncident=evt=>{const code=extractPopCode(evt.name||'');return !code||resolvedNaCodes.has(code);};
-      const allActive=(sum?.incidents||[]).filter(x=>
-        ACTIVE_STATUSES.includes((x.status||'').toLowerCase())
-      );
-      const naActive=allActive.filter(isNAIncident);
-
-      let ind=normalizeIndicator(sum?.status?.indicator||'none');
-      let title='',body='';
-      if(naActive.length){
-        const a=mostRecentEvent(naActive)||naActive[0];
-        if(ind==='none'){ const impact=normalizeIndicator(a.impact||'none'); if(impact!=='none') ind=impact; }
-        title=a.name||'';
-        let desc=latestUpdateBody(a); if(!desc) desc=stripHtml(a.description||'');
-        body=desc;
-      } else if(detailsDcs.length){
-        // CSV shows degraded PoPs but no open incident on the Statuspage
-        const worst=detailsDcs.reduce((max,d)=>(PRI[d.ind]||9)<(PRI[max]||9)?d.ind:max,'none');
-        ind=worst;
-        const n=detailsDcs.length;
-        title=`${n} North America PoP${n!==1?'s':''} Affected`;
-      }
-      const details=detailsDcs.length?{type:'quad9',maintenance:[],dataCenters:detailsDcs}:null;
-      return mk(s.name,ind,title,body,updated,s.hu,undefined,[],details);
-    }catch{return errSvc(s);}
-  }
-
   try {
     const sum=await getJson(s.su);
     const [sd,id]=[sum,sum];
@@ -3542,7 +3459,7 @@ function _explodeIssueTiles(issueSvcs){
       for(const a of alerts){
         const routeNames=(a.routes||[]).join(' / ');
         const tileTitle=routeNames||(a.effectLabel+(a.cause?' — '+a.cause:''))||'Service Alert';
-        result.push({...svc, title:tileTitle, body:a.title||'',
+        result.push({...svc, ind:a.ind, label:a.effectLabel, title:tileTitle, body:a.title||'',
           details:null, _tileRoutes:a.routes||[], _tileEffectLabel:a.effectLabel||''});
       }
       for(const sc of schedChanges){
