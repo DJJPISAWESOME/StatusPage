@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <title>Service Status</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="mobile-web-app-capable" content="yes">
@@ -1919,7 +1919,8 @@ async function fetchOne(s){
         else if(/outage|critical|down/.test(statusBarText)) ind='major';
       } else {
         const statusCode=h.match(/return\s+status\s*===\s*(\d+)/i);
-        ind = statusCode ? (Number(statusCode[1])>=500 ? 'major' : Number(statusCode[1])>=300 ? 'minor' : Number(statusCode[1])===200 ? 'maintenance' : 'none') : 'none';
+        if(statusCode) ind=Number(statusCode[1])>=500?'major':Number(statusCode[1])>=300?'minor':Number(statusCode[1])===200?'maintenance':'none';
+        else return errSvc(s);
       }
       return mk(s.name,ind,'','',new Date().toLocaleString(),s.hu);
     } catch { return errSvc(s); }
@@ -2886,6 +2887,7 @@ async function _fetchWeather(){
   }catch{_wxInfo={err:'Weather unavailable'};}
   _wxFetching=false;
   _renderWeather();
+  if(document.getElementById('tv-wx-bar')) _renderBoardWeatherBar();
 }
 
 function _renderWeather(){
@@ -4205,7 +4207,7 @@ async function pollService(svc){
       // Data unchanged but poll succeeded — still refresh the "Updated X ago" timestamp
       _boardLastUpdate=Date.now();
     }
-  }catch(e){}
+  }catch(e){ refreshFailCount=(refreshFailCount||0)+1; }
 }
 
 const _pollIntervals=[];
@@ -4236,7 +4238,7 @@ function scheduleRefresh(){
 }
 
 function _startRefresh(){
-  init();
+  init().catch(()=>{});
 }
 
 
@@ -4512,7 +4514,10 @@ function _renderNetCards(cf, meta, ip, resolverIp, cfLat, gLat, traceHops, iodaD
     : `<div class="net-err">Path quality unavailable.</div>`;
 
   const navConnSaveData = navConn && navConn.saveData;
-  const saveDataWarn = navConnSaveData ? `<div class="net-err" style="color:var(--warn);margin-bottom:8px">⚠ Data Saver is enabled — this test uses ~40 MB.</div>` : '';
+  const navConnMetered = navConn && (navConn.type === 'cellular' || navConn.effectiveType === '2g' || navConn.effectiveType === '3g');
+  const saveDataWarn = (navConnSaveData || navConnMetered)
+    ? `<div class="net-err" style="color:var(--warn);margin-bottom:8px">⚠ ${navConnSaveData ? 'Data Saver is enabled' : 'Metered/cellular connection detected'} — this test uses ~40 MB.</div>`
+    : '';
   const speedCard = `<div class="net-note" style="margin:0 0 10px">Tests download speed via 4 parallel streams to Cloudflare's nearest edge. Uses ~40 MB of data.</div>${saveDataWarn}<button class="net-run-btn" id="net-speed-run-btn" type="button">▶ Run Speed Test</button>`;
 
   // ── Internet Health cards ──────────────────────────────────────────────────
