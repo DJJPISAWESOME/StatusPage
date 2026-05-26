@@ -262,13 +262,13 @@
     .c-icon.unknown { background:rgba(107,114,128,0.1); color:var(--unknown); }
     .c-logo { width:26px; height:26px; border-radius:5px; object-fit:contain; background:rgba(255,255,255,0.92); padding:2px; }
     .c-fallback { font-size:18px; font-weight:700; line-height:1; }
-    .c-name { font-size:clamp(14px, 1.1vw, 20px); font-weight:700; letter-spacing:-0.02em; line-height:1.2; word-break:break-word; }
+    .c-name { font-size:clamp(13px, 1vw, 16px); font-weight:700; letter-spacing:-0.02em; line-height:1.2; overflow-wrap:break-word; word-break:normal; }
     .c-name-block { min-width:0; overflow:hidden; }
     .c-url { font-size:13px; color:var(--muted); margin-top:3px; text-decoration:none; display:inline-flex; align-items:center; gap:4px; transition:color 0.2s; }
     .c-url:hover { color:var(--sub); }
     .c-badge {
-      flex-shrink:0; font-size:11px; font-weight:600; letter-spacing:0.03em; text-transform:uppercase;
-      padding:4px 10px; border-radius:7px; margin-top:2px;
+      flex-shrink:0; font-size:10.5px; font-weight:700; letter-spacing:0.05em; text-transform:uppercase;
+      padding:3px 9px; border-radius:6px; margin-top:2px;
     }
     .c-badge.ok { background:rgba(34,197,94,0.1); color:var(--ok); border:1px solid rgba(34,197,94,0.2); }
     .c-badge.warn { background:rgba(245,158,11,0.1); color:var(--warn); border:1px solid rgba(245,158,11,0.22); }
@@ -304,8 +304,8 @@
     .issues-hdr::before { content:''; width:7px; height:7px; border-radius:50%; background:var(--warn); animation:stalePulse 1.8s ease-in-out infinite; flex-shrink:0; }
     .issues-hdr.has-outage::before { background:var(--bad); }
     .issues-hdr-count { font-size:10px; font-weight:500; color:var(--muted); background:rgba(255,255,255,0.05); border:1px solid var(--border); padding:1px 7px; border-radius:999px; }
-    .issues-grid { columns:300px; column-gap:10px; }
-    .issues-grid > .card { break-inside:avoid; margin-bottom:10px; }
+    .issues-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:10px; align-items:start; }
+    .issues-grid > .card { margin-bottom:0; }
 
     /* ── Service directory (bottom panel) ───────────────────────────────────── */
     .svc-directory { display:flex; flex-direction:column; gap:10px; }
@@ -776,7 +776,7 @@
       .hdr-left { flex-direction:column; align-items:flex-start; gap:8px; width:100%; }
       .hdr-right { flex-wrap:wrap; justify-content:flex-start; gap:10px; }
       .stats { gap:8px 14px; flex-wrap:wrap; }
-      .issues-grid { columns:1; }
+      .issues-grid { grid-template-columns:1fr; }
       .footer { flex-wrap:wrap; gap:8px; }
     }
 
@@ -871,17 +871,17 @@
     .inc-detail-badge.bad     { background:rgba(239,68,68,0.1);  color:var(--bad);     border:1px solid rgba(239,68,68,0.2); }
     .inc-detail-badge.ok      { background:rgba(34,197,94,0.1);  color:var(--ok);      border:1px solid rgba(34,197,94,0.2); }
     /* MBTA alert sub-cards */
-    .inc-sub-cards { display:flex; flex-direction:column; gap:6px; margin-top:10px; }
-    .inc-sub-card { background:rgba(255,255,255,0.025); border:1px solid var(--border); border-radius:9px; padding:6px 8px; display:flex; flex-direction:column; gap:4px; }
+    .inc-sub-cards { display:flex; flex-direction:column; gap:5px; margin-top:8px; }
+    .inc-sub-card { background:rgba(255,255,255,0.02); border:1px solid var(--border); border-radius:8px; padding:5px 8px; display:flex; flex-direction:column; gap:3px; }
     .inc-sub-card-header { display:flex; align-items:flex-start; justify-content:space-between; gap:8px; }
-    .inc-sub-card-title { font-size:12.5px; font-weight:600; color:var(--text); line-height:1.3; min-width:0; overflow-wrap:anywhere; flex:1; }
-    .inc-sub-card-badge { display:inline-flex; align-items:center; font-size:10px; font-weight:700; padding:2px 6px; border-radius:4px; letter-spacing:0.04em; text-transform:uppercase; white-space:nowrap; flex-shrink:0; }
+    .inc-sub-card-title { font-size:12px; font-weight:500; color:var(--text); line-height:1.35; min-width:0; flex:1; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
+    .inc-sub-card-badge { display:inline-flex; align-items:center; font-size:10.5px; font-weight:700; padding:2px 7px; border-radius:5px; letter-spacing:0.05em; text-transform:uppercase; white-space:nowrap; flex-shrink:0; }
     .inc-sub-card-badge.minor { background:rgba(245,158,11,0.1); color:var(--warn); border:1px solid rgba(245,158,11,0.2); }
     .inc-sub-card-badge.major { background:rgba(239,68,68,0.1); color:var(--bad); border:1px solid rgba(239,68,68,0.2); }
     .inc-sub-card-badge.maintenance { background:rgba(59,130,246,0.1); color:var(--maint); border:1px solid rgba(59,130,246,0.2); }
-    .inc-sub-card-meta { display:flex; flex-wrap:wrap; align-items:center; gap:5px; }
-    .inc-sub-card-route { font-size:11px; color:var(--sub); background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:999px; padding:1px 7px; white-space:nowrap; }
-    .inc-sub-card-time { font-size:11px; color:var(--muted); }
+    .inc-sub-card-meta { display:flex; flex-wrap:wrap; align-items:center; gap:4px; }
+    .inc-sub-card-route { font-size:10.5px; color:var(--sub); background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:999px; padding:1px 6px; white-space:nowrap; }
+    .inc-sub-card-time { font-size:10.5px; color:var(--muted); }
 
     /* ── Board minimal mode ─────────────────────────────────────────────────── */
     .tv-board-minimal .tv-ticker-wrap,
@@ -1031,7 +1031,7 @@ const SVCS=[
   // Infrastructure Providers
   {name:'Cloudflare',su:'https://www.cloudflarestatus.com/api/v2/summary.json',hu:'https://www.cloudflarestatus.com',p:'cloudflare',cat:'infra'},
   {name:'Tailscale',su:'https://status.tailscale.com/api/v2/summary.json',hu:'https://status.tailscale.com',cat:'infra'},
-  {name:'Quad9',su:'https://uptime.quad9.net/api/v2/summary.json',hu:'https://quad9.net/service/status',p:'quad9',cat:'infra'},
+  {name:'Quad9',su:'https://uptime.quad9.net/api/v2/summary.json',hu:'https://uptime.quad9.net/',cat:'infra'},
   {name:'DNSFilter',su:'https://status.dnsfilter.com/api/v2/summary.json',hu:'https://status.dnsfilter.com',cat:'infra'},
   {name:'Meraki',su:'https://status.meraki.net/api/v2/summary.json',hu:'https://status.meraki.net',cat:'infra'},
   {name:'AWS',su:'https://status.aws.amazon.com/rss/all.rss',hu:'https://health.aws.amazon.com/health/status',p:'aws',cat:'infra'},
@@ -1674,8 +1674,6 @@ const ROUTE_KEYS = {
   "https://www.apple.com/support/systemstatus/data/system_status_en_US.js": "apple-status",
   "https://developer.apple.com/system-status/data/system_status_en_US.js": "appledev-status",
   "https://www.cloudflarestatus.com/api/v2/summary.json": "cf-summary",
-  "https://uptime.quad9.net/api/v2/summary.json": "quad9-summary",
-  "https://status.quad9.net/smap/assets/data.csv": "quad9-pops",
   "https://status.dnsfilter.com/api/v2/summary.json": "dnsfilter-summary",
   "https://status.meraki.net/api/v2/summary.json": "meraki-summary",
   "https://status.aws.amazon.com/rss/all.rss": "aws-rss",
@@ -1689,19 +1687,20 @@ const ROUTE_KEYS = {
   "https://status.bunny.net/api/v2/summary.json": "bunny-summary",
   "https://www.cacheflystatus.com/api/v2/summary.json": "cachefly-summary",
   "https://api.status.io/1.0/status/5d849b1c02e65b3ec45369d4": "mimecast-summary",
+  "https://status.tailscale.com/api/v2/summary.json": "tailscale-summary",
   "https://status.wasabi.com/api/v2/summary.json": "wasabi-summary",
   "https://api-v3.mbta.com/alerts?filter[route]=CR-Providence&filter[activity]=BOARD,EXIT,RIDE": "mbta-providence",
   "https://api-v3.mbta.com/alerts?filter[route]=CR-NewBedford,CR-FallRiver&filter[activity]=BOARD,EXIT,RIDE": "mbta-southcoast",
   "https://cloudflare.com/cdn-cgi/trace": "cf-trace",
   "https://speed.cloudflare.com/meta": "speed-meta",
-
   "https://cloudflare-dns.com/dns-query?name=whoami.cloudflare&type=TXT&ct=application/dns-json": "doh-cloudflare",
   "https://dns.google/generate_204": "google-204",
   "https://stream.x1023.fm/stats?sid=1&json=1": "x1023-now-playing",
+  "https://uptime.quad9.net/api/v2/summary.json": "quad9-summary",
   "https://status.openai.com/api/v2/summary.json": "openai-summary",
   "https://streamdb3web.securenetsystems.net/player_status_update/WOCN_history.xml": "wocn-nowplaying"
 };
-const SPECIAL_KEYS = new Set(["ioda-na-outages","radar-us-anomalies","wror-now-playing"]);
+const SPECIAL_KEYS = new Set(["ioda-na-outages","iheart-hjy-now-playing","radar-us-anomalies","wror-now-playing","adobe-registry","adobe-events","time-gov"]);
 /* @routes-end */
 
 // Build proxy URL using route key if available.
@@ -2693,88 +2692,6 @@ async function fetchOne(s){
     }catch{return errSvc(s);}
   }
 
-  if(s.p==='quad9'){
-    // Quad9 — Atlassian Statuspage (uptime.quad9.net) + per-PoP CSV (status.quad9.net/smap/)
-    // Incidents are named "City (CODE) - Description"; filter to North America PoPs only.
-    try{
-      // Fetch Statuspage summary and PoP CSV in parallel
-      const [sum, csvText]=await Promise.all([
-        getJson(s.su),
-        getText('https://status.quad9.net/smap/assets/data.csv').catch(()=>null),
-      ]);
-      const updated=sum?.page?.updated_at?new Date(sum.page.updated_at).toLocaleString():new Date().toLocaleString();
-
-      // Countries considered North America for Quad9 PoP filtering
-      const NA_COUNTRIES=new Set(['United States','Canada','Mexico','Puerto Rico','Guatemala','Curaçao','Curacao']);
-
-      // Parse PoP CSV — best-effort; used for both NA code resolution and DC details.
-      // Columns: status, pop_code, city, country, [ixp…]
-      let naCodes=null; // Set<string> built from CSV; null if CSV unavailable
-      let detailsDcs=[];
-      if(csvText){
-        const rows=csvText.trim().split('\n');
-        if(rows.length>1){
-          const hdr=rows[0].split(',').map(h=>h.trim().toLowerCase());
-          const si=hdr.findIndex(h=>/status/.test(h));
-          const ci=hdr.findIndex(h=>/pop|code/.test(h));
-          const cityI=hdr.findIndex(h=>h==='city');
-          const countryI=hdr.findIndex(h=>h==='country');
-          naCodes=new Set();
-          for(const row of rows.slice(1)){
-            if(!row.trim()) continue;
-            const cols=row.split(',');
-            const status=((si>=0?cols[si]:cols[0])||'').trim().toUpperCase();
-            const code=((ci>=0?cols[ci]:cols[1])||'').trim();
-            const city=((cityI>=0?cols[cityI]:cols[2])||'').trim();
-            const country=((countryI>=0?cols[countryI]:cols[3])||'').trim();
-            if(!code) continue;
-            if(NA_COUNTRIES.has(country)) naCodes.add(code);
-            if(!NA_COUNTRIES.has(country)||status==='ONLINE'||status==='COMING SOON'||!status) continue;
-            const popInd=status==='DEGRADED'?'minor':status==='OFFLINE'?'major':status==='BYPASS'?'rerouting':null;
-            if(!popInd) continue;
-            detailsDcs.push({name:`${code} · ${city}`,ind:popInd,status});
-          }
-        }
-      }
-
-      // Fallback NA codes used when CSV is unreachable (from last-known smap data)
-      const FALLBACK_NA=new Set([
-        'SJC','PAO','ORD','LGA','PDX','IAD','DFW','MIA','ATL','BUR','SNA',
-        'YYC','YUL','SFO','PHX','MSP','SJU','DAL','CAK','SLC','DTW','CMH',
-        'YYZ','YVR2','YOW2','QLAX1','QMEX2','QMIA2','QLGA2','QDFW4','QEWR1',
-        'QMCI2','QATL4','QDEN1','QORD4','QBOS2','QPIT2','PDX2','QPAH1','QYUL1',
-      ]);
-      const resolvedNaCodes=naCodes||FALLBACK_NA;
-
-      // Incidents are named "City (CODE) - Description"; extract code and check if NA.
-      // Incidents with no parenthesised code are assumed global and always shown.
-      const extractPopCode=name=>{const m=/\(([A-Z]{2,6}\d*)\)/.exec(name||'');return m?.[1]||null;};
-      const isNAIncident=evt=>{const code=extractPopCode(evt.name||'');return !code||resolvedNaCodes.has(code);};
-      const allActive=(sum?.incidents||[]).filter(x=>
-        ACTIVE_STATUSES.includes((x.status||'').toLowerCase())
-      );
-      const naActive=allActive.filter(isNAIncident);
-
-      let ind=normalizeIndicator(sum?.status?.indicator||'none');
-      let title='',body='';
-      if(naActive.length){
-        const a=mostRecentEvent(naActive)||naActive[0];
-        if(ind==='none'){ const impact=normalizeIndicator(a.impact||'none'); if(impact!=='none') ind=impact; }
-        title=a.name||'';
-        let desc=latestUpdateBody(a); if(!desc) desc=stripHtml(a.description||'');
-        body=desc;
-      } else if(detailsDcs.length){
-        // CSV shows degraded PoPs but no open incident on the Statuspage
-        const worst=detailsDcs.reduce((max,d)=>(PRI[d.ind]||9)<(PRI[max]||9)?d.ind:max,'none');
-        ind=worst;
-        const n=detailsDcs.length;
-        title=`${n} North America PoP${n!==1?'s':''} Affected`;
-      }
-      const details=detailsDcs.length?{type:'quad9',maintenance:[],dataCenters:detailsDcs}:null;
-      return mk(s.name,ind,title,body,updated,s.hu,undefined,[],details);
-    }catch{return errSvc(s);}
-  }
-
   try {
     const sum=await getJson(s.su);
     const [sd,id]=[sum,sum];
@@ -3542,7 +3459,7 @@ function _explodeIssueTiles(issueSvcs){
       for(const a of alerts){
         const routeNames=(a.routes||[]).join(' / ');
         const tileTitle=routeNames||(a.effectLabel+(a.cause?' — '+a.cause:''))||'Service Alert';
-        result.push({...svc, title:tileTitle, body:a.title||'',
+        result.push({...svc, ind:a.ind, label:a.effectLabel, title:tileTitle, body:a.title||'',
           details:null, _tileRoutes:a.routes||[], _tileEffectLabel:a.effectLabel||''});
       }
       for(const sc of schedChanges){
