@@ -679,11 +679,11 @@
     .tv-issue-badge.bad    { color:var(--bad); }
     .tv-issue-badge.maint  { color:var(--maint); }
     .tv-issue-badge.reroute{ color:var(--reroute); }
-    .tv-issue-title { font-size:clamp(17px,1.8vw,28px); font-weight:600; color:var(--text); overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; white-space:pre-wrap; line-height:1.35; }
-    .tv-issue-body { font-size:clamp(14px,1.4vw,22px); color:rgba(255,255,255,0.78); line-height:1.55; overflow-y:auto; overflow-x:hidden; flex:1 1 auto; min-height:0; white-space:pre-wrap; overflow-wrap:anywhere; position:relative; scrollbar-width:thin; scrollbar-color:rgba(255,255,255,0.2) transparent; }
+    .tv-issue-title { font-size:clamp(17px,1.8vw,28px); font-weight:600; color:var(--text); overflow:visible; text-overflow:clip; display:block; -webkit-line-clamp:unset; -webkit-box-orient:initial; white-space:pre-wrap; overflow-wrap:anywhere; line-height:1.35; }
+    .tv-issue-body { font-size:clamp(14px,1.4vw,22px); color:rgba(255,255,255,0.78); line-height:1.55; overflow:hidden; flex:1 1 auto; min-height:0; white-space:pre-wrap; overflow-wrap:anywhere; position:relative; scrollbar-width:none; }
     .tv-issue-body-inner { display:block; }
-    .tv-issue-body-inner.tv-scrolling { animation:tv-body-scroll var(--tv-scroll-dur,35s) ease-in-out 2.5s infinite; }
-    @keyframes tv-body-scroll { 0%,35%{transform:translateY(0)} 75%,100%{transform:translateY(var(--tv-scroll-dist,0px))} }
+    .tv-issue-body::-webkit-scrollbar { display:none; }
+    .tv-issue-body-inner.tv-scrolling { animation:none; transform:none; }
     /* Issue tile structured content — route pills, DC badges */
     .tv-issue-routes { display:flex; flex-wrap:wrap; gap:clamp(4px,0.5vw,8px); margin-bottom:clamp(4px,0.5vh,8px); }
     .tv-issue-route { background:rgba(255,255,255,0.12); border:1px solid rgba(255,255,255,0.2); border-radius:100px; padding:2px clamp(7px,0.8vw,13px); font-size:clamp(11px,1.1vw,17px); font-weight:600; white-space:nowrap; color:var(--text); }
@@ -695,7 +695,7 @@
     .tv-issue-dc-item.maint   { background:rgba(59,130,246,0.18); border:1px solid rgba(59,130,246,0.45); color:#60a5fa; }
     .tv-issue-dc-item.warn    { background:rgba(245,158,11,0.18); border:1px solid rgba(245,158,11,0.4); color:var(--warn); }
     .tv-issue-dc-item.bad     { background:rgba(239,68,68,0.18); border:1px solid rgba(239,68,68,0.4); color:var(--bad); }
-    .tv-issue-cf-body { font-size:clamp(13px,1.2vw,18px); color:rgba(255,255,255,0.7); line-height:1.45; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+    .tv-issue-cf-body { font-size:clamp(13px,1.2vw,18px); color:rgba(255,255,255,0.7); line-height:1.45; display:block; -webkit-line-clamp:unset; -webkit-box-orient:initial; overflow:visible; }
     .tv-issue-section-hdr { font-size:clamp(9px,0.75vw,12px); font-weight:700; text-transform:uppercase; letter-spacing:0.1em; color:rgba(255,255,255,0.32); margin-top:clamp(6px,0.7vh,10px); padding-bottom:clamp(3px,0.3vh,4px); border-bottom:1px solid rgba(255,255,255,0.08); }
     /* Issue page dots */
     .tv-page-dots { display:flex; align-items:center; justify-content:center; gap:8px; padding-top:clamp(6px,0.7vh,12px); flex-shrink:0; }
@@ -1330,18 +1330,25 @@
       font-weight:620;
       line-height:1.32;
       letter-spacing:-0.016em;
+      display:block;
+      overflow:visible;
+      text-overflow:clip;
+      -webkit-line-clamp:unset;
+      -webkit-box-orient:initial;
     }
     .tv-board .tv-issue-body {
       color:var(--board-sub);
       font-size:clamp(15px,1.18vw,21px);
       line-height:1.5;
-      scrollbar-color:rgba(169,184,204,0.25) transparent;
+      overflow:hidden;
+      scrollbar-width:none;
     }
+    .tv-board .tv-issue-body::-webkit-scrollbar { display:none; }
     .tv-board .tv-issue-route,
     .tv-board .tv-issue-effect {
       border-radius:999px;
       padding:4px clamp(8px,0.72vw,12px);
-      font-size:clamp(11px,0.95vw,16px);
+      font-size:max(10px,0.78em);
     }
     .tv-board .tv-issue-route {
       color:var(--board-text);
@@ -1349,16 +1356,44 @@
       background:rgba(255,255,255,0.055);
     }
     .tv-board .tv-issue-timeframe,
-    .tv-board .tv-issue-cf-body { color:var(--board-sub); }
+    .tv-board .tv-issue-cf-body {
+      color:var(--board-sub);
+      font-size:1em;
+      line-height:1.42;
+      display:block;
+      overflow:visible;
+      -webkit-line-clamp:unset;
+      -webkit-box-orient:initial;
+    }
     .tv-board .tv-issue-dc-item {
       border-radius:999px;
       padding:4px clamp(9px,0.78vw,13px);
-      font-size:clamp(11px,0.92vw,16px);
+      font-size:max(10px,0.78em);
     }
     .tv-board .tv-issue-section-hdr {
       color:var(--board-muted);
       border-bottom-color:var(--board-line);
+      font-size:max(9px,0.68em);
     }
+    .tv-board .tv-issue-tile.tv-issue-tight {
+      gap:6px;
+      padding:clamp(11px,0.95vw,17px);
+    }
+    .tv-board .tv-issue-tile.tv-issue-tight .tv-issue-logo,
+    .tv-board .tv-issue-tile.tv-issue-tight .tv-issue-logo-fb {
+      width:clamp(30px,2.25vw,40px);
+      height:clamp(30px,2.25vw,40px);
+    }
+    .tv-board .tv-issue-tile.tv-issue-tight .tv-issue-name { font-size:clamp(14px,1.25vw,22px); }
+    .tv-board .tv-issue-tile.tv-issue-tight .tv-issue-badge { padding:4px 7px; font-size:10px; }
+    .tv-board .tv-issue-tile.tv-issue-tight .tv-issue-routes { gap:4px; margin-bottom:3px; }
+    .tv-board .tv-issue-tile.tv-issue-tight .tv-issue-route,
+    .tv-board .tv-issue-tile.tv-issue-tight .tv-issue-effect,
+    .tv-board .tv-issue-tile.tv-issue-tight .tv-issue-dc-item { padding:2px 7px; }
+    .tv-board .tv-issue-tile.tv-issue-tight .tv-issue-section-hdr { margin-top:4px; padding-bottom:2px; }
+    .tv-board.tv-board-focus-events .tv-hdr { min-height:clamp(96px,11.5vh,136px); }
+    .tv-board.tv-board-focus-events .tv-ticker-wrap { padding-top:7px; padding-bottom:8px; }
+    .tv-board.tv-board-focus-events .tv-tiles { height:clamp(54px,6.5vh,78px); }
     .tv-board .tv-page-dots { padding-top:clamp(9px,0.8vh,13px); }
     .tv-board .tv-page-dot {
       width:7px;
@@ -4187,20 +4222,9 @@ function _optimizeBoardLayout(){
       else if(w[1]>w[0]*1.5) issueEl.style.gridTemplateColumns='1fr 2fr';
       else issueEl.style.gridTemplateColumns='1fr 1fr';
     } else if(issueN===3){
-      const w=tiles.map(t=>parseInt(t.dataset.weight)||1);
-      const maxW=Math.max(...w);
-      const maxIdx=w.indexOf(maxW);
-      const avgOther=w.reduce((s,v,i)=>i===maxIdx?s:s+v,0)/2;
-      if(maxW>=2&&maxW>avgOther*1.4){
-        // One heavy card + 2 lighter: heavy spans left column across both rows
-        issueEl.style.gridTemplateColumns='2fr 1fr';
-        tiles[maxIdx].style.gridColumn='1';
-        tiles[maxIdx].style.gridRow='1 / span 2';
-        let row=1;
-        tiles.forEach((t,i)=>{if(i!==maxIdx){t.style.gridColumn='2';t.style.gridRow=String(row++);}});
-      } else {
-        issueEl.style.gridTemplateColumns='repeat(3,1fr)';
-      }
+      // Keep every event card at full panel height. Dense events are moved to
+      // smaller pages before rendering, so no card needs a half-height scroller.
+      issueEl.style.gridTemplateColumns='repeat(3,minmax(0,1fr))';
     } else {
       issueEl.style.gridTemplateColumns=`repeat(${Math.min(issueN,4)},1fr)`;
     }
@@ -4224,33 +4248,49 @@ function _optimizeBoardLayout(){
     trackEl.querySelectorAll('.tv-tile-badge').forEach(el=>el.style.fontSize=badgeFs+'px');
     trackEl.querySelectorAll('.tv-tile-logo,.tv-tile-logo-fb').forEach(el=>{el.style.width=logoSz+'px';el.style.height=logoSz+'px';});
   }
-  // Adaptively scale issue body text to fit, then fall back to scroll for overflow
+  // Adaptively fit complete event copy. Long events are pre-packed onto wider
+  // pages; this final pass only tightens type and spacing, never scrolls it.
   requestAnimationFrame(()=>{
     if(!issueEl) return;
-    issueEl.querySelectorAll('.tv-issue-body').forEach(el=>{
+    issueEl.querySelectorAll('.tv-issue-tile').forEach(tile=>{
+      tile.classList.remove('tv-issue-tight');
+      const el=tile.querySelector('.tv-issue-body');
+      if(!el) return;
       const inner=el.querySelector('.tv-issue-body-inner');
       if(!inner) return;
+      const title=tile.querySelector('.tv-issue-title');
       inner.classList.remove('tv-scrolling');
-      inner.style.removeProperty('--tv-scroll-dist');
-      inner.style.removeProperty('--tv-scroll-dur');
-      // Reset any previously applied font size override
       el.style.removeProperty('font-size');
-      // Adaptively shrink font size until content fits or minimum is reached
-      // Kiosk copy should remain readable at distance; scroll long content
-      // instead of shrinking it into desktop-sized text.
-      const minFs=14;
+      el.style.removeProperty('line-height');
+      title?.style.removeProperty('font-size');
+      title?.style.removeProperty('line-height');
+      const minFs=window.innerHeight<800?10:12;
       let fs=parseFloat(getComputedStyle(el).fontSize);
-      while(inner.scrollHeight>el.clientHeight+2&&fs>minFs){
+      const startFs=fs;
+      while(inner.scrollHeight>el.clientHeight+1&&fs>minFs){
         fs=Math.max(minFs,fs-0.5);
         el.style.fontSize=fs+'px';
+        const progress=startFs===minFs?1:(startFs-fs)/(startFs-minFs);
+        el.style.lineHeight=String(1.5-(0.18*Math.min(1,progress)));
       }
-      // If content still overflows after scaling, add slow-scroll animation
-      const dist=inner.scrollHeight-el.clientHeight;
-      if(dist>8){
-        inner.style.setProperty('--tv-scroll-dist',`-${dist}px`);
-        const dur=Math.max(35,Math.min(120,Math.round(dist/3)));
-        inner.style.setProperty('--tv-scroll-dur',`${dur}s`);
-        inner.classList.add('tv-scrolling');
+      // Reclaim decorative spacing for exceptionally dense structured events.
+      if(inner.scrollHeight>el.clientHeight+1){
+        tile.classList.add('tv-issue-tight');
+      }
+      // A multi-line title also yields space before sacrificing body copy.
+      if(title&&inner.scrollHeight>el.clientHeight+1){
+        let titleFs=parseFloat(getComputedStyle(title).fontSize);
+        while(inner.scrollHeight>el.clientHeight+1&&titleFs>13){
+          titleFs=Math.max(13,titleFs-0.5);
+          title.style.fontSize=titleFs+'px';
+          title.style.lineHeight='1.25';
+        }
+      }
+      // Final lossless fit for unusually verbose provider notices.
+      while(inner.scrollHeight>el.clientHeight+1&&fs>10){
+        fs=Math.max(10,fs-0.5);
+        el.style.fontSize=fs+'px';
+        el.style.lineHeight='1.25';
       }
     });
   });
@@ -4355,10 +4395,12 @@ function _explodeIssueTiles(issueSvcs){
 }
 
 function _cardWeight(svc){
-  const textLen=(svc.title||'').length+(svc.body||'').length;
+  const eventText=(svc.title||'')+(svc.body||'');
+  const forcedLines=((svc.title||'').match(/\n/g)||[]).length+((svc.body||'').match(/\n/g)||[]).length;
+  const textLen=eventText.length+(forcedLines*36);
   let w=1;
-  if(textLen>300) w=3;
-  else if(textLen>100) w=2;
+  if(textLen>220) w=3;
+  else if(textLen>90) w=2;
   if(svc.details?.type==='cloudflare'||svc.details?.type==='quad9'){
     const items=(svc.details.dataCenters?.length||0)+(svc.details.maintenance?.length||0);
     if(items>6) w=Math.max(w,3);
@@ -4440,7 +4482,7 @@ function _buildIssueTilesHTML(svcs){
       if(tileBody) bodyInnerHtml=esc(tileBody);
     }
     const bodyEl=bodyInnerHtml
-      ?`<div class="tv-issue-body"><span class="tv-issue-body-inner">${bodyInnerHtml}</span></div>`:'';
+      ?`<div class="tv-issue-body"><div class="tv-issue-body-inner">${bodyInnerHtml}</div></div>`:'';
     return `<div class="tv-issue-tile ${CC[svc.ind]||''}" data-url="${esc(svc.url||'')}" data-weight="${_cardWeight(svc)}">
       <div class="tv-issue-tile-top">
         ${logoEl}
@@ -4485,16 +4527,32 @@ function _scheduleNextIssuePage(pages){
   },delay);
 }
 
-// Build pages avoiding orphaned single-card last pages.
-// e.g. 4 tiles → [2,2]; 7 tiles → [3,2,2] instead of [3,3,1]
+// Pack pages by copy density so long events receive enough width to show their
+// complete text. Shorter landscape screens use at most two light cards per page.
 function _buildIssuePages(svcs){
   if(!svcs.length) return [];
   const pages=[];
-  let remaining=svcs.slice();
-  while(remaining.length>0){
-    const pagesLeft=Math.ceil(remaining.length/ISSUE_PAGE_SIZE);
-    const pageSize=Math.ceil(remaining.length/pagesLeft);
-    pages.push(remaining.splice(0,pageSize));
+  const capacity=window.innerHeight<900?2:3;
+  let page=[];
+  let used=0;
+  const flush=()=>{
+    if(page.length) pages.push(page);
+    page=[];
+    used=0;
+  };
+  for(const svc of svcs){
+    const cost=Math.min(capacity,_cardWeight(svc));
+    if(page.length&&(page.length>=ISSUE_PAGE_SIZE||used+cost>capacity)) flush();
+    page.push(svc);
+    used+=cost;
+    if(used>=capacity) flush();
+  }
+  flush();
+  // Avoid a final single light card when the previous page can split evenly.
+  const last=pages[pages.length-1];
+  if(pages.length>1&&last.length===1&&_cardWeight(last[0])===1){
+    const prev=pages[pages.length-2];
+    if(prev.length===3&&prev.every(s=>_cardWeight(s)===1)) last.unshift(prev.pop());
   }
   return pages;
 }
@@ -4571,7 +4629,8 @@ function renderBoardView(results){
   }).join('');
   // Save any active alert cards so they survive the innerHTML replacement
   const _savedAlertCards=[...board.querySelectorAll('.tv-board-alert-card')];
-  board.className='tv-board'+(_boardMinimal?' tv-board-minimal':'');
+  const hasDenseEvents=explodedIssues.some(svc=>_cardWeight(svc)>=3);
+  board.className='tv-board'+(_boardMinimal?' tv-board-minimal':'')+(hasDenseEvents?' tv-board-focus-events':'');
   board.innerHTML=`
     <div class="tv-hdr">
       <div class="tv-hdr-weather" id="tv-wx-bar" style="display:none"></div>
