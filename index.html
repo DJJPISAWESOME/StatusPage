@@ -1775,6 +1775,90 @@
       .tv-board .tv-net-bar { font-size:21px; }
       .tv-board .tv-updated { font-size:17px; }
     }
+    /* Projector presentation: flat surfaces, generous type, no interactive chrome. */
+    .board-page .tv-board {
+      --board-text:#f8fafc; --board-sub:#e2e8f0; --board-muted:#bbc9d9;
+      --board-line:#39495d; --board-panel:#142235;
+      --board-panel-strong:#142235;
+      background:#091321; padding:2vh 2vw; gap:1.7vh;
+      position:fixed; height:100dvh; min-height:0; max-height:100dvh; overflow:hidden;
+      cursor:none; pointer-events:none;
+    }
+    html:has(body.board-page), body.board-page {height:100%; overflow:hidden;}
+    .tv-board::before, .tv-board::after {display:none;}
+    .tv-board .tv-hdr {
+      display:grid; grid-template-columns:minmax(0,1fr) max-content;
+      grid-template-areas:none; min-height:0 !important; padding:0 0 1.5vh;
+      border:0; border-bottom:2px solid #39495d; border-radius:0;
+      background:none; box-shadow:none; backdrop-filter:none;
+    }
+    .tv-board .tv-hdr-weather {grid-area:auto; padding:0; height:auto;}
+    .tv-board .tv-hdr-weather .tv-wx-temp-big {font-size:clamp(36px,4vw,150px);}
+    .tv-board .tv-hdr-weather .tv-wx-cond {font-size:clamp(20px,1.6vw,64px);}
+    .tv-board .tv-hdr-weather .tv-wx-loc {font-size:clamp(16px,1.15vw,46px);color:#bbc9d9;}
+    .tv-board .tv-wx-forecast, .tv-board .tv-wx-divider,
+    .tv-board .tv-hdr-media, .tv-board .tv-ctx-audio,
+    .tv-board .tv-test-btn, .tv-board .tv-exit-btn {display:none !important;}
+    .tv-board .tv-clock-block {grid-area:auto;grid-column:2; width:auto; padding:0; align-items:flex-end;}
+    .tv-board .tv-hdr:has(.tv-hdr-weather[style*="none"])::before {content:'Service status';font-size:clamp(24px,2.5vw,96px);font-weight:700;}
+    .tv-board .tv-clock {font-size:clamp(38px,4.2vw,164px);line-height:1;letter-spacing:-.025em;white-space:nowrap;}
+    .tv-board .tv-date {font-size:clamp(16px,1.2vw,48px);color:#bbc9d9; margin-top:.6vh;}
+    .tv-board .tv-board-health {font-size:clamp(16px,1.2vw,48px);padding:0;margin-top:.7vh;border:0;background:none;}
+    .tv-board .tv-issues-section {min-height:0;padding:0;border:0;border-radius:0;background:none;box-shadow:none;overflow:hidden;}
+    .tv-board .tv-section-hdr-row {flex-direction:row;align-items:center;margin-bottom:1.2vh;}
+    .tv-board .tv-section-hdr {font-size:clamp(16px,1.2vw,48px);letter-spacing:.055em;}
+    .tv-board .tv-impact-summary {display:none;}
+    .tv-board .tv-issue-tiles {display:grid;min-height:0;overflow:hidden;}
+    .tv-board .tv-issue-tile, .tv-board .tv-issue-tile:hover {
+      min-height:0; padding:1.5vw; gap:1.3vh; border:1px solid #405269;
+      border-top:6px solid #94a3b8; border-radius:10px;
+      background:#142235;box-shadow:none;transform:none;filter:none;
+    }
+    .tv-board .tv-issue-tile::before {display:none;}
+    .tv-board .tv-issue-tile.cb {border-top-color:#ff7c87;}
+    .tv-board .tv-issue-tile:is(.cb,.cw,.cm,.cr) {background:#142235;box-shadow:none;}
+    .tv-board .tv-issue-tile.cw {border-top-color:#ffd166;}
+    .tv-board .tv-issue-tile.cm {border-top-color:#8cbfff;}
+    .tv-board .tv-issue-tile.cr {border-top-color:#6ae2d1;}
+    .tv-board .tv-issue-tile-top {display:grid;grid-template-columns:auto minmax(0,1fr);gap:.45vw .65vw;}
+    .tv-board .tv-issue-tile-top .tv-issue-badge {grid-column:2;justify-self:start;}
+    .tv-board .tv-issue-logo, .tv-board .tv-issue-logo-fb {width:2.4vw;height:2.4vw;min-width:26px;min-height:26px;border-radius:6px;box-shadow:none;}
+    .tv-board .tv-issue-name {display:block;font-size:clamp(22px,1.7vw,68px);line-height:1.15;overflow:visible;-webkit-line-clamp:unset;letter-spacing:-.015em;}
+    .tv-board .tv-issue-badge {font-size:clamp(14px,1vw,40px);letter-spacing:.035em;border:0;padding:.4em .55em;border-radius:4px;background:#24364d;}
+    .tv-board .tv-issue-badge.bad {color:#ff9aa3;}
+    .tv-board .tv-issue-badge.warn {color:#ffd166;}
+    .tv-board .tv-issue-badge.maint {color:#9ccaff;}
+    .tv-board .tv-issue-title {font-size:clamp(22px,1.85vw,74px);line-height:1.22;font-weight:700;overflow-wrap:anywhere;}
+    .tv-board .tv-issue-body {font-size:clamp(20px,1.35vw,54px);line-height:1.35;color:#e2e8f0;min-height:0;overflow:hidden;overflow-wrap:anywhere;}
+    .tv-board .tv-issue-body-inner {animation:none !important;transform:none !important;}
+    .tv-board .tv-issue-section-hdr {font-size:.8em;color:#bbc9d9;}
+    .tv-board .tv-issue-dc-item, .tv-board .tv-issue-route, .tv-board .tv-issue-effect {font-size:.85em;padding:.15em .4em;border-radius:4px;}
+    .tv-board .tv-reading-part {flex-shrink:0;font-size:clamp(15px,1.05vw,42px);color:#bbc9d9;line-height:1.2;min-height:1.2em;}
+    .tv-board .tv-page-dots {padding-top:1vh;pointer-events:none;}
+    .tv-board .tv-page-dot {height:.45vh;width:1vw;border-radius:2px;}
+    .tv-board .tv-page-dot.active {width:3vw;box-shadow:none;}
+    .tv-board .tv-ticker-wrap {padding:0;border:0;border-top:2px solid #39495d;border-radius:0;background:none;box-shadow:none;padding-top:1vh !important;padding-bottom:0 !important;}
+    .tv-board .tv-ticker-hdr {font-size:clamp(15px,1.1vw,44px);letter-spacing:.06em;color:#bbc9d9;}
+    .tv-board .tv-tiles {height:8vh !important;min-height:58px;mask-image:none;-webkit-mask-image:none;}
+    .tv-board .tv-tiles-track {width:100%;height:100%;display:flex;gap:1vw;animation:none !important;transform:none !important;}
+    .tv-board .tv-tile {flex:1;min-width:0;padding:.5vh .8vw;border:0;border-radius:5px;background:#142235;box-shadow:none;}
+    .tv-board .tv-tile-name {font-size:clamp(17px,1.25vw,50px) !important;}
+    .tv-board .tv-tile-badge {font-size:clamp(14px,1vw,40px) !important;}
+    .tv-board .tv-tile-badge.ok {color:#83e7ad;}
+    .tv-board .tv-tile-badge.unknown {color:#bbc9d9;}
+    .tv-board .tv-board-footer {min-height:0;flex-wrap:nowrap;padding:0;border:0;}
+    .tv-board .tv-net-bar {font-size:clamp(14px,1vw,40px);color:#bbc9d9;flex-basis:auto;}
+    .tv-board .tv-net-bar .tv-net-item:nth-of-type(n+4) {display:none;}
+    .tv-board .tv-net-sep, .tv-board .tv-net-ts {display:none;}
+    .tv-board .tv-footer-right {width:auto;margin-left:auto;}
+    .tv-board .tv-updated {font-size:clamp(14px,1vw,40px);color:#bbc9d9;white-space:nowrap;}
+    .tv-board:not(:has(.tv-issues-section)) .tv-minimal-status {border:0;background:#142235;box-shadow:none;}
+    .tv-board:not(:has(.tv-issues-section)) .tv-minimal-msg {font-size:clamp(48px,5.5vw,210px);color:#83e7ad;}
+    @media (orientation:portrait) {
+      .tv-board .tv-issue-tiles {grid-template-columns:1fr !important;grid-auto-rows:minmax(0,1fr);}
+      .tv-board .tv-issue-tile {grid-column:auto !important;grid-row:auto !important;}
+      .tv-board .tv-hdr-weather {overflow:hidden;}
+    }
   </style>
 </head>
 <body>
@@ -4198,104 +4282,94 @@ function renderServices(results){
 }
 
 let _boardResizeObs=null;
+// Each long notice is divided at a word boundary into stationary reading panels.
+// Retain the original DOM structure (including provider lists) and every character.
+let _boardReadingTimer=null;
+let _boardPageStartedAt=Date.now();
+const BOARD_READING_SECS=25;
+function _paginateBoardBody(body){
+  const inner=body.querySelector('.tv-issue-body-inner');
+  if(!inner) return;
+  const original=inner._boardOriginalHTML??inner.innerHTML;
+  inner._boardOriginalHTML=original;
+  delete inner.dataset.part;
+  inner.innerHTML=original;
+  const tile=body.closest('.tv-issue-tile');
+  tile.querySelector('.tv-reading-part')?.remove();
+  const label=document.createElement('div');
+  label.className='tv-reading-part';
+  label.hidden=true;
+  tile.appendChild(label);
+  if(inner.scrollHeight<=body.clientHeight+1){inner._boardParts=[original];return;}
+  label.hidden=false;
+  const source=inner.cloneNode(true);
+  const walker=document.createTreeWalker(source,NodeFilter.SHOW_TEXT);
+  const nodes=[];let node,total=0;
+  while(node=walker.nextNode()){nodes.push({node,start:total});total+=node.length;}
+  const text=source.textContent;
+  const point=offset=>{const entry=nodes.find(n=>offset<=n.start+n.node.length)||nodes[nodes.length-1];return [entry.node,offset-entry.start];};
+  const fragment=(from,to)=>{
+    const range=document.createRange();range.setStart(...point(from));range.setEnd(...point(to));
+    const wrap=document.createElement('div');wrap.appendChild(range.cloneContents());return wrap.innerHTML;
+  };
+  const parts=[];let from=0;
+  while(from<total){
+    let low=from+1,high=total,best=from;
+    while(low<=high){
+      const mid=Math.floor((low+high)/2);inner.innerHTML=fragment(from,mid);
+      if(inner.scrollHeight<=body.clientHeight+1){best=mid;low=mid+1;}else high=mid-1;
+    }
+    // Keep whole words together where there is a usable boundary.
+    if(best<total){
+      const boundary=text.lastIndexOf(' ',best-1);if(boundary>from) best=boundary+1;
+      const entry=nodes.find(n=>best>n.start&&best<n.start+n.node.length);
+      const chip=entry?.node.parentElement.closest('.tv-issue-dc-item,.tv-issue-route,.tv-issue-effect');
+      if(chip){const first=nodes.find(n=>chip.contains(n.node));if(first.start>from)best=first.start;}
+      const sentence=Math.max(text.lastIndexOf('. ',best-1)+2,text.lastIndexOf('\n\n',best-1)+2);
+      if(sentence>from+(best-from)*.5&&sentence<=best)best=sentence;
+    }
+    if(best<=from) best=from+1;
+    parts.push(fragment(from,best));from=best;
+  }
+  inner._boardParts=parts;
+  inner.innerHTML=parts[0];
+}
+function _advanceBoardReading(){
+  const phase=Math.floor((Date.now()-_boardPageStartedAt)/(BOARD_READING_SECS*1000));
+  document.querySelectorAll('#tv-board .tv-issue-body-inner').forEach(inner=>{
+    const parts=inner._boardParts||[];if(!parts.length)return;
+    const i=phase%parts.length;
+    if(inner.dataset.part!==String(i)){inner.innerHTML=parts[i];inner.dataset.part=String(i);}
+    const label=inner.closest('.tv-issue-tile').querySelector('.tv-reading-part');
+    if(label)label.textContent=parts.length>1?'Details '+(i+1)+' of '+parts.length+' · advances automatically':'';
+  });
+  const track=document.getElementById('tv-tiles-track');
+  if(track){
+    const tiles=[...track.children],count=tiles.length/2;
+    const perPage=window.innerWidth<1200?3:5;
+    const pageCount=Math.max(1,Math.ceil(count/perPage));
+    const page=phase%pageCount,groupSize=Math.ceil(count/pageCount);
+    tiles.forEach((tile,i)=>tile.style.display=i>=page*groupSize&&i<Math.min(count,(page+1)*groupSize)?'':'none');
+  }
+}
 function _optimizeBoardLayout(){
-  const board=document.getElementById('tv-board');
-  if(!board) return;
-  const tilesEl=document.getElementById('tv-tiles');
-  if(!tilesEl) return;
   const issueEl=document.getElementById('tv-issue-tiles');
-  const issueN=issueEl?issueEl.querySelectorAll('.tv-issue-tile').length:0;
-  const cs=getComputedStyle(board);
-  const padH=parseFloat(cs.paddingLeft)+parseFloat(cs.paddingRight);
-  const availW=board.clientWidth-padH;
-  const gap=Math.max(8,Math.round(availW*0.007));
-  // Layout issue tiles with content-proportional column widths
-  if(issueEl&&issueN>0){
-    const tiles=[...issueEl.querySelectorAll('.tv-issue-tile')];
-    // Reset any explicit grid placement from previous render
+  if(issueEl){
+    const tiles=[...issueEl.children];
+    const weights=tiles.map(t=>Number(t.dataset.weight)||1);
     tiles.forEach(t=>{t.style.gridColumn='';t.style.gridRow='';});
-    if(issueN===1){
-      issueEl.style.gridTemplateColumns='1fr';
-    } else if(issueN===2){
-      const w=tiles.map(t=>parseInt(t.dataset.weight)||1);
-      if(w[0]>w[1]*1.5) issueEl.style.gridTemplateColumns='2fr 1fr';
-      else if(w[1]>w[0]*1.5) issueEl.style.gridTemplateColumns='1fr 2fr';
-      else issueEl.style.gridTemplateColumns='1fr 1fr';
-    } else if(issueN===3){
-      // Keep every event card at full panel height. Dense events are moved to
-      // smaller pages before rendering, so no card needs a half-height scroller.
-      issueEl.style.gridTemplateColumns='repeat(3,minmax(0,1fr))';
-    } else {
-      issueEl.style.gridTemplateColumns=`repeat(${Math.min(issueN,4)},1fr)`;
-    }
-    issueEl.style.gap=gap+'px';
+    // Full-height columns preserve the familiar two/three-event pages.
+    // Give the densest notice more width instead of reducing its type size.
+    issueEl.style.gridTemplateColumns=weights.map(w=>Math.max(1,Math.min(tiles.length===2?1.5:1.15,w/1.8))+'fr').join(' ');
+    issueEl.style.gap='1vw';
   }
-  // Ticker mode for normal service tiles
-  const trackEl=document.getElementById('tv-tiles-track');
-  if(trackEl){
-    // Scale ticker speed to content width
-    const halfW=trackEl.scrollWidth/2;
-    if(halfW>0){
-      const dur=Math.max(35,Math.round(halfW/55));
-      trackEl.style.animationDuration=dur+'s';
-    }
-    // Font/logo sizes for ticker tiles
-    const tileH=tilesEl.clientHeight||80;
-    const nameFs=Math.max(13,Math.min(18,Math.floor(tileH/5.5)));
-    const badgeFs=Math.max(11,Math.min(14,Math.floor(tileH/7)));
-    const logoSz=Math.max(18,Math.min(28,Math.floor(tileH*0.3)));
-    trackEl.querySelectorAll('.tv-tile-name').forEach(el=>el.style.fontSize=nameFs+'px');
-    trackEl.querySelectorAll('.tv-tile-badge').forEach(el=>el.style.fontSize=badgeFs+'px');
-    trackEl.querySelectorAll('.tv-tile-logo,.tv-tile-logo-fb').forEach(el=>{el.style.width=logoSz+'px';el.style.height=logoSz+'px';});
-  }
-  // Adaptively fit complete event copy. Long events are pre-packed onto wider
-  // pages; this final pass only tightens type and spacing, never scrolls it.
   requestAnimationFrame(()=>{
-    if(!issueEl) return;
-    issueEl.querySelectorAll('.tv-issue-tile').forEach(tile=>{
-      tile.classList.remove('tv-issue-tight');
-      const el=tile.querySelector('.tv-issue-body');
-      if(!el) return;
-      const inner=el.querySelector('.tv-issue-body-inner');
-      if(!inner) return;
-      const title=tile.querySelector('.tv-issue-title');
-      inner.classList.remove('tv-scrolling');
-      el.style.removeProperty('font-size');
-      el.style.removeProperty('line-height');
-      title?.style.removeProperty('font-size');
-      title?.style.removeProperty('line-height');
-      const minFs=window.innerHeight<800?10:12;
-      let fs=parseFloat(getComputedStyle(el).fontSize);
-      const startFs=fs;
-      while(inner.scrollHeight>el.clientHeight+1&&fs>minFs){
-        fs=Math.max(minFs,fs-0.5);
-        el.style.fontSize=fs+'px';
-        const progress=startFs===minFs?1:(startFs-fs)/(startFs-minFs);
-        el.style.lineHeight=String(1.5-(0.18*Math.min(1,progress)));
-      }
-      // Reclaim decorative spacing for exceptionally dense structured events.
-      if(inner.scrollHeight>el.clientHeight+1){
-        tile.classList.add('tv-issue-tight');
-      }
-      // A multi-line title also yields space before sacrificing body copy.
-      if(title&&inner.scrollHeight>el.clientHeight+1){
-        let titleFs=parseFloat(getComputedStyle(title).fontSize);
-        while(inner.scrollHeight>el.clientHeight+1&&titleFs>13){
-          titleFs=Math.max(13,titleFs-0.5);
-          title.style.fontSize=titleFs+'px';
-          title.style.lineHeight='1.25';
-        }
-      }
-      // Final lossless fit for unusually verbose provider notices.
-      while(inner.scrollHeight>el.clientHeight+1&&fs>10){
-        fs=Math.max(10,fs-0.5);
-        el.style.fontSize=fs+'px';
-        el.style.lineHeight='1.25';
-      }
-    });
+    issueEl?.querySelectorAll('.tv-issue-body').forEach(_paginateBoardBody);
+    _advanceBoardReading();
+    clearInterval(_boardReadingTimer);
+    _boardReadingTimer=setInterval(_advanceBoardReading,1000);
   });
 }
-
 async function _fetchBoardNet(){
   if(_boardNetFetching) return;
   _boardNetFetching=true;
@@ -4496,6 +4570,7 @@ function _buildIssueTilesHTML(svcs){
 }
 
 function _showIssuePage(pages, pageIdx){
+  _boardPageStartedAt=Date.now();
   const tilesEl=document.getElementById('tv-issue-tiles');
   if(!tilesEl) return;
   const page=pages[pageIdx]||[];
@@ -4512,18 +4587,23 @@ function _showIssuePage(pages, pageIdx){
   if(pgNumEl) pgNumEl.textContent=pageIdx+1;
 }
 
+let _boardPageDeadline=0;
+let _boardPageSignature='';
 function _scheduleNextIssuePage(pages){
   clearTimeout(_issuePageTimer);
   _issuePageTimer=null;
   if(pages.length<=1) return;
   // Sync period: honour the configured banner speed but never shorter than ISSUE_PAGE_SECS
+  const parts=Math.max(1,...[...document.querySelectorAll('#tv-issue-tiles .tv-issue-body-inner')].map(el=>el._boardParts?.length||1));
   const syncSecs=Math.max(_boardBannerSecs,ISSUE_PAGE_SECS);
-  const delay=_msUntilNextClockPage(syncSecs);
+  // Dense pages stay long enough to expose every complete reading panel.
+  _boardPageDeadline=Math.max(_boardPageDeadline,_boardPageStartedAt+Math.max(syncSecs,parts*BOARD_READING_SECS)*1000);
+  const delay=Math.max(0,_boardPageDeadline-Date.now());
   _issuePageTimer=setTimeout(()=>{
-    // Derive page index from wall clock so all displays rotate in unison
-    _issuePage=_clockSyncPage(pages.length,syncSecs);
+    _boardPageDeadline=0;
+    _issuePage=(_issuePage+1)%pages.length;
     _showIssuePage(pages,_issuePage);
-    _scheduleNextIssuePage(pages);
+    setTimeout(()=>_scheduleNextIssuePage(pages),450);
   },delay);
 }
 
@@ -4544,9 +4624,6 @@ function _buildIssuePages(svcs){
 function _initIssuePagination(pages){
   clearTimeout(_issuePageTimer);
   _issuePageTimer=null;
-  // Start on the clock-synced page so all displays open on the same page
-  const syncSecs=Math.max(_boardBannerSecs,ISSUE_PAGE_SECS);
-  _issuePage=_clockSyncPage(pages.length,syncSecs);
   if(pages.length<=1) return;
   _scheduleNextIssuePage(pages);
 }
@@ -4578,9 +4655,10 @@ function renderBoardView(results){
   const rerouteCount=techSvcs.filter(s=>s.ind==='rerouting').length;
   const maintCount=techSvcs.filter(s=>s.ind==='maintenance').length;
   const okCount=techSvcs.filter(s=>s.ind==='none').length;
-  const statusCls=outageCount>0?'bad':issueCount>0?'warn':'ok';
-  const statusMsg=outageCount>0?`${outageCount} Down`:issueCount>0?`${issueCount} Issue${issueCount!==1?'s':''}`:'\u2713 All Systems Operational';
-  const statusColor=outageCount>0?'var(--bad)':issueCount>0?'var(--warn)':'var(--ok)';
+  const unknownCount=techSvcs.filter(s=>s.ind==='unknown').length;
+  const statusCls=outageCount>0?'bad':issueCount>0||unknownCount>0?'warn':'ok';
+  const statusMsg=outageCount>0?`${outageCount} Down`:issueCount>0?`${issueCount} Issue${issueCount!==1?'s':''}`:unknownCount>0?`${unknownCount} Awaiting Status`:'\u2713 All Systems Operational';
+  const statusColor=outageCount>0?'var(--bad)':issueCount>0||unknownCount>0?'var(--warn)':'var(--ok)';
   // Split into services with active issues vs healthy services
   const issueSvcs=sorted.filter(s=>s.ind!=='none'&&s.ind!=='unknown');
   const normalSvcs=sorted.filter(s=>s.ind==='none'||s.ind==='unknown');
@@ -4593,7 +4671,12 @@ function renderBoardView(results){
   const totalIssuePages=issuePages.length;
   // Use clock-sync so all displays open on the same page immediately
   const _initSyncSecs=Math.max(_boardBannerSecs,ISSUE_PAGE_SECS);
-  const _initPage=_clockSyncPage(totalIssuePages,_initSyncSecs);
+  const signature=JSON.stringify(issuePages.map(page=>page.map(s=>[s.name,s.title,s.ind,s.body,s.details])));
+  if(signature!==_boardPageSignature){
+    _boardPageSignature=signature;_boardPageDeadline=0;_boardPageStartedAt=Date.now();
+    _issuePage=_clockSyncPage(totalIssuePages,_initSyncSecs);
+  }
+  const _initPage=Math.min(_issuePage,Math.max(0,totalIssuePages-1));
   const firstPageSvcs=issuePages[_initPage]||[];
   const issueTilesHTML=_buildIssueTilesHTML(firstPageSvcs);
   const issueDotsHTML=totalIssuePages>1
@@ -4671,7 +4754,8 @@ function renderBoardView(results){
   _renderBoardNetBar();
   _renderBoardWeatherBar();
   _optimizeBoardLayout();
-  _initIssuePagination(issuePages);
+  requestAnimationFrame(()=>_initIssuePagination(issuePages));
+  document.fonts.ready.then(_optimizeBoardLayout);
   // Re-optimize on window resize
   if(_boardResizeObs) _boardResizeObs.disconnect();
   let _roDebounce=null;
