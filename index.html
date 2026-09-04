@@ -4527,32 +4527,16 @@ function _scheduleNextIssuePage(pages){
   },delay);
 }
 
-// Pack pages by copy density so long events receive enough width to show their
-// complete text. Shorter landscape screens use at most two light cards per page.
+// Build pages avoiding orphaned single-card last pages.
+// e.g. 4 tiles → [2,2]; 7 tiles → [3,2,2] instead of [3,3,1]
 function _buildIssuePages(svcs){
   if(!svcs.length) return [];
   const pages=[];
-  const capacity=window.innerHeight<900?2:3;
-  let page=[];
-  let used=0;
-  const flush=()=>{
-    if(page.length) pages.push(page);
-    page=[];
-    used=0;
-  };
-  for(const svc of svcs){
-    const cost=Math.min(capacity,_cardWeight(svc));
-    if(page.length&&(page.length>=ISSUE_PAGE_SIZE||used+cost>capacity)) flush();
-    page.push(svc);
-    used+=cost;
-    if(used>=capacity) flush();
-  }
-  flush();
-  // Avoid a final single light card when the previous page can split evenly.
-  const last=pages[pages.length-1];
-  if(pages.length>1&&last.length===1&&_cardWeight(last[0])===1){
-    const prev=pages[pages.length-2];
-    if(prev.length===3&&prev.every(s=>_cardWeight(s)===1)) last.unshift(prev.pop());
+  let remaining=svcs.slice();
+  while(remaining.length>0){
+    const pagesLeft=Math.ceil(remaining.length/ISSUE_PAGE_SIZE);
+    const pageSize=Math.ceil(remaining.length/pagesLeft);
+    pages.push(remaining.splice(0,pageSize));
   }
   return pages;
 }
