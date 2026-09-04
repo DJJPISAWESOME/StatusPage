@@ -18,12 +18,13 @@ export function boardQA(url,source){
   const end=source.indexOf('</script>',bootstrap);
   const setup=`
     document.body.classList.add('board-page');
+    document.documentElement.classList.toggle('light-mode',${JSON.stringify(scenario==='light')});
     document.querySelectorAll('.board-loading').forEach(el=>el.remove());
     _boardModeActive=true;_boardNetTimer=1;_timeGovSyncTimer=1;
     _fetchWeather=()=>{};_fetchNowPlaying=()=>{};_startBoardRadio=()=>{};
+    _nowPlayingInfo={track:'Board radio',artist:'Choose a station below',station:'Radio'};
+    _wxInfo={loc:'Bristol · Warren',period:{temperature:72,temperatureUnit:'F',shortForecast:'Partly Cloudy',isDaytime:true},periods:Array.from({length:5},(_,i)=>({temperature:72-i,shortForecast:'Partly Cloudy',isDaytime:true,startTime:new Date(Date.now()+i*3600000).toISOString()})),alerts:[]};
     renderBoardView(${JSON.stringify(fixtures)});
-    document.getElementById('tv-wx-bar').style.display='flex';
-    document.getElementById('tv-wx-bar').innerHTML='<div class="tv-wx-now"><div class="tv-wx-temp-big">72°</div><div><div class="tv-wx-cond">Partly cloudy</div><div class="tv-wx-loc">Bristol · Warren</div></div></div>';
     document.getElementById('tv-net-bar').textContent='Network connected · 12 ms';
     document.getElementById('board-loading')?.remove();
     requestAnimationFrame(()=>requestAnimationFrame(()=>{

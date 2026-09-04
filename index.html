@@ -1775,89 +1775,109 @@
       .tv-board .tv-net-bar { font-size:21px; }
       .tv-board .tv-updated { font-size:17px; }
     }
-    /* Projector presentation: flat surfaces, generous type, no interactive chrome. */
+    /* Original Board silhouette, refined: luminous surfaces and optional controls.
+       Incident reading remains automatic and never requires a scrollbar. */
+    html:has(body.board-page),body.board-page {height:100%;overflow:hidden;}
     .board-page .tv-board {
-      --board-text:#f8fafc; --board-sub:#e2e8f0; --board-muted:#bbc9d9;
-      --board-line:#39495d; --board-panel:#142235;
-      --board-panel-strong:#142235;
-      background:#091321; padding:2vh 2vw; gap:1.7vh;
-      position:fixed; height:100dvh; min-height:0; max-height:100dvh; overflow:hidden;
-      cursor:none; pointer-events:none;
+      --board-text:#f4f7ff;--board-sub:#c4cee0;--board-muted:#a0afc7;
+      --board-line:rgba(164,187,226,.18);
+      position:fixed;inset:0;height:100dvh;max-height:100dvh;min-height:0;overflow:hidden;
+      padding:1.6vh 1.8vw;gap:1.3vh;
+      background:radial-gradient(ellipse at 12% 0,rgba(77,104,229,.19),transparent 48%),radial-gradient(ellipse at 95% 70%,rgba(31,133,158,.08),transparent 45%),#080e1a;
     }
-    html:has(body.board-page), body.board-page {height:100%; overflow:hidden;}
-    .tv-board::before, .tv-board::after {display:none;}
+    .tv-board::before {opacity:.12;}
+    .tv-board::after {box-shadow:inset 0 0 100px rgba(0,0,0,.13);}
     .tv-board .tv-hdr {
-      display:grid; grid-template-columns:minmax(0,1fr) max-content;
-      grid-template-areas:none; min-height:0 !important; padding:0 0 1.5vh;
-      border:0; border-bottom:2px solid #39495d; border-radius:0;
-      background:none; box-shadow:none; backdrop-filter:none;
+      display:grid;grid-template-areas:none;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr) max-content;
+      min-height:0 !important;padding:1.4vh 1.3vw;border-radius:clamp(18px,1.15vw,44px);gap:1.2vw;
+      background:linear-gradient(120deg,rgba(39,53,82,.87),rgba(15,25,44,.94));
     }
-    .tv-board .tv-hdr-weather {grid-area:auto; padding:0; height:auto;}
-    .tv-board .tv-hdr-weather .tv-wx-temp-big {font-size:clamp(36px,4vw,150px);}
-    .tv-board .tv-hdr-weather .tv-wx-cond {font-size:clamp(20px,1.6vw,64px);}
-    .tv-board .tv-hdr-weather .tv-wx-loc {font-size:clamp(16px,1.15vw,46px);color:#bbc9d9;}
-    .tv-board .tv-wx-forecast, .tv-board .tv-wx-divider,
-    .tv-board .tv-hdr-media, .tv-board .tv-ctx-audio,
-    .tv-board .tv-test-btn, .tv-board .tv-exit-btn {display:none !important;}
-    .tv-board .tv-clock-block {grid-area:auto;grid-column:2; width:auto; padding:0; align-items:flex-end;}
-    .tv-board .tv-hdr:has(.tv-hdr-weather[style*="none"])::before {content:'Service status';font-size:clamp(24px,2.5vw,96px);font-weight:700;}
-    .tv-board .tv-clock {font-size:clamp(38px,4.2vw,164px);line-height:1;letter-spacing:-.025em;white-space:nowrap;}
-    .tv-board .tv-date {font-size:clamp(16px,1.2vw,48px);color:#bbc9d9; margin-top:.6vh;}
-    .tv-board .tv-board-health {font-size:clamp(16px,1.2vw,48px);padding:0;margin-top:.7vh;border:0;background:none;}
-    .tv-board .tv-issues-section {min-height:0;padding:0;border:0;border-radius:0;background:none;box-shadow:none;overflow:hidden;}
+    .tv-board .tv-hdr-weather {grid-area:auto;padding:0;}
+    .tv-board .tv-hdr-weather .tv-wx-temp-big {font-size:clamp(34px,3.1vw,119px);}
+    .tv-board .tv-hdr-weather .tv-wx-icon-big {font-size:clamp(34px,3.1vw,119px);}
+    .tv-board .tv-hdr-weather .tv-wx-cond {font-size:clamp(16px,1.3vw,50px);}
+    .tv-board .tv-hdr-weather .tv-wx-loc {font-size:clamp(14px,.95vw,36px);}
+    .tv-board .tv-hdr-weather .tv-wx-hr-time {font-size:clamp(12px,.8vw,31px);}
+    .tv-board .tv-hdr-weather .tv-wx-hr-icon {font-size:clamp(22px,1.6vw,61px);}
+    .tv-board .tv-hdr-weather .tv-wx-hr-temp {font-size:clamp(16px,1.1vw,42px);}
+    .tv-board .tv-hdr-weather .tv-wx-hour {min-width:clamp(36px,2.6vw,100px);}
+    .tv-board .tv-hdr-media {grid-area:auto;padding:0 1.2vw;gap:1vh;min-height:0;flex-direction:column;}
+    .tv-board .tv-ctx-audio {padding-left:0;gap:9px;width:100%;flex-wrap:nowrap;}
+    .tv-board .tv-station-select {flex:1;min-width:70px;max-width:none;min-height:34px;font-size:clamp(14px,.85vw,32px);border-radius:9px;background:#15223a;}
+    .tv-board .tv-radio-playbtn {width:clamp(36px,2.2vw,84px);height:clamp(36px,2.2vw,84px);flex-shrink:0;border-radius:50%;}
+    .tv-board .tv-radio-mute-btn {min-width:clamp(28px,1.7vw,65px);min-height:34px;}
+    .tv-board :is(.tv-radio-playbtn,.tv-radio-mute-btn) svg {width:clamp(16px,1vw,38px);height:clamp(16px,1vw,38px);}
+    .tv-board .tv-radio-vol-slider {min-width:44px;width:4vw;}
+    .tv-board .tv-now-playing-track {font-size:clamp(19px,1.4vw,54px);}
+    .tv-board .tv-now-playing-meta {font-size:clamp(14px,1vw,38px);}
+    .tv-board .tv-now-playing-label {font-size:clamp(12px,.75vw,28px);color:#aebcda;}
+    .tv-board .tv-np-cover,.tv-board .tv-np-cover-fallback {width:3.3vw;height:3.3vw;min-width:38px;min-height:38px;border-radius:11px;}
+    .tv-board .tv-clock-block {grid-area:auto;grid-column:3;width:auto;padding:0;}
+    .tv-board .tv-clock {font-size:clamp(35px,3.35vw,129px);white-space:nowrap;letter-spacing:-.035em;line-height:1;}
+    .tv-board .tv-date {font-size:clamp(14px,.95vw,36px);}
+    .tv-board .tv-board-health {font-size:clamp(14px,.95vw,36px);padding:.4em .7em;}
+    .tv-board .tv-issues-section {min-height:0;padding:1.2vh 1vw;border-radius:20px;background:rgba(13,22,39,.6);overflow:hidden;}
     .tv-board .tv-section-hdr-row {flex-direction:row;align-items:center;margin-bottom:1.2vh;}
-    .tv-board .tv-section-hdr {font-size:clamp(16px,1.2vw,48px);letter-spacing:.055em;}
-    .tv-board .tv-impact-summary {display:none;}
+    .tv-board .tv-section-hdr {font-size:clamp(15px,1.05vw,40px);letter-spacing:.07em;}
+    .tv-board .tv-impact-pill {font-size:clamp(12px,.8vw,30px);}
     .tv-board .tv-issue-tiles {display:grid;min-height:0;overflow:hidden;}
-    .tv-board .tv-issue-tile, .tv-board .tv-issue-tile:hover {
-      min-height:0; padding:1.5vw; gap:1.3vh; border:1px solid #405269;
-      border-top:6px solid #94a3b8; border-radius:10px;
-      background:#142235;box-shadow:none;transform:none;filter:none;
-    }
-    .tv-board .tv-issue-tile::before {display:none;}
-    .tv-board .tv-issue-tile.cb {border-top-color:#ff7c87;}
-    .tv-board .tv-issue-tile:is(.cb,.cw,.cm,.cr) {background:#142235;box-shadow:none;}
-    .tv-board .tv-issue-tile.cw {border-top-color:#ffd166;}
-    .tv-board .tv-issue-tile.cm {border-top-color:#8cbfff;}
-    .tv-board .tv-issue-tile.cr {border-top-color:#6ae2d1;}
-    .tv-board .tv-issue-tile-top {display:grid;grid-template-columns:auto minmax(0,1fr);gap:.45vw .65vw;}
+    .tv-board .tv-issue-tile {min-height:0;padding:1.15vw;gap:1vh;border-radius:clamp(14px,1vw,38px);animation:board-card-reveal .5s cubic-bezier(.2,.75,.3,1) both;}
+    .tv-board .tv-issue-tile:nth-child(2) {animation-delay:60ms;}
+    .tv-board .tv-issue-tile:nth-child(3) {animation-delay:120ms;}
+    .tv-board .tv-issue-tile:hover {transform:none;border-color:rgba(170,195,239,.4);}
+    .tv-board .tv-issue-tile-top {display:grid;grid-template-columns:auto minmax(0,1fr);gap:.4vw .65vw;}
     .tv-board .tv-issue-tile-top .tv-issue-badge {grid-column:2;justify-self:start;}
-    .tv-board .tv-issue-logo, .tv-board .tv-issue-logo-fb {width:2.4vw;height:2.4vw;min-width:26px;min-height:26px;border-radius:6px;box-shadow:none;}
-    .tv-board .tv-issue-name {display:block;font-size:clamp(22px,1.7vw,68px);line-height:1.15;overflow:visible;-webkit-line-clamp:unset;letter-spacing:-.015em;}
-    .tv-board .tv-issue-badge {font-size:clamp(14px,1vw,40px);letter-spacing:.035em;border:0;padding:.4em .55em;border-radius:4px;background:#24364d;}
-    .tv-board .tv-issue-badge.bad {color:#ff9aa3;}
-    .tv-board .tv-issue-badge.warn {color:#ffd166;}
-    .tv-board .tv-issue-badge.maint {color:#9ccaff;}
-    .tv-board .tv-issue-title {font-size:clamp(22px,1.85vw,74px);line-height:1.22;font-weight:700;overflow-wrap:anywhere;}
-    .tv-board .tv-issue-body {font-size:clamp(20px,1.35vw,54px);line-height:1.35;color:#e2e8f0;min-height:0;overflow:hidden;overflow-wrap:anywhere;}
-    .tv-board .tv-issue-body-inner {animation:none !important;transform:none !important;}
-    .tv-board .tv-issue-section-hdr {font-size:.8em;color:#bbc9d9;}
-    .tv-board .tv-issue-dc-item, .tv-board .tv-issue-route, .tv-board .tv-issue-effect {font-size:.85em;padding:.15em .4em;border-radius:4px;}
-    .tv-board .tv-reading-part {flex-shrink:0;font-size:clamp(15px,1.05vw,42px);color:#bbc9d9;line-height:1.2;min-height:1.2em;}
-    .tv-board .tv-page-dots {padding-top:1vh;pointer-events:none;}
-    .tv-board .tv-page-dot {height:.45vh;width:1vw;border-radius:2px;}
-    .tv-board .tv-page-dot.active {width:3vw;box-shadow:none;}
-    .tv-board .tv-ticker-wrap {padding:0;border:0;border-top:2px solid #39495d;border-radius:0;background:none;box-shadow:none;padding-top:1vh !important;padding-bottom:0 !important;}
-    .tv-board .tv-ticker-hdr {font-size:clamp(15px,1.1vw,44px);letter-spacing:.06em;color:#bbc9d9;}
-    .tv-board .tv-tiles {height:8vh !important;min-height:58px;mask-image:none;-webkit-mask-image:none;}
+    .tv-board .tv-issue-name {font-size:clamp(22px,1.7vw,65px);line-height:1.15;display:block;overflow:visible;-webkit-line-clamp:unset;overflow-wrap:anywhere;}
+    .tv-board .tv-issue-logo,.tv-board .tv-issue-logo-fb {width:2.4vw;height:2.4vw;min-width:28px;min-height:28px;border-radius:9px;}
+    .tv-board .tv-issue-badge {font-size:clamp(13px,.85vw,32px);letter-spacing:.055em;}
+    .tv-board .tv-issue-title {font-size:clamp(21px,1.65vw,63px);line-height:1.24;font-weight:650;}
+    .tv-board .tv-issue-body {font-size:clamp(20px,1.35vw,54px);line-height:1.35;color:#cbd5e7;overflow:hidden;min-height:0;}
+    .tv-board .tv-issue-body-inner {animation:none;transform:none;}
+    .tv-board .tv-issue-section-hdr {font-size:.8em;color:#b2bfd7;}
+    .tv-board .tv-issue-dc-item,.tv-board .tv-issue-route,.tv-board .tv-issue-effect {font-size:.85em;padding:.16em .5em;}
+    .tv-board .tv-reading-part {flex-shrink:0;min-height:2.4em;font-size:clamp(14px,.95vw,36px);color:#afbfdb;line-height:1.2;}
+    .tv-board .tv-page-dots {padding-top:1vh;}
+    .tv-board .tv-page-dot {cursor:pointer;min-width:12px;height:8px;transition:width .3s,background .3s;}
+    .tv-board .tv-ticker-wrap {padding:.8vh 1vw !important;border-radius:16px;}
+    .tv-board .tv-ticker-hdr {font-size:clamp(14px,.9vw,34px);margin-bottom:.5vh;}
+    .tv-board .tv-tiles {height:7vh !important;min-height:52px;mask-image:none;-webkit-mask-image:none;}
     .tv-board .tv-tiles-track {width:100%;height:100%;display:flex;gap:1vw;animation:none !important;transform:none !important;}
-    .tv-board .tv-tile {flex:1;min-width:0;padding:.5vh .8vw;border:0;border-radius:5px;background:#142235;box-shadow:none;}
-    .tv-board .tv-tile-name {font-size:clamp(17px,1.25vw,50px) !important;}
-    .tv-board .tv-tile-badge {font-size:clamp(14px,1vw,40px) !important;}
-    .tv-board .tv-tile-badge.ok {color:#83e7ad;}
-    .tv-board .tv-tile-badge.unknown {color:#bbc9d9;}
-    .tv-board .tv-board-footer {min-height:0;flex-wrap:nowrap;padding:0;border:0;}
-    .tv-board .tv-net-bar {font-size:clamp(14px,1vw,40px);color:#bbc9d9;flex-basis:auto;}
-    .tv-board .tv-net-bar .tv-net-item:nth-of-type(n+4) {display:none;}
-    .tv-board .tv-net-sep, .tv-board .tv-net-ts {display:none;}
+    .tv-board .tv-tile {flex:1;min-width:0;padding:.5vh .8vw;border-radius:10px;animation:board-card-reveal .45s both;}
+    .tv-board .tv-tile-name {font-size:clamp(16px,1.15vw,44px) !important;}
+    .tv-board .tv-tile-badge {font-size:clamp(13px,.9vw,34px) !important;}
+    .tv-board .tv-tile-badge.ok {color:#7de0aa;}
+    .tv-board .tv-tile-badge.unknown {color:#b7c5dc;}
+    .tv-board .tv-board-footer {flex-wrap:nowrap;padding:0;min-height:0;}
+    .tv-board .tv-net-bar {font-size:clamp(13px,.9vw,34px);flex-basis:auto;}
+    .tv-board .tv-net-bar .tv-net-item:nth-of-type(n+4),.tv-board .tv-net-sep,.tv-board .tv-net-ts {display:none;}
     .tv-board .tv-footer-right {width:auto;margin-left:auto;}
-    .tv-board .tv-updated {font-size:clamp(14px,1vw,40px);color:#bbc9d9;white-space:nowrap;}
-    .tv-board:not(:has(.tv-issues-section)) .tv-minimal-status {border:0;background:#142235;box-shadow:none;}
-    .tv-board:not(:has(.tv-issues-section)) .tv-minimal-msg {font-size:clamp(48px,5.5vw,210px);color:#83e7ad;}
-    @media (orientation:portrait) {
+    .tv-board .tv-updated {font-size:clamp(13px,.9vw,34px);white-space:nowrap;}
+    .tv-board .tv-exit-btn,.tv-board .tv-test-btn {font-size:clamp(12px,.85vw,32px);min-height:30px;}
+    .tv-board :is(button,select,input):focus-visible {outline:2px solid #a9c6ff;outline-offset:4px;}
+    .light-mode .board-page .tv-board {--board-text:#13243c;--board-sub:#334963;--board-muted:#526780;background:radial-gradient(ellipse at 10% 0,rgba(100,133,217,.12),transparent 50%),#eef3fa;}
+    .light-mode .tv-board .tv-hdr {background:linear-gradient(120deg,#fff,#e5edf9);}
+    .light-mode .tv-board .tv-issues-section {background:rgba(255,255,255,.55);}
+    .light-mode .tv-board .tv-reading-part,.light-mode .tv-board .tv-now-playing-label,.light-mode .tv-board .tv-issue-section-hdr {color:#526780;}
+    .light-mode .tv-board .tv-tile-badge.ok {color:#147647;}
+    .light-mode .tv-board .tv-tile-badge.unknown {color:#526780;}
+    .light-mode .tv-board :is(.tv-issue-badge.bad,.tv-impact-pill.bad,.tv-board-health.bad,.tv-section-hdr.bad) {color:#b42346;}
+    .light-mode .tv-board :is(.tv-issue-badge.warn,.tv-impact-pill.warn,.tv-board-health.warn,.tv-section-hdr.warn) {color:#8b5e06;}
+    .light-mode .tv-board :is(.tv-issue-badge.maint,.tv-impact-pill.maint,.tv-issue-dc-item.maint) {color:#245db5;}
+    .tv-board:not(:has(.tv-issues-section)) .tv-minimal-msg {font-size:clamp(46px,5vw,192px);}
+    @keyframes board-card-reveal {from{opacity:0;translate:0 5px}to{opacity:1;translate:0 0}}
+    @media(max-width:1600px){.tv-board .tv-wx-forecast,.tv-board .tv-wx-divider {display:none;}}
+    @media(max-width:1100px){
+      .tv-board .tv-hdr {grid-template-columns:minmax(0,1fr) minmax(0,1.1fr) max-content;gap:8px;}
+      .tv-board .tv-radio-vol-slider {width:44px;}
+      .tv-board .tv-np-cover,.tv-board .tv-np-cover-fallback {display:none;}
+      .tv-board .tv-impact-summary {display:none;}
+    }
+    @media(orientation:portrait){
       .tv-board .tv-issue-tiles {grid-template-columns:1fr !important;grid-auto-rows:minmax(0,1fr);}
       .tv-board .tv-issue-tile {grid-column:auto !important;grid-row:auto !important;}
-      .tv-board .tv-hdr-weather {overflow:hidden;}
+    }
+    @media(prefers-reduced-motion:reduce){
+      .tv-board,.tv-board * {animation:none !important;transition:none !important;}
     }
   </style>
 </head>
@@ -4834,7 +4854,7 @@ function renderBoardView(results){
     const mc=document.getElementById('tv-minimal-clock');
     if(mc) mc.textContent=timeStr;
     const up=document.getElementById('tv-updated');
-    if(up&&_boardLastUpdate) up.textContent='Updated '+fmtFetchAge(_boardLastUpdate)+' ago';
+    if(up&&_boardLastUpdate) up.textContent='Updated '+fmtFetchAge(_boardLastUpdate);
   };
   tick();
   _boardClockTimer=setInterval(tick,1000);
@@ -4864,6 +4884,8 @@ function _applyBoardPageState(){
 }
 
 function exitBoardMode(){
+  clearInterval(_boardReadingTimer);
+  _boardReadingTimer=null;
   clearInterval(_boardClockTimer);
   clearInterval(_boardNetTimer);
   _boardNetTimer=null;

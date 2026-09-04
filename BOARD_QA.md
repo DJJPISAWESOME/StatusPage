@@ -1,9 +1,11 @@
 # Board projector QA
 
-The Board is a passive display. Events retain the original balanced groups of up
-to three. Controls and hover effects are not part of the kiosk presentation.
-Service-status groups change without a scrolling marquee. The standard dashboard
-and its controls remain separate.
+The Board supports occasional mouse/keyboard use for the radio and navigation,
+while incidents remain readable hands-free. Events retain the original balanced
+groups of up to three. The facelift restores the weather/media/clock header,
+radio controls, tinted cards, subtle depth, entrance transitions, and focus states.
+Service-status groups change without a scrolling marquee. Reduced-motion settings
+disable decorative animations. The standard dashboard remains separate.
 
 Event body type never shrinks below 20 CSS px. At 1920px it is about 26px and at
 3840px about 52px. Overflow becomes stationary, automatically advancing reading
@@ -36,3 +38,10 @@ viewport-fit, clock-fit, per-card text preservation, and panel-overflow results.
 These are representative browser tests, not a physical projector calibration or
 a validation of upstream service APIs. Projection brightness, browser zoom, font
 rendering and viewing distance should still be checked on the actual installation.
+
+## Restored-control regression checks
+
+Browser-tested play/pause state, mute/unmute state, station selection, and keyboard
+volume adjustment using the fixture's mocked audio transport. Actual station audio
+availability was not verified. The separately published sample preview retains the
+real radio transport, initially paused, so a viewer can choose to play a station.
