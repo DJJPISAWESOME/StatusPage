@@ -32,7 +32,12 @@ try {
  await page.locator('#mobile-theme').click();assert.equal(await page.locator('html').getAttribute('data-theme'),'light');await page.screenshot({path:'artifacts/light.png',fullPage:true});
  await page.locator('#mobile-theme').click();await page.setViewportSize({width:390,height:844});await page.screenshot({path:'artifacts/mobile.png',fullPage:true});
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'Mobile horizontal overflow');
- await page.locator('#board').click();assert.equal(await page.locator('#board').getAttribute('aria-pressed'),'true');await page.locator('#board').click();
+ await page.locator('#board').click();assert.equal(await page.locator('#board').getAttribute('aria-pressed'),'true');
+ assert.equal(await page.locator('#tv-channel').innerText(),'SIGNAL / SERVICES');assert.equal(await page.locator('.tv-service').count(),32);
+ await page.locator('#tv-skip').click();assert.equal(await page.locator('#tv-channel').innerText(),'SIGNAL / WEATHER');
+ await page.locator('#tv-skip').click();assert.equal(await page.locator('#tv-channel').innerText(),'SIGNAL / POWER');assert.match(await page.locator('.tv-power-count').innerText(),/42 customers/);
+ await page.locator('#tv-skip').click();assert.equal(await page.locator('#tv-channel').innerText(),'SIGNAL / NETWORK');
+ await page.locator('#tv-exit').click();assert.equal(await page.locator('#tv-board').isHidden(),true);
  // Stored scripts/HTML from upstream must remain inert text.
  await page.route('**/api/status',route=>route.fulfill({json:{services:[{id:'xss',name:'<img src=x onerror=alert(1)>',homepage:'https://example.com',status:'degraded',incidents:[],staleAfterMs:720000,checkedAt:new Date().toISOString()}],history:[]}}));
  await page.reload();await page.waitForSelector('.service-card');assert.equal(await page.locator('.service-card img').count(),0);

@@ -1,6 +1,7 @@
 import { initEnhancements } from './enhancements.js';
 import { RadioRecovery } from './radio-player.js';
 import { STATIONS } from './stations.js';
+import { initTV } from './tv.js';
 const $ = id => document.getElementById(id);
 const store = { get(key, fallback = null) { try { const value = localStorage.getItem(`signal:${key}`); return value === null ? fallback : JSON.parse(value); } catch { return fallback; } }, set(key, value) { try { localStorage.setItem(`signal:${key}`, JSON.stringify(value)); } catch {} }, delete(key) { try { localStorage.removeItem(`signal:${key}`); } catch {} } };
 const state = { services: [], history: [], filter: 'all', expanded: false, search: '', favorites: new Set(Array.isArray(store.get('favorites', [])) ? store.get('favorites', []) : []), place: null, forecast: null, socket: null, reconnect: null, fallback: null, attempts: 0, weatherVersion: 0 };
@@ -66,6 +67,7 @@ function receive(snapshot) {
   if (!Array.isArray(snapshot.services)) return;
   if (snapshot.demo) notify('DESIGN PREVIEW · Synthetic service and weather data. Run with Cloudflare for live data.');
   state.rawSnapshot = snapshot; snapshot = enhancements.processSnapshot(snapshot); state.services = snapshot.services; state.history = snapshot.history || []; state.updatedAt = snapshot.updatedAt;
+  tv?.update({ snapshot });
   renderSummary(); renderServices(); renderActivity(); $('last-updated').textContent = snapshot.updatedAt ? `Checked ${age(snapshot.updatedAt)}` : 'First collection in progress';
 }
 async function loadStatus() { try { receive(await api('/api/status')); } catch { $('connection-detail').textContent = 'Status feed unavailable'; } }
@@ -123,6 +125,7 @@ function validPlace(p) { return p && typeof p.latitude === 'number' && Number.is
 async function choosePlace(place, persist = false) {
   if (!validPlace(place)) return;
   state.place = { ...place, latitude: Math.round(place.latitude*100)/100, longitude: Math.round(place.longitude*100)/100 };
+  tv?.update({ place: state.place });
   if (persist) store.set('place',state.place);
   $('location-name').textContent=place.label; $('weather-title').textContent=place.label;
   $('location-source').textContent=({cloudflare:'Approximate IP location · Cloudflare',manual:'Your saved location',device:'Device location · chosen by you',fallback:'Rhode Island default · IP location unavailable'})[place.source] || 'Selected location';
@@ -131,8 +134,8 @@ async function choosePlace(place, persist = false) {
 async function loadWeather() {
   if(!state.place)return; const version=++state.weatherVersion; const {latitude,longitude}=state.place;
   $('weather-condition').textContent='Updating forecast…';
-  try { const data=await api(`/api/weather?lat=${latitude}&lon=${longitude}`);if(version!==state.weatherVersion)return;state.forecast=data;renderWeather(); }
-  catch { if(version!==state.weatherVersion)return; state.forecast=null;document.getElementById('local-outlook')?.remove();$('temperature').textContent='—';$('weather-condition').textContent='Weather unavailable';$('weather-freshness').textContent='Could not retrieve forecast';for(const id of ['feels-like','wind','humidity'])$(id).textContent='—';replace('forecast-chart',el('p','empty','Forecast unavailable. Retry by selecting your location.'));replace('model-notes');replace('forecast-table');replace('daily-forecast',el('p','empty','Forecast unavailable.'));replace('weather-alerts',el('p','fine-print','NWS alerts could not be checked.')); }
+  try { const data=await api(`/api/weather?lat=${latitude}&lon=${longitude}`);if(version!==state.weatherVersion)return;state.forecast=data;tv?.update({ forecast:data });renderWeather(); }
+  catch { if(version!==state.weatherVersion)return; state.forecast=null;tv?.update({ forecast:null });document.getElementById('local-outlook')?.remove();$('temperature').textContent='—';$('weather-condition').textContent='Weather unavailable';$('weather-freshness').textContent='Could not retrieve forecast';for(const id of ['feels-like','wind','humidity'])$(id).textContent='—';replace('forecast-chart',el('p','empty','Forecast unavailable. Retry by selecting your location.'));replace('model-notes');replace('forecast-table');replace('daily-forecast',el('p','empty','Forecast unavailable.'));replace('weather-alerts',el('p','fine-print','NWS alerts could not be checked.')); }
 }
 async function useIP() { store.delete('place'); try { await choosePlace(await api('/api/location')); } catch { await choosePlace({latitude:41.82,longitude:-71.41,label:'Providence, RI',source:'fallback',timezone:'America/New_York'}); } }
 $('location-button').addEventListener('click',()=>$('location-dialog').showModal());
@@ -147,10 +150,12 @@ const savedTheme=store.get('theme');document.documentElement.dataset.theme=['lig
 $('theme').addEventListener('click',()=>{const theme=document.documentElement.dataset.theme==='dark'?'light':'dark';document.documentElement.dataset.theme=theme;store.set('theme',theme);});
 // The theme control remains reachable on compact layouts through a keyboard shortcut-free button.
 const mobileTheme=$('theme').cloneNode(true);mobileTheme.id='mobile-theme';mobileTheme.className='outline-button';mobileTheme.textContent='◐';mobileTheme.setAttribute('aria-label','Switch theme');mobileTheme.addEventListener('click',()=>$('theme').click());document.querySelector('.top-actions').prepend(mobileTheme);
-$('board').addEventListener('click',async()=>{const on=document.body.classList.toggle('board-mode');renderServices();$('board').setAttribute('aria-pressed',String(on));$('board').textContent=on?'↙ Exit board':'↗ Board view';if(on){try{await document.documentElement.requestFullscreen();}catch{}}else if(document.fullscreenElement){try{await document.exitFullscreen();}catch{}}});
-document.addEventListener('fullscreenchange',()=>{if(!document.fullscreenElement){document.body.classList.remove('board-mode');renderServices();$('board').setAttribute('aria-pressed','false');$('board').textContent='↗ Board view';}});
+function setBoard(on){document.body.classList.toggle('board-mode',on);renderServices();$('board').setAttribute('aria-pressed',String(on));$('board').textContent=on?'↙ Exit board':'↗ Board view';if(on)tv.start();else tv.stop();}
+$('board').addEventListener('click',async()=>{const on=!document.body.classList.contains('board-mode');setBoard(on);if(on){try{await document.documentElement.requestFullscreen();}catch{}}else if(document.fullscreenElement){try{await document.exitFullscreen();}catch{}}});
+$('tv-exit').addEventListener('click',async()=>{setBoard(false);if(document.fullscreenElement){try{await document.exitFullscreen();}catch{}}});
+document.addEventListener('fullscreenchange',()=>{if(!document.fullscreenElement&&document.body.classList.contains('board-mode'))setBoard(false);});
 for(const a of document.querySelectorAll('.nav-link'))a.addEventListener('click',()=>{document.querySelector('.nav-link.selected')?.classList.remove('selected');a.classList.add('selected');});
-async function loadNetwork(){try{const d=await api('/api/network');replace('network-details',...[['Cloudflare edge',d.colo],['Network',d.asOrganization],['Protocol',d.protocol],['Encryption',d.tls]].map(([name,value])=>{const row=el('div','network-detail');row.append(el('span','',name),el('strong','',value||'Not available locally'));return row;}));}catch{replace('network-details',el('p','muted','Connection information unavailable.'));}}
+async function loadNetwork(){try{const d=await api('/api/network');tv?.update({network:d});replace('network-details',...[['Cloudflare edge',d.colo],['Network',d.asOrganization],['Protocol',d.protocol],['Encryption',d.tls]].map(([name,value])=>{const row=el('div','network-detail');row.append(el('span','',name),el('strong','',value||'Not available locally'));return row;}));}catch{replace('network-details',el('p','muted','Connection information unavailable.'));}}
 $('test-connection').addEventListener('click',async()=>{const b=$('test-connection');b.disabled=true;$('latency-result').textContent='Checking connection…';try{const samples=[];for(let i=0;i<5;i++){const start=performance.now();await api(`/api/ping?sample=${Date.now()}`);samples.push(performance.now()-start);}samples.sort((a,b)=>a-b);$('latency-result').textContent=`${Math.round(samples[2])} ms median · 5 requests · includes server time`;}catch{$('latency-result').textContent='Connection check failed. Try again.';}finally{b.disabled=false;}});
 const audio=$('audio');for(const s of STATIONS){const o=el('option','',s.name);o.value=s.id;$('station').append(o);}const savedStation=store.get('station','river');$('station').value=STATIONS.some(s=>s.id===savedStation)?savedStation:'river';
 function selectedStation(){return STATIONS.find(s=>s.id===$('station').value);}
@@ -175,4 +180,5 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden&&!enhanceme
 window.addEventListener('offline',()=>notify('You are offline. Displayed data may be out of date.'));
 window.addEventListener('online',()=>{notify('');loadStatus();connect();loadWeather();});
 const enhancements=initEnhancements({api,onChange:()=>{if(state.rawSnapshot)receive(state.rawSnapshot);connect();}});
+const tv=initTV({api});
 loadStatus();connect();loadNetwork();const savedPlace=store.get('place');if(validPlace(savedPlace)&&savedPlace.source==='manual')choosePlace(savedPlace);else useIP();

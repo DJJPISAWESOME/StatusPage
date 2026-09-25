@@ -6,7 +6,7 @@ export const MODELS = [
 export function visitorLocation(cf = {}) {
   try {
     const point = coordinates(cf.latitude, cf.longitude);
-    return { ...point, label: [cf.city, cf.regionCode || cf.region, cf.country].filter(Boolean).join(', ') || 'Approximate IP location', source: 'cloudflare', timezone: cf.timezone || 'America/New_York' };
+    return { ...point, label: [cf.city, cf.regionCode || cf.region, cf.country].filter(Boolean).join(', ') || 'Approximate IP location', regionCode: cf.regionCode, source: 'cloudflare', timezone: cf.timezone || 'America/New_York' };
   } catch {
     return { latitude: 41.82, longitude: -71.41, label: 'Providence, RI', source: 'fallback', timezone: 'America/New_York' };
   }
@@ -50,7 +50,7 @@ export async function geocode(name, fetcher = fetch) {
   if (typeof name !== 'string' || name.trim().length < 2 || name.length > 80) throw new HttpError(400, 'Enter a city or postal code');
   const params = new URLSearchParams({ name: name.trim(), count: '6', language: 'en', format: 'json' });
   const d = JSON.parse(await upstream(`https://geocoding-api.open-meteo.com/v1/search?${params}`, { fetcher, limit: 100000 }));
-  return (d.results || []).map(x => ({ ...coordinates(x.latitude, x.longitude), label: [x.name, x.admin1, x.country_code].filter(Boolean).join(', '), timezone: x.timezone, source: 'manual' }));
+  return (d.results || []).map(x => ({ ...coordinates(x.latitude, x.longitude), label: [x.name, x.admin1, x.country_code].filter(Boolean).join(', '), regionCode: ({'Rhode Island':'RI','Massachusetts':'MA','New York':'NY'})[x.admin1], timezone: x.timezone, source: 'manual' }));
 }
 
 export async function marine(point,env={},fetcher=fetch,cache=globalThis.caches?.default) {
