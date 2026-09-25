@@ -1,3 +1,4 @@
+import { initRequestRadio } from './request-radio.js';
 import { initEnhancements } from './enhancements.js';
 import { RadioRecovery } from './radio-player.js';
 import { STATIONS } from './stations.js';
@@ -150,27 +151,28 @@ const savedTheme=store.get('theme');document.documentElement.dataset.theme=['lig
 $('theme').addEventListener('click',()=>{const theme=document.documentElement.dataset.theme==='dark'?'light':'dark';document.documentElement.dataset.theme=theme;store.set('theme',theme);});
 // The theme control remains reachable on compact layouts through a keyboard shortcut-free button.
 const mobileTheme=$('theme').cloneNode(true);mobileTheme.id='mobile-theme';mobileTheme.className='outline-button';mobileTheme.textContent='◐';mobileTheme.setAttribute('aria-label','Switch theme');mobileTheme.addEventListener('click',()=>$('theme').click());document.querySelector('.top-actions').prepend(mobileTheme);
-function setBoard(on){document.body.classList.toggle('board-mode',on);renderServices();$('board').setAttribute('aria-pressed',String(on));$('board').textContent=on?'↙ Exit board':'↗ Board view';if(on)tv.start();else tv.stop();}
+function setBoard(on){document.dispatchEvent(new Event('request-radio-layout'));document.body.classList.toggle('board-mode',on);renderServices();$('board').setAttribute('aria-pressed',String(on));$('board').textContent=on?'↙ Exit board':'↗ Board view';if(on)tv.start();else tv.stop();}
 $('board').addEventListener('click',async()=>{const on=!document.body.classList.contains('board-mode');setBoard(on);if(on){try{await document.documentElement.requestFullscreen();}catch{}}else if(document.fullscreenElement){try{await document.exitFullscreen();}catch{}}});
 $('tv-exit').addEventListener('click',async()=>{setBoard(false);if(document.fullscreenElement){try{await document.exitFullscreen();}catch{}}});
 document.addEventListener('fullscreenchange',()=>{if(!document.fullscreenElement&&document.body.classList.contains('board-mode'))setBoard(false);});
 for(const a of document.querySelectorAll('.nav-link'))a.addEventListener('click',()=>{document.querySelector('.nav-link.selected')?.classList.remove('selected');a.classList.add('selected');});
 async function loadNetwork(){try{const d=await api('/api/network');tv?.update({network:d});replace('network-details',...[['Cloudflare edge',d.colo],['Network',d.asOrganization],['Protocol',d.protocol],['Encryption',d.tls]].map(([name,value])=>{const row=el('div','network-detail');row.append(el('span','',name),el('strong','',value||'Not available locally'));return row;}));}catch{replace('network-details',el('p','muted','Connection information unavailable.'));}}
 $('test-connection').addEventListener('click',async()=>{const b=$('test-connection');b.disabled=true;$('latency-result').textContent='Checking connection…';try{const samples=[];for(let i=0;i<5;i++){const start=performance.now();await api(`/api/ping?sample=${Date.now()}`);samples.push(performance.now()-start);}samples.sort((a,b)=>a-b);$('latency-result').textContent=`${Math.round(samples[2])} ms median · 5 requests · includes server time`;}catch{$('latency-result').textContent='Connection check failed. Try again.';}finally{b.disabled=false;}});
-const audio=$('audio');for(const s of STATIONS){const o=el('option','',s.name);o.value=s.id;$('station').append(o);}const savedStation=store.get('station','river');$('station').value=STATIONS.some(s=>s.id===savedStation)?savedStation:'river';
-function selectedStation(){return STATIONS.find(s=>s.id===$('station').value);}
-function setStation(){const s=selectedStation();recovery.stop();audio.src=s.stream;$('station-site').href=s.site;$('radio-state').textContent='Ready when you are';store.set('station',s.id);document.querySelector('.radio-art').replaceChildren(document.createTextNode(s.id==='river'?'r':'♫'),el('span','',s.frequency));}
+const audio=$('audio');for(const s of STATIONS){const o=el('option','',s.name);o.value=s.id;$('station').append(o);}const requestOption=el('option','','Request mode · YouTube');requestOption.value='requests';$('station').append(requestOption);const savedStation=store.get('station','river');$('station').value=savedStation==='requests'||STATIONS.some(s=>s.id===savedStation)?savedStation:'river';
+function selectedStation(){if($('station').value==='requests')return {id:'requests',name:'Request mode',site:'/requests.html',frequency:'QUEUE'};return STATIONS.find(s=>s.id===$('station').value);}
+function setStation(){const s=selectedStation();recovery.stop();requestRadio.select(s.id==='requests');if(s.stream)audio.src=s.stream;else{audio.removeAttribute('src');audio.load();}$('station-site').href=s.site;$('station-site').textContent=s.id==='requests'?'Request a song ↗':'Station ↗';$('radio-state').textContent='Ready when you are';store.set('station',s.id);document.querySelector('.radio-art').replaceChildren(document.createTextNode(s.id==='river'?'r':'♫'),el('span','',s.frequency));}
 const recovery=new RadioRecovery(audio,message=>{$('radio-state').textContent=message;$('radio-play').textContent=recovery.active?'Ⅱ':'▶';$('radio-play').setAttribute('aria-label',recovery.active?'Pause radio':'Play radio');});
-function playRadio(){recovery.start(selectedStation());}
-$('radio-play').addEventListener('click',()=>recovery.active?recovery.stop():playRadio());
-$('station').addEventListener('change',()=>{const wasPlaying=recovery.active;setStation();if(wasPlaying)playRadio();});
+const requestRadio=initRequestRadio({container:document.querySelector('.radio-bar'),audio,onState:(message,playing)=>{if($('station').value!=='requests')return;$('radio-state').textContent=message;$('radio-play').textContent=playing?'Ⅱ':'▶';$('radio-play').setAttribute('aria-label',playing?'Stop request mode':'Play request mode');}});
+function playRadio(){if(selectedStation().id==='requests')requestRadio.toggle();else recovery.start(selectedStation());}
+$('radio-play').addEventListener('click',()=>selectedStation().id==='requests'?requestRadio.toggle():recovery.active?recovery.stop():playRadio());
+$('station').addEventListener('change',()=>{const wasPlaying=recovery.active;setStation();if(wasPlaying&&selectedStation().id!=='requests')playRadio();});
 const volume=store.get('volume',.4);audio.volume=Number.isFinite(volume)?Math.min(1,Math.max(0,volume)):.4;$('volume').value=audio.volume;
 $('volume').addEventListener('input',e=>{audio.volume=Number(e.target.value);store.set('volume',audio.volume);});
-async function nowPlaying(){if(audio.paused||document.hidden)return;const id=selectedStation().id;try{const d=await api(`/api/radio?station=${encodeURIComponent(id)}`);if(selectedStation().id===id&&!audio.paused&&d.available)$('radio-state').textContent=d.title;}catch{}}
+async function nowPlaying(){if(selectedStation().id==='requests'||audio.paused||document.hidden)return;const id=selectedStation().id;try{const d=await api(`/api/radio?station=${encodeURIComponent(id)}`);if(selectedStation().id===id&&!audio.paused&&d.available)$('radio-state').textContent=d.title;}catch{}}
 setInterval(nowPlaying,60000);
-audio.addEventListener('playing',()=>{nowPlaying();$('radio-play').textContent='Ⅱ';$('radio-play').setAttribute('aria-label','Pause radio');$('radio-state').textContent='Live stream';});
-audio.addEventListener('pause',()=>{$('radio-play').textContent='▶';$('radio-play').setAttribute('aria-label','Play radio');$('radio-state').textContent='Paused';});
-audio.addEventListener('waiting',()=>{$('radio-state').textContent='Buffering…';});
+audio.addEventListener('playing',()=>{if(selectedStation().id==='requests')return;nowPlaying();$('radio-play').textContent='Ⅱ';$('radio-play').setAttribute('aria-label','Pause radio');$('radio-state').textContent='Live stream';});
+audio.addEventListener('pause',()=>{if(selectedStation().id==='requests')return;$('radio-play').textContent='▶';$('radio-play').setAttribute('aria-label','Play radio');$('radio-state').textContent='Paused';});
+audio.addEventListener('waiting',()=>{if(selectedStation().id==='requests')return;$('radio-state').textContent='Buffering…';});
 setStation();
 function tick(){$('clock').textContent=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});$('date').textContent=new Date().toLocaleDateString([],{weekday:'long',month:'long',day:'numeric'});}
 setInterval(tick,30000);tick();

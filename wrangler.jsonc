@@ -7,7 +7,7 @@
   "durable_objects": { "bindings": [{ "name": "STATUS_HUB", "class_name": "StatusHub" }] },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["StatusHub"] }],
   "triggers": { "crons": ["*/5 * * * *"] },
-  "ratelimits": [{ "name": "API_LIMITER", "namespace_id": "1001", "simple": { "limit": 60, "period": 60 } }],
+  "ratelimits": [{ "name": "REQUEST_LIMITER", "namespace_id": "1002", "simple": { "limit": 10, "period": 60 } },{ "name": "API_LIMITER", "namespace_id": "1001", "simple": { "limit": 60, "period": 60 } }],
   "vars": { "WEBHOOK_SERVICES": "", "WEATHER_CONTACT": "https://github.com/DJJPISAWESOME/StatusPage/issues" },
   "observability": { "enabled": true, "redact_query_string": true, "head_sampling_rate": 0.1, "logs": { "enabled": true, "invocation_logs": false } }
 }
