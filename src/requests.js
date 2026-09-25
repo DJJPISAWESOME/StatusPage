@@ -1,4 +1,4 @@
-import { HttpError, json, upstream, readLimited, equalSecret } from './security.js';
+import { HttpError, json, upstream, readLimited } from './security.js';
 import { cachedJSON } from './weather.js';
 
 export function youtubeId(input){
@@ -56,7 +56,7 @@ export async function requestRoute(request,env){
   if(request.method==='GET'&&path==='/api/requests/search')return json(await searchYoutube(url.searchParams.get('q')));
   const hub=env.STATUS_HUB.get(env.STATUS_HUB.idFromName('request-radio-v1'));
   if(request.method==='GET'&&path==='/api/requests'){
-    const response=await hub.fetch('https://hub/requests');const data=await response.json();return json({...data,searchEnabled:true,playerEnabled:typeof env.REQUEST_PLAYER_TOKEN==='string'&&env.REQUEST_PLAYER_TOKEN.length>=32&&env.REQUEST_PLAYER_TOKEN.length<=256});
+    const response=await hub.fetch('https://hub/requests');const data=await response.json();return json({...data,searchEnabled:true,playerEnabled:true});
   }
   if(request.method!=='POST')throw new HttpError(405,'Method not allowed');
   if(request.headers.get('Origin')!==url.origin)throw new HttpError(403,'Same-origin request required');
@@ -64,8 +64,6 @@ export async function requestRoute(request,env){
   let body;try{body=JSON.parse(await readLimited(request,4096));}catch(error){if(error instanceof HttpError)throw error;throw new HttpError(400,'Invalid JSON');}
   if(!body||typeof body!=='object'||Array.isArray(body))throw new HttpError(400,'Invalid request');
   if(path==='/api/requests/control'){
-    if(typeof env.REQUEST_PLAYER_TOKEN!=='string'||env.REQUEST_PLAYER_TOKEN.length<32||env.REQUEST_PLAYER_TOKEN.length>256)throw new HttpError(503,'Set REQUEST_PLAYER_TOKEN on the Worker before starting Request mode.');
-    if(!await equalSecret(request.headers.get('Authorization')?.replace(/^Bearer /,''),env.REQUEST_PLAYER_TOKEN))throw new HttpError(401,'Incorrect player key.');
     return hub.fetch('https://hub/requests',{method:'POST',body:JSON.stringify({action:body.action,session:body.session,id:body.id})});
   }
   if(path!=='/api/requests')throw new HttpError(405,'Method not allowed');

@@ -9,7 +9,7 @@ export async function verifyRequests(browser){
   else if(req.method()==='POST'){
    const body=req.postDataJSON();
    if(url.pathname.endsWith('/control')){
-    assert.equal(req.headers().authorization,'Bearer test-key-123456789012345678901234');
+    assert.equal(req.headers().authorization,undefined);
     if(body.action==='claim'){online=true;if(!current)current=items.shift()||null;}
     if(body.action==='release')online=false;
     if(body.action==='next'&&(current?.id||null)===(body.id||null))current=items.shift()||null;
@@ -27,11 +27,12 @@ export async function verifyRequests(browser){
  await portal.locator('#request-query').fill('https://music.youtube.com/watch?v=aaaaaaaaaaa');await portal.locator('#request-submit').click();await portal.waitForFunction(()=>document.getElementById('request-count').textContent==='2 / 50 songs');
  assert.deepEqual((await new AxeBuilder({page:portal}).withTags(['wcag2a','wcag2aa','wcag21aa']).analyze()).violations.map(v=>v.id),[]);
  await portal.screenshot({path:'artifacts/request-portal.png',fullPage:true});await portal.setViewportSize({width:390,height:844});assert.equal(await portal.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);await portal.screenshot({path:'artifacts/request-portal-mobile.png',fullPage:true});
- const board=await context.newPage();board.on('pageerror',e=>errors.push(e.message));await board.clock.install();await board.goto('http://127.0.0.1:4173');await board.waitForSelector('.service-card');await board.locator('#board').click();await board.locator('#station').selectOption('requests');await board.getByLabel('Board player key').fill('test-key-123456789012345678901234');await board.getByRole('button',{name:'Start request mode',exact:true}).click();await board.waitForFunction(()=>window.testYT?.id==='dQw4w9WgXcQ');assert.equal(current.title,song.title);
+ const board=await context.newPage();board.on('pageerror',e=>errors.push(e.message));await board.clock.install();await board.goto('http://127.0.0.1:4173');await board.waitForSelector('.service-card');await board.locator('#board').click();const originalBar=await board.locator('.radio-bar').boundingBox();await board.locator('#station').selectOption('requests');assert.equal(await board.locator('input[type=password]').count(),0);await board.locator('#radio-play').click();await board.waitForFunction(()=>window.testYT?.id==='dQw4w9WgXcQ');assert.equal(current.title,song.title);
+ const requestBar=await board.locator('.radio-bar').boundingBox();assert.ok(Math.abs(requestBar.height-originalBar.height)<=1,'Request mode keeps the original radio-bar height');
  const frame=await board.locator('.request-video iframe').boundingBox();assert.ok(frame.width>=200&&frame.height>=200);assert.equal(await board.locator('#audio').evaluate(a=>a.paused),true);
  await board.screenshot({path:'artifacts/board-request-mode.png',animations:'disabled'});
  await board.evaluate(()=>{const a=document.getElementById('audio');a.volume=.1;});await board.waitForFunction(()=>window.testYT.volume===10);
- await board.getByRole('button',{name:'Skip song',exact:true}).click();await board.waitForFunction(()=>window.testYT.id==='aaaaaaaaaaa');await board.evaluate(()=>window.testYT.finish());await board.waitForFunction(()=>document.querySelector('.request-player-message').textContent.includes('Waiting for requests'));assert.equal(current,null);
+ await board.getByRole('button',{name:'Skip song',exact:true}).click();await board.waitForFunction(()=>window.testYT.id==='aaaaaaaaaaa');await board.evaluate(()=>window.testYT.finish());await board.waitForFunction(()=>document.querySelector('#radio-state').textContent.includes('Waiting for requests'));assert.equal(current,null);
  await board.evaluate(()=>fetch('/api/requests',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url:'https://youtu.be/dQw4w9WgXcQ',requestId:crypto.randomUUID()})}));await board.clock.fastForward(11000);await board.waitForFunction(()=>window.testYT.id==='dQw4w9WgXcQ');
  await board.locator('#station').selectOption('river');await board.waitForFunction(()=>document.querySelector('.request-panel').hidden);assert.equal(await board.locator('.request-video iframe').count(),0);assert.deepEqual(errors,[]);await context.close();
  console.log('Request mode checks passed: portal search/link submissions, shared queue, Board playback contract, skip/end, volume, and station cleanup.');

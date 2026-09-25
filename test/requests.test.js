@@ -47,9 +47,9 @@ test('key-free search parses public results in order, ignores playlists and does
  await assert.rejects(()=>searchYoutube('song',async()=>new Response('provider details',{status:403}),null),error=>!error.message.includes('provider details'));
  const meta=await videoDetails(videoId,async url=>{assert.equal(new URL(url).hostname,'www.youtube.com');return Response.json({title:'Song',author_name:'Artist'});},null);assert.equal(meta.title,'Song');
 });
-test('player commands require same origin and a configured secret before reaching storage',async()=>{
- let called=false;const secret='test-player-key-at-least-32-characters';const env={REQUEST_PLAYER_TOKEN:secret,STATUS_HUB:{idFromName:x=>x,get:()=>({fetch:()=>{called=true;return Response.json({items:[]});}})}};
- const command=(origin,token)=>new Request('https://signal.test/api/requests/control',{method:'POST',headers:{Origin:origin,Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify({action:'claim',session})});
- assert.equal((await worker.fetch(command('https://evil.test',secret),env)).status,403);assert.equal((await worker.fetch(command('https://signal.test','bad'),env)).status,401);assert.equal(called,false);
- assert.equal((await worker.fetch(command('https://signal.test',secret),env)).status,200);assert.equal(called,true);
+test('player commands need same origin but no configured key',async()=>{
+ let called=false;const env={STATUS_HUB:{idFromName:x=>x,get:()=>({fetch:()=>{called=true;return Response.json({items:[]});}})}};
+ const command=origin=>new Request('https://signal.test/api/requests/control',{method:'POST',headers:{Origin:origin,'Content-Type':'application/json'},body:JSON.stringify({action:'claim',session})});
+ assert.equal((await worker.fetch(command('https://evil.test'),env)).status,403);assert.equal(called,false);
+ assert.equal((await worker.fetch(command('https://signal.test'),env)).status,200);assert.equal(called,true);
 });
