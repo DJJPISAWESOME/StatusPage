@@ -16,23 +16,47 @@ export async function videoDetails(id,fetcher=fetch,cache=globalThis.caches?.def
     return {videoId:id,title:data.title.slice(0,200),artist:String(data.author_name||'YouTube').slice(0,120)};
   },cache);
 }
-export async function searchYoutube(query,key,fetcher=fetch,cache=globalThis.caches?.default){
-  if(!key)throw new HttpError(503,'YouTube search is not configured yet. You can still paste a video link.');
+// Read public search-page data as JSON only; never execute upstream scripts.
+export function parseYoutubeSearch(html){
+  const match=/(?:var\s+ytInitialData|window\["ytInitialData"\]|ytInitialData)\s*=\s*(\{)/.exec(html);
+  if(!match)throw new Error('Search data unavailable');
+  const start=match.index+match[0].length-1;let depth=0,quoted=false,escaped=false,end=-1;
+  for(let i=start;i<html.length;i++){
+    const char=html[i];
+    if(quoted){if(escaped)escaped=false;else if(char==='\\')escaped=true;else if(char==='"')quoted=false;}
+    else if(char==='"')quoted=true;else if(char==='{')depth++;else if(char==='}'&&!--depth){end=i+1;break;}
+  }
+  if(end<0)throw new Error('Incomplete search data');
+  const data=JSON.parse(html.slice(start,end));
+  const root=data.contents?.twoColumnSearchResultsRenderer?.primaryContents||data.contents?.sectionListRenderer;
+  if(!root)throw new Error('Search layout unavailable');
+  const text=value=>value?.simpleText||value?.runs?.map(r=>r.text||'').join('')||value?.content||'';
+  const results=[],seen=new Set(),stack=[root];let inspected=0;
+  const add=(videoId,title,artist)=>{if(/^[\w-]{11}$/.test(videoId||'')&&title&&!seen.has(videoId)){seen.add(videoId);results.push({videoId,title:String(title).slice(0,200),artist:String(artist||'YouTube').slice(0,120)});}};
+  while(stack.length&&results.length<8&&inspected++<30000){
+    const value=stack.pop();if(!value||typeof value!=='object')continue;
+    if(value.videoRenderer){const v=value.videoRenderer;add(v.videoId,text(v.title),text(v.ownerText||v.longBylineText||v.shortBylineText));continue;}
+    if(value.lockupViewModel){const v=value.lockupViewModel,m=v.metadata?.lockupMetadataViewModel;if(v.contentType==='LOCKUP_CONTENT_TYPE_VIDEO')add(v.contentId,text(m?.title),text(m?.metadata?.contentMetadataViewModel?.metadataRows?.[0]?.metadataParts?.[0]?.text));continue;}
+    if(value.adSlotRenderer||value.promotedSparklesWebRenderer||value.promotedVideoRenderer)continue;
+    stack.push(...(Array.isArray(value)?value:Object.values(value)).reverse());
+  }
+  return {results};
+}
+export async function searchYoutube(query,fetcher=fetch,cache=globalThis.caches?.default){
   const q=String(query||'').trim();if(q.length<2||q.length>100)throw new HttpError(400,'Search using 2–100 characters.');
-  return cachedJSON(`request-search-v1/${encodeURIComponent(q.toLowerCase())}`,600,async()=>{
-    const params=new URLSearchParams({part:'snippet',type:'video',videoEmbeddable:'true',videoSyndicated:'true',safeSearch:'strict',maxResults:'8',q,key});
-    let data;try{data=JSON.parse(await upstream(`https://www.googleapis.com/youtube/v3/search?${params}`,{fetcher}));}catch{throw new HttpError(503,'YouTube search is unavailable or its quota was reached. Try a video link instead.');}
-    if(!Array.isArray(data.items))throw new HttpError(503,'YouTube search is unavailable.');
-    return {results:data.items.filter(i=>/^[\w-]{11}$/.test(i.id?.videoId||'')).map(i=>({videoId:i.id.videoId,title:String(i.snippet?.title||'YouTube video').slice(0,200),artist:String(i.snippet?.channelTitle||'YouTube').slice(0,120)}))};
+  return cachedJSON(`request-public-search-v1/${encodeURIComponent(q.toLowerCase())}`,600,async()=>{
+    const params=new URLSearchParams({search_query:q,hl:'en',gl:'US'});
+    try{return parseYoutubeSearch(await upstream(`https://www.youtube.com/results?${params}`,{fetcher,accept:'text/html',limit:3*1024*1024,headers:{'Accept-Language':'en-US,en;q=0.9'}}));}
+    catch{throw new HttpError(503,'YouTube search is temporarily unavailable. Open Search on YouTube, then paste a video link here.');}
   },cache);
 }
 export async function requestRoute(request,env){
   const url=new URL(request.url),path=url.pathname;
   if(!['/api/requests','/api/requests/search','/api/requests/control'].includes(path))throw new HttpError(404,'Not found');
-  if(request.method==='GET'&&path==='/api/requests/search')return json(await searchYoutube(url.searchParams.get('q'),env.YOUTUBE_API_KEY));
+  if(request.method==='GET'&&path==='/api/requests/search')return json(await searchYoutube(url.searchParams.get('q')));
   const hub=env.STATUS_HUB.get(env.STATUS_HUB.idFromName('request-radio-v1'));
   if(request.method==='GET'&&path==='/api/requests'){
-    const response=await hub.fetch('https://hub/requests');const data=await response.json();return json({...data,searchEnabled:!!env.YOUTUBE_API_KEY,playerEnabled:typeof env.REQUEST_PLAYER_TOKEN==='string'&&env.REQUEST_PLAYER_TOKEN.length>=32&&env.REQUEST_PLAYER_TOKEN.length<=256});
+    const response=await hub.fetch('https://hub/requests');const data=await response.json();return json({...data,searchEnabled:true,playerEnabled:typeof env.REQUEST_PLAYER_TOKEN==='string'&&env.REQUEST_PLAYER_TOKEN.length>=32&&env.REQUEST_PLAYER_TOKEN.length<=256});
   }
   if(request.method!=='POST')throw new HttpError(405,'Method not allowed');
   if(request.headers.get('Origin')!==url.origin)throw new HttpError(403,'Same-origin request required');

@@ -16,8 +16,8 @@ async function add(url){
  catch(error){$('request-feedback').textContent=error.message;}finally{adding=false;buttons.forEach(b=>b.disabled=false);}
 }
 $('request-form').addEventListener('submit',async event=>{
- event.preventDefault();if(searching||adding)return;const query=$('request-query').value.trim();
- if(/^https?:\/\//i.test(query)||/^[\w-]{11}$/.test(query)){await add(query);return;}
+ event.preventDefault();if(searching||adding)return;const query=$('request-query').value.trim();$('request-youtube-search').href=`https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`;
+ if(/^https?:\/\//i.test(query)){await add(query);return;}
  searching=true;$('request-submit').disabled=true;$('request-feedback').textContent='Searching YouTube…';$('request-results').replaceChildren();
  try{const data=await requestAPI(`/search?q=${encodeURIComponent(query)}`);$('request-feedback').textContent=data.results.length?'Choose a video to add.':'No results found. Try another search.';
  for(const item of data.results){const row=make('article',''),copy=make('div',''),title=make('h3',item.title),by=make('p',item.artist),link=make('a','View on YouTube ↗'),button=make('button','Add to queue');link.href=youtubeLink(item.videoId);link.target='_blank';link.rel='noopener noreferrer';button.type='button';button.onclick=()=>add(youtubeLink(item.videoId));copy.append(title,by,link);row.append(copy,button);$('request-results').append(row);}}

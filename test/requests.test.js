@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {youtubeId,RequestQueue,searchYoutube,videoDetails} from '../src/requests.js';
+import {youtubeId,RequestQueue,searchYoutube,videoDetails,parseYoutubeSearch} from '../src/requests.js';
 import worker from '../src/worker.js';
 const videoId='dQw4w9WgXcQ';
 class Storage{
@@ -36,10 +36,15 @@ test('expired leases can be claimed by another Board without consuming the curre
 test('queue capacity is bounded even with distinct clients',async()=>{
  const q=new RequestQueue(new Storage());for(let i=0;i<50;i++)assert.equal((await call(q,add(String(i).padStart(11,'0'),String(i)))).status,200);assert.equal((await call(q,add('zzzzzzzzzzz','new'))).status,409);
 });
-test('search and metadata use fixed provider URLs and sanitize failures',async()=>{
- await assert.rejects(()=>searchYoutube('song',''),/not configured/);
- const data=await searchYoutube('song','secret',async url=>{const u=new URL(url);assert.equal(u.hostname,'www.googleapis.com');assert.equal(u.searchParams.get('videoEmbeddable'),'true');return Response.json({items:[{id:{videoId},snippet:{title:'A song',channelTitle:'An artist'}}]});},null);assert.equal(data.results[0].videoId,videoId);
- await assert.rejects(()=>searchYoutube('song','secret',async()=>new Response('secret',{status:403}),null),error=>!error.message.includes('secret'));
+const searchHTML=contents=>`<script>var ytInitialData = ${JSON.stringify({contents:{twoColumnSearchResultsRenderer:{primaryContents:{sectionListRenderer:{contents}}}}})};</script>`;
+test('key-free search parses public results in order, ignores playlists and does not execute scripts',async()=>{
+ const html=searchHTML([{videoRenderer:{videoId,title:{runs:[{text:'A "song" } and \\ artist'}]},ownerText:{runs:[{text:'Artist'}]}}},{lockupViewModel:{contentType:'LOCKUP_CONTENT_TYPE_PLAYLIST',contentId:videoId}},{lockupViewModel:{contentType:'LOCKUP_CONTENT_TYPE_VIDEO',contentId:'aaaaaaaaaaa',metadata:{lockupMetadataViewModel:{title:{content:'Second song'}}}}},{videoRenderer:{videoId,title:{simpleText:'Duplicate'}}}]);
+ const data=await searchYoutube('song',async url=>{const u=new URL(url);assert.equal(u.hostname,'www.youtube.com');assert.equal(u.pathname,'/results');assert.equal(u.searchParams.has('key'),false);return new Response(html);},null);
+ assert.deepEqual(data.results.map(r=>r.videoId),[videoId,'aaaaaaaaaaa']);assert.equal(data.results[0].artist,'Artist');
+ assert.throws(()=>parseYoutubeSearch('<script>var ytInitialData = {bad};</script>'));
+ assert.throws(()=>parseYoutubeSearch('<html>Consent required</html>'));
+ assert.deepEqual(parseYoutubeSearch(searchHTML([{messageRenderer:{text:{simpleText:'No results'}}}])).results,[]);
+ await assert.rejects(()=>searchYoutube('song',async()=>new Response('provider details',{status:403}),null),error=>!error.message.includes('provider details'));
  const meta=await videoDetails(videoId,async url=>{assert.equal(new URL(url).hostname,'www.youtube.com');return Response.json({title:'Song',author_name:'Artist'});},null);assert.equal(meta.title,'Song');
 });
 test('player commands require same origin and a configured secret before reaching storage',async()=>{
