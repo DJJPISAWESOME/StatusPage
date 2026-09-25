@@ -106,3 +106,6 @@
 .tv-watch-sources{display:flex;gap:18px;align-items:center;flex-wrap:wrap;margin-top:auto}
 .tv-watch-sources .tv-map-link{font-size:14px;padding:7px 12px}
 @media(max-width:900px){.tv-asn-grid,.tv-watch-events{grid-template-columns:1fr;flex:none}.tv-asn-card{padding:18px;gap:12px}.tv-watch-sources{gap:10px}}
+
+/* Keep the Board action tray within narrow displays. */
+.tv-header .tv-actions{max-width:calc(100vw - 32px);flex-wrap:wrap;justify-content:flex-end}
