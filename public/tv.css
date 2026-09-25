@@ -128,13 +128,12 @@
 
 @media(min-width:900px){.tv-notice{display:grid;grid-template-columns:minmax(260px,.8fr) minmax(0,1.8fr);column-gap:32px;align-items:center;padding:22px 64px 26px 28px}.tv-notice-heading{grid-column:1;grid-row:1;align-self:center;padding-right:0}.tv-notice-row{grid-column:2;margin-top:0;padding:10px 0 10px 28px;border-top:0;border-left:1px solid #ffffff24}.tv-notice-row+.tv-notice-row{border-top:1px solid #ffffff24}.tv-notice>p{grid-column:2}.tv-notice-title{font-size:clamp(24px,1.8vw,34px)}}
 /* Request video occupies the station artwork slot without adding a row. */
-.request-panel[hidden],.request-skip[hidden]{display:none!important}
+.request-panel[hidden]{display:none!important}
 .request-panel{--request-size:42px;position:static;order:0;flex:none;width:var(--request-size);height:var(--request-size);padding:0;background:#0a2032;border-radius:8px;overflow:hidden}
 .request-video,.request-video iframe{display:block;width:100%;height:100%;min-width:0;border:0}
 .request-video{height:var(--request-size)}
 .radio-bar:has(.request-panel:not([hidden])) .radio-art{display:none!important}
 .board-mode #tv-radio-dock .request-panel{--request-size:64px}
-.request-skip{flex:none;width:32px;height:32px;padding:0;border:1px solid #7294ad;border-radius:50%;background:#224963;color:white;font-size:16px;cursor:pointer}
 @media(max-width:1400px){.board-mode #tv-radio-dock .request-panel{--request-size:52px}}
 @media(max-width:699px){.board-mode #tv-radio-dock .request-panel{--request-size:44px}.board-mode #tv-radio-dock .request-mode{gap:8px}.board-mode #tv-radio-dock .request-mode .radio-controls{gap:8px}}
 .request-mode #radio-state{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}

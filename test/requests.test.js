@@ -53,3 +53,19 @@ test('player commands need same origin but no configured key',async()=>{
  assert.equal((await worker.fetch(command('https://evil.test'),env)).status,403);assert.equal(called,false);
  assert.equal((await worker.fetch(command('https://signal.test'),env)).status,200);assert.equal(called,true);
 });
+test('remote controls keep ownership private, reject stale skips and report Board progress',async()=>{
+ const q=new RequestQueue(new Storage());await call(q,add());await call(q,add('aaaaaaaaaaa'));
+ assert.equal((await call(q,{action:'remote',command:'pause'})).status,409);
+ const first=await call(q,{action:'claim',session});const remote=command=>call(q,{action:'remote',command,id:first.current.id});
+ assert.equal((await remote('pause')).transport.paused,true);
+ assert.equal((await remote('rewind')).transport.rewind,1);
+ assert.equal((await remote('resume')).transport.paused,false);
+ assert.equal((await call(q,{action:'remote',command:'volume',volume:2})).status,400);
+ assert.equal((await call(q,{action:'remote',command:'volume',volume:.25})).remoteVolume.value,.25);
+ const progress=await call(q,{action:'heartbeat',session,id:first.current.id,playback:{position:30,duration:180,paused:false,volume:.25}});
+ assert.equal(progress.playback.position,30);assert.equal(progress.playback.duration,180);assert.equal('owner' in progress,false);
+ const next=await remote('skip');assert.equal(next.current.videoId,'aaaaaaaaaaa');assert.equal(next.playback,null);assert.equal(next.transport,null);
+ assert.equal((await remote('skip')).status,409);
+ await call(q,{action:'heartbeat',session,id:first.current.id,playback:{position:60,duration:180}});assert.equal((await call(q)).playback,null);
+ await call(q,{action:'release',session});assert.equal((await call(q,{action:'remote',command:'volume',volume:.5})).status,409);
+});
