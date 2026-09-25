@@ -1,3 +1,4 @@
+import { RequestQueue } from './requests.js';
 import { History } from './history.js';
 import { SERVICES } from './catalog.js';
 import { collectService } from './providers.js';
@@ -7,7 +8,7 @@ export function mergeResult(previous, next, mode) {
 }
 export class StatusHub {
   constructor(ctx, env) {
-    this.ctx = ctx; this.env = env; this.state = { services: {}, updatedAt: null, history: [], lastPollAt: 0, receipts: {} }; this.queue = Promise.resolve(); this.history = ctx.storage.sql ? new History(ctx.storage.sql) : null;
+    this.ctx = ctx; this.env = env; this.music = new RequestQueue(ctx.storage); this.state = { services: {}, updatedAt: null, history: [], lastPollAt: 0, receipts: {} }; this.queue = Promise.resolve(); this.history = ctx.storage.sql ? new History(ctx.storage.sql) : null;
     ctx.blockConcurrencyWhile(async () => { this.state = await ctx.storage.get('snapshot') || this.state; });
     ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair('ping', 'pong'));
   }
@@ -50,6 +51,7 @@ export class StatusHub {
   }
   async fetch(request) {
     const url = new URL(request.url);
+    if (url.pathname === '/requests') return this.music.handle(request);
     if (url.pathname === '/ws') {
       if (request.headers.get('Upgrade')?.toLowerCase() !== 'websocket') return json({ error: 'WebSocket required' }, 426);
       if (this.ctx.getWebSockets().length >= 200) return json({ error: 'Connection capacity reached' }, 503);

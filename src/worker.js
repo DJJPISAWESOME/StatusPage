@@ -1,3 +1,4 @@
+import { requestRoute } from './requests.js';
 import { SERVICES } from './catalog.js';
 import { json, HttpError, readLimited, verifyHmac, secretMap, equalSecret, coordinates } from './security.js';
 import { visitorLocation, weather, geocode, marine } from './weather.js';
@@ -11,11 +12,15 @@ export default {
     const url = new URL(request.url); const path = url.pathname;
     if (!path.startsWith('/api/')) return env.ASSETS.fetch(request);
     try {
-      const isHook = path.startsWith('/api/webhooks/');
-      if (!isHook && request.method !== 'GET') throw new HttpError(405, 'Method not allowed');
+      const isHook = path.startsWith('/api/webhooks/'), isRequest = path.startsWith('/api/requests');
+      if (!isHook && !isRequest && request.method !== 'GET') throw new HttpError(405, 'Method not allowed');
       if (!isHook && request.headers.get('Origin') && request.headers.get('Origin') !== url.origin) throw new HttpError(403, 'Cross-origin requests are not allowed');
       if (!isHook && request.headers.get('Sec-Fetch-Site') === 'cross-site') throw new HttpError(403, 'Cross-site requests are not allowed');
       if (env.API_LIMITER && !(await env.API_LIMITER.limit({ key: `${isHook ? 'hook' : 'api'}:${request.headers.get('CF-Connecting-IP') || 'local'}` })).success) return json({ error: 'Too many requests. Try again shortly.' }, 429, { 'Retry-After': '60' });
+      if(isRequest){
+        if((path==='/api/requests/search'||request.method==='POST'&&path==='/api/requests')&&env.REQUEST_LIMITER&&!(await env.REQUEST_LIMITER.limit({key:request.headers.get('CF-Connecting-IP')||'local'})).success)return json({error:'Please wait a minute before searching or adding more songs.'},429);
+        return await requestRoute(request,env);
+      }
       if (path === '/api/location') return json(visitorLocation(request.cf));
       if (path === '/api/status') return hub(env).fetch('https://hub/snapshot');
       if (path === '/api/live') {

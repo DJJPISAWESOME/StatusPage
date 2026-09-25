@@ -1,6 +1,6 @@
 /*
-  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; media-src https:; frame-src https://outagemap.rienergy.com https://outagemap.ma.nationalgridus.com https://outagemap.ny.nationalgridus.com; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'; upgrade-insecure-requests
+  Content-Security-Policy: default-src 'self'; script-src 'self' https://www.youtube.com https://s.ytimg.com; style-src 'self'; img-src 'self' data:; connect-src 'self'; media-src https:; frame-src https://www.youtube.com https://www.youtube-nocookie.com https://outagemap.rienergy.com https://outagemap.ma.nationalgridus.com https://outagemap.ny.nationalgridus.com; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'; upgrade-insecure-requests
   X-Content-Type-Options: nosniff
-  Referrer-Policy: no-referrer
+  Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: geolocation=(self), camera=(), microphone=()
   X-Frame-Options: DENY
