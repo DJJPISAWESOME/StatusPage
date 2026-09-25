@@ -1,0 +1,10 @@
+// SYNTHETIC TEST/PREVIEW DATA. This file is never deployed as a static asset.
+import { SERVICES } from '../src/catalog.js';
+export function fixtureStatus() {
+ const now=new Date().toISOString();
+ return {type:'snapshot',demo:true,updatedAt:now,history:[{id:'preview-1',serviceId:'openai',from:'operational',to:'degraded',at:now}],services:SERVICES.map(({url,parser,...s},i)=>({...s,componentSupport:parser==='statuspage',components:s.id==='openai'?[{id:'us',name:'United States',status:'operational'},{id:'eu',name:'Europe',status:'degraded'}]:[],sourceType:parser,nextCheckAt:new Date(Date.now()+300000).toISOString(),consecutiveFailures:0,status:i===15?'degraded':parser==='rss'?'unknown':'operational',incidents:i===15?[{title:'Example incident — synthetic preview',body:'This is demonstration data, not a real service incident.'}]:[],note:parser==='rss'?'Update feed only; confirm health on provider page.':undefined,checkedAt:now,lastSuccessAt:now,mode:i%3===0?'webhook':'scheduled',staleAfterMs:720000}))};
+}
+export function fixtureWeather(){
+ const start=Math.floor(Date.now()/3600000)*3600;const times=Array.from({length:120},(_,i)=>start+i*3600);
+ return {conditions:{current:{temperature_2m:68,apparent_temperature:67,wind_speed_10m:6,relative_humidity_2m:62,weather_code:2},hourly:{time:times,precipitation_probability:times.map((_,i)=>i<5?60:10),precipitation:times.map((_,i)=>i<5?.02:0),wind_gusts_10m:times.map(()=>14)},timezone:'America/New_York',fetchedAt:new Date().toISOString(),daily:{time:Array.from({length:5},(_,i)=>start+i*86400),temperature_2m_max:[71,73,69,65,68],temperature_2m_min:[56,58,55,52,54],weather_code:[2,0,3,61,1],precipitation_probability_max:[10,5,20,65,15]}},alerts:{available:true,items:[]},models:[{id:'ecmwf_aifs025_single',name:'ECMWF AIFS',kind:'AI',available:true,fetchedAt:new Date().toISOString(),hourly:{time:times,temperature_2m:times.map((_,i)=>62+8*Math.sin(i/4)),wind_speed_10m:times.map(()=>6)}},{id:'ncep_aigfs025',name:'NOAA AIGFS',kind:'AI',available:true,fetchedAt:new Date().toISOString(),hourly:{time:times,temperature_2m:times.map((_,i)=>63+7*Math.sin((i+1)/4)),wind_speed_10m:times.map(()=>7)}}]};
+}
