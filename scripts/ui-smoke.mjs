@@ -40,7 +40,10 @@ try {
  assert.equal(await page.locator('#tv-radio-dock #station').isVisible(),true);
  await page.locator('#station').selectOption({index:1});
  assert.equal(await page.locator('#tv-radio-dock #radio-state').isVisible(),true);
+ await page.locator('#tv-exit').click();
+ await page.waitForFunction(()=>!document.fullscreenElement);
  await page.setViewportSize({width:1920,height:1080});
+ await page.locator('#board').click();
  await page.getByRole('button',{name:'Next service page',exact:true}).click();
  assert.equal(await page.locator('.tv-service').count(),8);
  const boardA11y=await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21aa']).analyze();assert.deepEqual(boardA11y.violations.map(v=>({id:v.id,nodes:v.nodes.map(n=>n.target)})),[]);

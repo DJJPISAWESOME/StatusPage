@@ -11,7 +11,7 @@ export function initTV({ api }) {
   const radio = document.querySelector('.radio-bar'), radioHome = radio.parentNode;
   const radioAnchor = document.createComment('radio home'); radio.before(radioAnchor);
   let servicePage = 0, pageDeadline = 0;
-  const pageSize = () => window.innerWidth < 700 ? 4 : 8;
+  const pageSize = () => window.innerWidth < 700 ? 4 : window.innerHeight < 850 ? 6 : 8;
   function pageCount() { return Math.max(1, Math.ceil((snapshot?.services?.length || 0) / pageSize())); }
   function turnPage(direction = 1) { servicePage = (servicePage + direction + pageCount()) % pageCount(); pageDeadline = Date.now() + 20_000; services(); }
   function ribbon() {
