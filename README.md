@@ -25,7 +25,9 @@ Open `http://127.0.0.1:4173`. Test fixtures are outside deployed assets.
 
 ## Configure the dashboard
 
-Open the gear button for service visibility, exact component/region selection, panel ordering, density, board rotation and notification preferences. All preferences stay in this browser. Notifications are disabled by default and work only while the app is open; no closed-browser push subscription is created.
+Open the gear button for service visibility, exact component/region selection, panel ordering, density and notification preferences. All preferences stay in this browser. Notifications are disabled by default and work only while the app is open; no closed-browser push subscription is created.
+
+Board view is a dedicated, full-screen TV rotation: services and incident context for five minutes, local weather for two minutes, a power outage map for two minutes when an official regional utility total reports outages or affected customers, and this browser's connection to the dashboard for two minutes. The sequence repeats while Board view is open. Use **Next channel** or **Exit board** in the top bar. The normal dashboard layout does not rotate. The power screen uses Rhode Island Energy's affected-customer count for RI and National Grid's active-outage count for MA/NY; other locations, unavailable sources, and a confirmed zero total skip it. Utility totals are regional, not evidence that a particular address has lost power. The map is loaded from the utility only while its channel is on screen, and an official link remains visible if the utility blocks embedding. Outage checks are cached for five minutes; the browser refreshes them every five minutes in Board view.
 
 Integration health distinguishes collection failures from provider incidents. Observation history can be loaded for 24 hours, seven days or 30 days, filtered by provider/state, paginated and exported. History is provider-wide and begins with this version's deployment. Coverage and operational share are shown separately; missing observations never imply uptime.
 
@@ -82,7 +84,8 @@ GitHub workflows under `.github/workflows/` automate these gates after the proje
 | `src/worker.js`, `security.js` | Validated routes, visitor location, rate limiting, signatures and response bounds |
 | `src/hub.js`, `history.js` | Shared collector, alarms, deduplication, WebSockets and SQL intervals |
 | `src/providers.js`, `catalog.js` | Allowlisted provider adapters and endpoints |
-| `src/weather.js`, `radio.js` | Cached forecasts/alerts/coastal data and optional radio metadata |
+| `src/weather.js`, `power.js`, `radio.js` | Cached forecasts/alerts/coastal data, regional utility outage checks and optional radio metadata |
+| `public/tv.js` | Full-screen Board view channels and rotation |
 | `test/`, `scripts/` | Deterministic tests, synthetic previews and runtime/browser/live gates |
 | `docs/` | Release notes, audit, validation, webhook setup and synthetic screenshots |
 

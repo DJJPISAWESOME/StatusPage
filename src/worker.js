@@ -2,6 +2,7 @@ import { SERVICES } from './catalog.js';
 import { json, HttpError, readLimited, verifyHmac, secretMap, equalSecret, coordinates } from './security.js';
 import { visitorLocation, weather, geocode, marine } from './weather.js';
 import { radioMetadata } from './radio.js';
+import { powerStatus } from './power.js';
 export { StatusHub } from './hub.js';
 const hub = env => env.STATUS_HUB.get(env.STATUS_HUB.idFromName('global-v2'));
 export default {
@@ -27,6 +28,11 @@ export default {
       }
       if (path === '/api/marine') return json(await marine(coordinates(url.searchParams.get('lat'),url.searchParams.get('lon')),env));
       if (path === '/api/weather') return json(await weather(coordinates(url.searchParams.get('lat'), url.searchParams.get('lon')), env));
+      if (path === '/api/power') {
+        const region = url.searchParams.get('region') || '';
+        if (region && !['RI', 'MA', 'NY'].includes(region)) throw new HttpError(400, 'Invalid power region');
+        return json(await powerStatus(coordinates(url.searchParams.get('lat'), url.searchParams.get('lon')), region));
+      }
       if (path === '/api/places') return json({ results: await geocode(url.searchParams.get('q')) });
       if (path === '/api/radio') return json(await radioMetadata(url.searchParams.get('station')));
       if (path === '/api/ping') return json({ time: Date.now() });

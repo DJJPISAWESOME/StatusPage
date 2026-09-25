@@ -11,19 +11,13 @@ const amount=(n,suffix='',digits=0)=>Number.isFinite(n)?n.toFixed(digits)+suffix
 function table(head,rows){const t=el('table'),h=el('thead'),tr=el('tr');head.forEach(x=>tr.append(el('th',x)));h.append(tr);t.append(h);const body=el('tbody');rows.forEach(row=>{const tr=el('tr');row.forEach(x=>tr.append(el('td',String(x))));body.append(tr);});t.append(body);return t;}
 function scrollTable(t,label){const d=el('div','','data-scroll');d.tabIndex=0;d.setAttribute('aria-label',label);d.append(t);return d;}
 export function initEnhancements({api,onChange}) {
-  let preferences=readPreferences(),raw=null,baseline=new Map(),historyData=null,historyRows=[],historyVersion=0,rotation=0,boardIndex=0;
+  let preferences=readPreferences(),raw=null,baseline=new Map(),historyData=null,historyRows=[],historyVersion=0;
   const backgroundAlerts=()=>preferences.alerts.enabled&&globalThis.Notification?.permission==='granted';
   function save(reset=true){preferences=savePreferences(preferences);if(reset)baseline.clear();applyLayout();onChange();}
   function applyLayout(){
-    const footer=document.querySelector('.page-footer');for(const id of preferences.panelOrder){const node=$(id);node.hidden=preferences.hiddenPanels.includes(id);node.classList.remove('rotation-hidden');footer.before(node);}
-    document.body.dataset.density=preferences.density;clearInterval(rotation);
-    if(preferences.boardSeconds)rotation=setInterval(()=>{
-      if(document.hidden||!document.body.classList.contains('board-mode')||document.querySelector('dialog[open]')||document.activeElement?.closest('main')&&document.activeElement!==document.body)return;
-      const visible=preferences.panelOrder.filter(id=>!preferences.hiddenPanels.includes(id));boardIndex=(boardIndex+1)%visible.length;
-      visible.forEach((id,i)=>$(id).classList.toggle('rotation-hidden',i!==boardIndex));
-    },preferences.boardSeconds*1000);
+    const footer=document.querySelector('.page-footer');for(const id of preferences.panelOrder){const node=$(id);node.hidden=preferences.hiddenPanels.includes(id);footer.before(node);}
+    document.body.dataset.density=preferences.density;
   }
-  new MutationObserver(()=>{if(!document.body.classList.contains('board-mode'))PANELS.forEach(id=>$(id).classList.remove('rotation-hidden'));}).observe(document.body,{attributes:true,attributeFilter:['class']});
   async function sendNotification(service,previous,next){
     const action=async()=>{try{
       const key=`${service.id}:${previous}:${next}:${service.checkedAt}`;let seen=JSON.parse(localStorage.getItem('signal:notifications')||'{}');seen=Object.fromEntries(Object.entries(seen).filter(([,at])=>Date.now()-at<86400000));if(seen[key])return;
@@ -47,7 +41,7 @@ export function initEnhancements({api,onChange}) {
     const body=$('settings-body');body.replaceChildren();
     const display=el('section');display.append(el('h3','Make it yours'));
     const density=select([['comfortable','Comfortable'],['compact','Compact']],preferences.density);density.onchange=()=>{preferences.density=density.value;save(false);};display.append(field('Density',density));
-    const rotate=select([['0','Off'],['15','15 seconds'],['30','30 seconds'],['60','60 seconds']],String(preferences.boardSeconds));rotate.onchange=()=>{preferences.boardSeconds=Number(rotate.value);save(false);};display.append(field('Rotate panels in board view',rotate),el('p','Rotation pauses while a dialog or panel control has focus.','fine-print'));
+    display.append(el('p','Board view cycles through services (5 minutes), weather (2 minutes), a regional power outage map when reported (2 minutes), and network connection (2 minutes).','fine-print'));
     for(const [index,id] of preferences.panelOrder.entries()){
       const row=el('div','','panel-setting');row.append(field(PANEL_NAMES[PANELS.indexOf(id)],check(!preferences.hiddenPanels.includes(id),enabled=>{if(!enabled&&preferences.hiddenPanels.length>=PANELS.length-1){settings();return;}preferences.hiddenPanels=enabled?preferences.hiddenPanels.filter(x=>x!==id):[...preferences.hiddenPanels,id];save(false);})));const up=button('↑',()=>{[preferences.panelOrder[index-1],preferences.panelOrder[index]]=[id,preferences.panelOrder[index-1]];save(false);settings();});up.disabled=index===0;up.setAttribute('aria-label',`Move ${PANEL_NAMES[PANELS.indexOf(id)]} up`);const down=button('↓',()=>{[preferences.panelOrder[index+1],preferences.panelOrder[index]]=[id,preferences.panelOrder[index+1]];save(false);settings();});down.disabled=index===PANELS.length-1;down.setAttribute('aria-label',`Move ${PANEL_NAMES[PANELS.indexOf(id)]} down`);row.append(up,down);display.append(row);
     }body.append(display);
