@@ -32,14 +32,26 @@ export function initTV({ api }) {
   function announce(changes, test = false) {
     if (!active || !changes.length) return;
     sound.announce(changes);
-    const panel=node('article','tv-notice');panel.append(node('span','tv-notice-kicker',test?'TEST ALERT':'SERVICE UPDATE'));
+    const priority=['outage','degraded','unknown','maintenance','operational'];
+    const state=priority.find(status=>changes.some(change=>change.to===status))||'unknown';
+    const panel=node('article',`tv-notice tv-notice-${state}`);panel.dataset.status=state;
+    const heading=node('div','tv-notice-heading'),icon=node('span','tv-notice-icon',({outage:'!',degraded:'!',unknown:'?',maintenance:'↻',operational:'✓'})[state]);icon.setAttribute('aria-hidden','true');
+    const label=node('div','');label.append(node('span','tv-notice-kicker',test?'TEST ALERT':'SERVICE UPDATE'),node('strong','tv-notice-title',({outage:'Service outage',degraded:'Service degraded',unknown:'Status unconfirmed',maintenance:'Maintenance update',operational:'Service restored'})[state]));heading.append(icon,label);panel.append(heading);
     for(const change of changes.slice(0,3)) {
-      const row=node('div',`tv-notice-row tv-${change.to}`);
+      const row=node('div',`tv-notice-row tv-${change.to}`);row.style.setProperty('--notice-order',panel.querySelectorAll('.tv-notice-row').length);
       row.append(node('strong','',change.name),node('span','',`${names[change.from]||'Unconfirmed'} → ${names[change.to]||'Unconfirmed'}`));panel.append(row);
     }
     if(changes.length>3)panel.append(node('p','',`+ ${changes.length-3} other services changed. See the Services channel.`));
-    const close=node('button','tv-notice-close','×');close.type='button';close.setAttribute('aria-label','Dismiss service update');close.onclick=()=>$('tv-notifications').replaceChildren();panel.append(close);
-    $('tv-notifications').replaceChildren(panel);clearTimeout(noticeTimer);noticeTimer=setTimeout(()=>$('tv-notifications').replaceChildren(),12000);
+    const close=node('button','tv-notice-close','×');close.type='button';close.setAttribute('aria-label','Dismiss service update');close.onclick=()=>dismissNotice(panel);panel.append(close);
+    const progress=node('div','tv-notice-lifetime');progress.setAttribute('aria-hidden','true');panel.append(progress);
+    $('tv-notifications').replaceChildren(panel);clearTimeout(noticeTimer);noticeTimer=setTimeout(()=>dismissNotice(panel),18000);
+  }
+  function dismissNotice(panel){
+    if(!panel.isConnected||panel.dataset.leaving)return;
+    panel.dataset.leaving='true';clearTimeout(noticeTimer);
+    if(matchMedia('(prefers-reduced-motion: reduce)').matches){panel.remove();return;}
+    const exit=panel.animate([{opacity:1,transform:'translateY(0) scale(1)'},{opacity:0,transform:'translateY(24px) scale(.98)'}],{duration:280,easing:'ease-in',fill:'forwards'});
+    exit.finished.then(()=>panel.remove()).catch(()=>panel.remove());
   }
   const testStates=['outage','degraded','maintenance','operational','unknown'];let testIndex=0;
   $('tv-test-alert').title='Click again to test outage, degradation, maintenance, recovery, and unconfirmed alerts';
