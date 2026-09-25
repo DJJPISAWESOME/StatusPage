@@ -1,0 +1,13 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "signal-status-dashboard",
+  "main": "src/worker.js",
+  "compatibility_date": "2026-09-01",
+  "assets": { "directory": "./public", "binding": "ASSETS", "run_worker_first": ["/api/*"] },
+  "durable_objects": { "bindings": [{ "name": "STATUS_HUB", "class_name": "StatusHub" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["StatusHub"] }],
+  "triggers": { "crons": ["*/5 * * * *"] },
+  "ratelimits": [{ "name": "API_LIMITER", "namespace_id": "1001", "simple": { "limit": 60, "period": 60 } }],
+  "vars": { "WEBHOOK_SERVICES": "", "WEATHER_CONTACT": "https://example.com/contact" },
+  "observability": { "enabled": true, "redact_query_string": true, "head_sampling_rate": 0.1, "logs": { "enabled": true, "invocation_logs": false } }
+}
