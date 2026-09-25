@@ -48,16 +48,16 @@ try {
  await page.getByRole('button',{name:'Next service page',exact:true}).click();
  assert.equal(await page.locator('.tv-service').count(),await page.evaluate(()=>innerWidth<700?4:innerHeight<850?6:8));
  const boardA11y=await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21aa']).analyze();assert.deepEqual(boardA11y.violations.map(v=>({id:v.id,nodes:v.nodes.map(n=>n.target)})),[]);
- await page.screenshot({path:'artifacts/board-services.png'});
- await page.locator('#tv-skip').click();assert.equal(await page.locator('#tv-channel').innerText(),'SIGNAL / WEATHER');await page.screenshot({path:'artifacts/board-weather.png'});
+ await page.screenshot({path:'artifacts/board-services.png',animations:'disabled'});
+ await page.locator('#tv-skip').click();assert.equal(await page.locator('#tv-channel').innerText(),'SIGNAL / WEATHER');await page.screenshot({path:'artifacts/board-weather.png',animations:'disabled'});
  await page.clock.fastForward(31000);assert.equal(await page.locator('#tv-board').getAttribute('data-weather-page'),'1');assert.equal(await page.locator('.tv-hour').count(),6);
- await page.screenshot({path:'artifacts/board-hourly.png'});
- await page.getByRole('button',{name:'03 AI temperature outlook'}).click();assert.equal(await page.locator('.tv-model-line').count(),2);await page.screenshot({path:'artifacts/board-models.png'});
- await page.getByRole('button',{name:'04 The next few days'}).click();assert.equal(await page.locator('.tv-extended-day').count(),5);await page.screenshot({path:'artifacts/board-days.png'});
+ await page.screenshot({path:'artifacts/board-hourly.png',animations:'disabled'});
+ await page.getByRole('button',{name:'03 AI temperature outlook'}).click();assert.equal(await page.locator('.tv-model-line').count(),2);await page.screenshot({path:'artifacts/board-models.png',animations:'disabled'});
+ await page.getByRole('button',{name:'04 The next few days'}).click();assert.equal(await page.locator('.tv-extended-day').count(),5);await page.screenshot({path:'artifacts/board-days.png',animations:'disabled'});
  const weatherA11y=await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21aa']).analyze();assert.deepEqual(weatherA11y.violations.map(v=>v.id),[]);
  await page.locator('#tv-skip').click();assert.equal(await page.locator('#tv-channel').innerText(),'SIGNAL / POWER');assert.match(await page.locator('.tv-power-count').innerText(),/42 customers/);
  await page.locator('#tv-skip').click();assert.equal(await page.locator('#tv-channel').innerText(),'SIGNAL / NETWORK');
- await page.getByRole('button',{name:'Run again',exact:true}).waitFor();assert.match(await page.locator('.tv-probe-metrics').innerText(),/5 \/ 5/);await page.screenshot({path:'artifacts/board-network.png'});
+ await page.getByRole('button',{name:'Run again',exact:true}).waitFor();assert.match(await page.locator('.tv-probe-metrics').innerText(),/5 \/ 5/);await page.screenshot({path:'artifacts/board-network.png',animations:'disabled'});
  await page.locator('#tv-exit').click();assert.equal(await page.locator('#tv-board').isHidden(),true);assert.equal(await page.locator('.content #station').isVisible(),true);assert.equal(await page.locator('audio').count(),1);
  // Stored scripts/HTML from upstream must remain inert text.
  await page.route('**/api/status',route=>route.fulfill({json:{services:[{id:'xss',name:'<img src=x onerror=alert(1)>',homepage:'https://example.com',status:'degraded',incidents:[],staleAfterMs:720000,checkedAt:new Date().toISOString()}],history:[]}}));
