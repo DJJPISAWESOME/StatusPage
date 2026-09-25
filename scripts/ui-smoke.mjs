@@ -45,7 +45,7 @@ try {
  await page.setViewportSize({width:1920,height:1080});
  await page.locator('#board').click();
  await page.getByRole('button',{name:'Next service page',exact:true}).click();
- assert.equal(await page.locator('.tv-service').count(),8);
+ assert.equal(await page.locator('.tv-service').count(),await page.evaluate(()=>innerWidth<700?4:innerHeight<850?6:8));
  const boardA11y=await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21aa']).analyze();assert.deepEqual(boardA11y.violations.map(v=>({id:v.id,nodes:v.nodes.map(n=>n.target)})),[]);
  await page.screenshot({path:'artifacts/board-services.png'});
  await page.locator('#tv-skip').click();assert.equal(await page.locator('#tv-channel').innerText(),'SIGNAL / WEATHER');await page.screenshot({path:'artifacts/board-weather.png'});
