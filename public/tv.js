@@ -29,10 +29,10 @@ export function initTV({ api }) {
   function radioState() { radio.dataset.playing=String(!audio.paused&&!audio.ended&&audio.readyState>=3); }
   for (const event of ['playing','pause','waiting','ended','emptied','error']) audio.addEventListener(event,radioState);
   const equalizer=node('div','tv-equalizer');equalizer.setAttribute('aria-hidden','true');for(let i=0;i<5;i++)equalizer.append(node('i',''));radio.append(equalizer);
-  function announce(changes) {
+  function announce(changes, test = false) {
     if (!active || !changes.length) return;
     sound.announce(changes);
-    const panel=node('article','tv-notice');panel.append(node('span','tv-notice-kicker','SERVICE UPDATE'));
+    const panel=node('article','tv-notice');panel.append(node('span','tv-notice-kicker',test?'TEST ALERT':'SERVICE UPDATE'));
     for(const change of changes.slice(0,3)) {
       const row=node('div',`tv-notice-row tv-${change.to}`);
       row.append(node('strong','',change.name),node('span','',`${names[change.from]||'Unconfirmed'} → ${names[change.to]||'Unconfirmed'}`));panel.append(row);
@@ -41,6 +41,7 @@ export function initTV({ api }) {
     const close=node('button','tv-notice-close','×');close.type='button';close.setAttribute('aria-label','Dismiss service update');close.onclick=()=>$('tv-notifications').replaceChildren();panel.append(close);
     $('tv-notifications').replaceChildren(panel);clearTimeout(noticeTimer);noticeTimer=setTimeout(()=>$('tv-notifications').replaceChildren(),12000);
   }
+  $('tv-test-alert').addEventListener('click',()=>announce([{name:'Test service',from:'operational',to:'outage'}],true));
   let servicePage = 0, pageDeadline = 0;
   const pageSize = () => window.innerWidth < 700 ? 4 : window.innerHeight < 850 ? 6 : 8;
   function pageCount() { return Math.max(1, Math.ceil((snapshot?.services?.length || 0) / pageSize())); }
