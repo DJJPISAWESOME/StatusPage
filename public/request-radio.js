@@ -13,8 +13,8 @@ const node=(tag,text,cls)=>{const el=document.createElement(tag);el.textContent=
 export function initRequestRadio({container,audio,onState}){
  const panel=node('section','','request-panel');panel.hidden=true;panel.setAttribute('aria-label','YouTube request player');
  const media=node('div','','request-video');
- const skip=node('button','Skip song');skip.type='button';skip.disabled=true;
- panel.append(media,skip);container.append(panel);
+ const skip=node('button','⏭','request-skip');skip.type='button';skip.disabled=true;skip.hidden=true;skip.setAttribute('aria-label','Skip song');skip.title='Skip song';
+ panel.append(media);container.prepend(panel);container.querySelector('.radio-controls').append(skip);
  let lastData={items:[],current:null},readyTimer,revision=0;
  let selected=false,active=false,starting=false,player=null,ready=false,current=null,session=null,timer=null,generation=0,busy=false,loadedId=null;
  function status(text){onState(text,active);}
@@ -63,5 +63,5 @@ export function initRequestRadio({container,audio,onState}){
  // Moving an iframe between the dashboard and Board reloads it. Stop before that move.
  document.addEventListener('request-radio-layout',()=>{if(active||starting)void stop();});
  document.addEventListener('visibilitychange',()=>{if(document.hidden&&(active||starting))void stop();});
- return {get active(){return active||starting;},select(value){selected=value;panel.hidden=true;container.classList.toggle('request-mode',value);if(!value)void stop();else{status('Press Play to start requests.');void requestAPI().then(paint).catch(error=>{if(selected)status(error.message);});}},toggle(){if(active||starting)void stop();else void begin();}};
+ return {get active(){return active||starting;},select(value){selected=value;panel.hidden=true;skip.hidden=!value;container.classList.toggle('request-mode',value);if(!value)void stop();else{status('Press Play to start requests.');void requestAPI().then(paint).catch(error=>{if(selected)status(error.message);});}},toggle(){if(active||starting)void stop();else void begin();}};
 }
