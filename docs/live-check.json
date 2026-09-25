@@ -1,0 +1,229 @@
+{
+  "checkedAt": "2026-09-24T23:08:31.336Z",
+  "services": [
+    {
+      "id": "follett",
+      "available": true,
+      "status": "operational"
+    },
+    {
+      "id": "i-ready",
+      "available": true,
+      "status": "operational"
+    },
+    {
+      "id": "incidentiq",
+      "available": true,
+      "status": "operational"
+    },
+    {
+      "id": "hmh",
+      "available": true,
+      "status": "maintenance"
+    },
+    {
+      "id": "clever",
+      "available": true,
+      "status": "operational"
+    },
+    {
+      "id": "jamf",
+      "available": true,
+      "status": "operational"
+    },
+    {
+      "id": "duo",
+      "available": true,
+      "status": "operational"
+    },
+    {
+      "id": "seesaw",
+      "available": true,
+      "status": "operational"
+    },
+    {
+      "id": "imagine-learning",
+      "available": true,
+      "status": "operational"
+    },
+    {
+      "id": "finalsite",
+      "available": true,
+      "status": "operational"
+    },
+    {
+      "id": "dexcom",
+      "available": true,
+      "status": "operational"
+    },
+    {
+      "id": "adobe-cc",
+      "available": false,
+      "status": "unknown",
+      "detail": "response_too_large",
+      "httpStatus": null,
+      "recheckedAt": "2026-09-24T23:14:50.469Z"
+    },
+    {
+      "id": "apple-developer",
+      "available": true,
+      "status": "operational"
+    },
+    {
+      "id": "apple-services",
+      "available": true,
+      "status": "operational",
+      "recheckedAt": "2026-09-24T23:14:45.465Z"
+    },
+    {
+      "id": "openai",
+      "available": true,
+      "status": "operational"
+    },
+    {
+      "id": "cloudflare",
+      "available": true,
+      "status": "degraded"
+    },
+    {
+      "id": "quad9",
+      "available": true,
+      "status": "degraded"
+    },
+    {
+      "id": "tailscale",
+      "available": true,
+      "status": "operational"
+    },
+    {
+      "id": "google-workspace",
+      "available": true,
+      "status": "degraded"
+    },
+    {
+      "id": "dnsfilter",
+      "available": true,
+      "status": "operational"
+    },
+    {
+      "id": "meraki",
+      "available": true,
+      "status": "operational"
+    },
+    {
+      "id": "aws",
+      "available": false,
+      "status": "unknown",
+      "detail": "schema",
+      "httpStatus": null
+    },
+    {
+      "id": "azure",
+      "available": true,
+      "status": "unknown"
+    },
+    {
+      "id": "google-cloud",
+      "available": false,
+      "status": "unknown",
+      "detail": "schema",
+      "httpStatus": null
+    },
+    {
+      "id": "ibm-cloud",
+      "available": false,
+      "status": "unknown",
+      "detail": "schema",
+      "httpStatus": null
+    },
+    {
+      "id": "oracle-cloud",
+      "available": true,
+      "status": "operational"
+    },
+    {
+      "id": "akamai",
+      "available": true,
+      "status": "degraded"
+    },
+    {
+      "id": "bunny-net",
+      "available": true,
+      "status": "operational"
+    },
+    {
+      "id": "fastly",
+      "available": true,
+      "status": "unknown"
+    },
+    {
+      "id": "cachefly",
+      "available": true,
+      "status": "operational"
+    },
+    {
+      "id": "mimecast",
+      "available": true,
+      "status": "operational"
+    },
+    {
+      "id": "wasabi",
+      "available": true,
+      "status": "maintenance"
+    }
+  ],
+  "weather": {
+    "currentAvailable": true,
+    "models": [
+      {
+        "id": "ecmwf_aifs025_single",
+        "available": true,
+        "metadataAvailable": true
+      },
+      {
+        "id": "ncep_aigfs025",
+        "available": true,
+        "metadataAvailable": true
+      }
+    ],
+    "alertsAvailable": true,
+    "marineAvailable": true
+  },
+  "radio": [
+    {
+      "id": "river",
+      "available": true,
+      "httpStatus": 200,
+      "contentType": "audio/mpeg"
+    },
+    {
+      "id": "wror",
+      "available": true,
+      "httpStatus": 206,
+      "contentType": "audio/mpeg"
+    },
+    {
+      "id": "x1023",
+      "available": true,
+      "httpStatus": 200,
+      "contentType": "audio/mpeg"
+    },
+    {
+      "id": "wocn",
+      "available": true,
+      "httpStatus": 200,
+      "contentType": "audio/aacp"
+    },
+    {
+      "id": "hjy",
+      "available": true,
+      "httpStatus": 200,
+      "contentType": "audio/aac"
+    }
+  ],
+  "notes": [
+    "Radio checks validate an audio HTTP response, not audible playback.",
+    "AWS, Google Cloud and IBM Cloud returned Site Unavailable HTML from this execution environment.",
+    "Adobe public registry was 2,297,290 bytes; events exceeded an 8 MiB diagnostic bound. Production keeps its 1 MiB safety cap and reports response_too_large."
+  ]
+}
