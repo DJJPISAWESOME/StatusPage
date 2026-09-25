@@ -17,7 +17,7 @@ test('Radar reports match North America and observed downstreams without claimin
  const report=await networkWatch({RADAR_API_TOKEN:'test-token'},mock(),null);assert.equal(report.northAmerica.available,true);assert.equal(report.northAmerica.events.length,1);assert.equal(report.downstream.events[0].via.length,3);assert.equal(report.downstream.events[0].state,'No end reported');
 });
 test('Radar errors remain unavailable and never expose authentication values',async()=>{
- const report=await networkWatch({RADAR_API_TOKEN:'test-token'},mock({failRadar:true}),null);assert.equal(report.northAmerica.available,false);assert.equal(report.networks[0].eventsAvailable,false);assert.equal(JSON.stringify(report).includes('test-token'),false);
+ const report=await networkWatch({RADAR_API_TOKEN:'test-token'},mock({failRadar:true}),null);assert.equal(report.northAmerica.available,false);assert.equal(report.networks[0].eventsAvailable,false);assert.equal(report.feeds[0].detail,'http_403');assert.equal(JSON.stringify(report).includes('test-token'),false);
 });
 test('routing normalizer distinguishes ended and stale detections; matching is directional',()=>{
  const leak=normalizeRadar('leaks',{id:1,leak_asn:65002,leak_seg:[65002,25710],finished:true,countries:['CA'],min_ts:'2026-09-25T10:00:00'});assert.equal(leak.state,'Ended');assert.equal(inNorthAmerica(leak),true);assert.equal(downstreamMatches([leak],[{asn:25710,downstream:[65001]}]).length,0);

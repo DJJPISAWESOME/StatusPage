@@ -41,7 +41,12 @@ async function radarFeed(kind,asn,token,fetcher,cache){
       if(!limited)break;
     }
     return {available:true,events,limited};
-  },cache);}catch{return {...unavailable,reason:'Radar feed unavailable'};}
+  },cache);}catch(error){
+    // Keep authentication material and upstream bodies out of public diagnostics.
+    const http=error.message.match(/^Upstream HTTP (\d{3})$/)?.[1];
+    const detail=http?`http_${http}`:error.status===413?'response_too_large':error.name==='AbortError'?'timeout':error.message==='Invalid Radar response'?'invalid_response':'request_failed';
+    return {...unavailable,reason:'Radar feed unavailable',detail};
+  }
 }
 export async function networkWatch(env={},fetcher=fetch,cache=globalThis.caches?.default){
   const token=env.RADAR_API_TOKEN, kinds=['outages','leaks','hijacks'];
@@ -53,5 +58,5 @@ export async function networkWatch(env={},fetcher=fetch,cache=globalThis.caches?
   const dedupe=events=>[...new Map(events.map(e=>[e.id,e])).values()].sort((a,b)=>(Date.parse(b.start)||0)-(Date.parse(a.start)||0));
   networks.forEach((network,i)=>{network.events=dedupe(direct[i].flatMap(f=>f.events));network.eventsAvailable=direct[i].every(f=>f.available);network.limited=direct[i].some(f=>f.limited);});
   const all=dedupe(globalFeeds.flatMap(f=>f.events)),available=globalFeeds.every(f=>f.available),limited=globalFeeds.some(f=>f.limited);
-  return {checkedAt:new Date().toISOString(),radarConfigured:!!token,networks,feeds:kinds.map((kind,i)=>({kind,available:globalFeeds[i].available,limited:globalFeeds[i].limited,checkedAt:globalFeeds[i].fetchedAt||null})),northAmerica:{available,limited,events:all.filter(inNorthAmerica)},downstream:{available:available&&networks.every(n=>n.neighboursAvailable),limited,events:downstreamMatches(all,networks)},window:'7 days',source:'Cloudflare Radar + RIPE RIS'};
+  return {checkedAt:new Date().toISOString(),radarConfigured:!!token,networks,feeds:kinds.map((kind,i)=>({kind,available:globalFeeds[i].available,limited:globalFeeds[i].limited,checkedAt:globalFeeds[i].fetchedAt||null,detail:globalFeeds[i].detail||null})),northAmerica:{available,limited,events:all.filter(inNorthAmerica)},downstream:{available:available&&networks.every(n=>n.neighboursAvailable),limited,events:downstreamMatches(all,networks)},window:'7 days',source:'Cloudflare Radar + RIPE RIS'};
 }
