@@ -2,6 +2,7 @@ import { SERVICES } from './catalog.js';
 import { json, HttpError, readLimited, verifyHmac, secretMap, equalSecret, coordinates } from './security.js';
 import { visitorLocation, weather, geocode, marine } from './weather.js';
 import { radioMetadata } from './radio.js';
+import { networkWatch } from './network-watch.js';
 import { powerStatus } from './power.js';
 export { StatusHub } from './hub.js';
 const hub = env => env.STATUS_HUB.get(env.STATUS_HUB.idFromName('global-v2'));
@@ -36,6 +37,7 @@ export default {
       if (path === '/api/places') return json({ results: await geocode(url.searchParams.get('q')) });
       if (path === '/api/radio') return json(await radioMetadata(url.searchParams.get('station')));
       if (path === '/api/ping') return json({ time: Date.now() });
+      if (path === '/api/network-watch') return json(await networkWatch(env));
       if (path === '/api/network') return json({ colo: request.cf?.colo || null, country: request.cf?.country || null, region: request.cf?.region || null, protocol: request.cf?.httpProtocol || null, tls: request.cf?.tlsVersion || null, asOrganization: request.cf?.asOrganization || null, asn: request.cf?.asn || null });
       if (isHook) {
         if (request.method !== 'POST') throw new HttpError(405, 'POST required');
