@@ -43,5 +43,5 @@ test('invalid continuation and ASN-name parameters are rejected before fetching'
 });
 test('event metadata preserves network names',()=>{
  const outage=normalizeRadar('outages',{...event,asnsDetails:[{asn:'65001',name:'Example ISP'}]});assert.equal(outage.names[65001],'Example ISP');
- const leak=normalizeRadar('leaks',{id:1,leak_asn:32145,leak_seg:[]},[{asn:32145,org_name:'OpenCape'}]);assert.equal(leak.names[32145],'OpenCape');
+ const leak=normalizeRadar('leaks',{id:1,leak_asn:32145,leak_seg:[]},[{asn:32145,org_name:'OpenCape'},{asn:25710,org_name:'Other network'}]);assert.deepEqual(leak.names,{32145:'OpenCape'});
 });
