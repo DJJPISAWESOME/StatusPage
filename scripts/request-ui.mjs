@@ -11,7 +11,8 @@ export async function verifyRequests(browser){
    if(url.pathname.endsWith('/control')){
     assert.equal(req.headers().authorization,undefined);
     if(body.action==='claim'){online=true;if(!current)current=items.shift()||null;}
-    if(body.action==='release')online=false,transport=null,playback=null,remoteVolume=null;
+    if(body.action==='release')online=false;
+    if(body.action==='heartbeat'&&body.id===current?.id)playback={...body.playback,at:Date.now()};
     if(body.action==='next'&&(current?.id||null)===(body.id||null))current=items.shift()||null;
    }else if(url.pathname.endsWith('/remote')){
     if(body.command==='skip'){current=items.shift()||null;transport=null;playback=null;}
