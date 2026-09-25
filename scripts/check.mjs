@@ -1,0 +1,10 @@
+import { readdirSync, readFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { SERVICES } from '../src/catalog.js';
+for (const dir of ['src', 'public', 'scripts']) for (const file of readdirSync(dir)) if (/\.(m?js)$/.test(file)) execFileSync(process.execPath, ['--check', `${dir}/${file}`]);
+if (new Set(SERVICES.map(x => x.id)).size !== SERVICES.length) throw new Error('Duplicate service ID');
+for (const s of SERVICES) if (!s.url.startsWith('https://') || !s.homepage.startsWith('https://')) throw new Error('Insecure provider URL');
+const app = readFileSync('public/app.js', 'utf8'), html = readFileSync('public/index.html', 'utf8');
+for (const [, id] of app.matchAll(/\$\('([^']+)'\)/g)) if (!html.includes(`id="${id}"`) && id !== 'mobile-theme') throw new Error(`Missing element ${id}`);
+for (const file of ['public/index.html', 'public/app.js', 'src/catalog.js']) if (/mbta/i.test(readFileSync(file, 'utf8'))) throw new Error('Transit integration remains');
+console.log(`Build checks passed: ${SERVICES.length} services, static assets and Worker modules valid.`);
