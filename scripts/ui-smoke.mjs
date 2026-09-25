@@ -34,7 +34,7 @@ try {
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'Mobile horizontal overflow');
  await page.clock.install();
  await page.locator('#board').click();assert.equal(await page.locator('#board').getAttribute('aria-pressed'),'true');
- assert.equal(await page.locator('#tv-channel').innerText(),'SIGNAL / SERVICES');assert.equal(await page.locator('#tv-content .tv-service').count(),4);
+ await page.waitForFunction(expected=>document.getElementById('tv-board').dataset.scene===expected,'services');assert.equal(await page.locator('#tv-content .tv-service').count(),4);
  const firstPage = await page.locator('#tv-content .tv-service strong').allTextContents();
  await page.getByRole('button',{name:'Next service page',exact:true}).click();
  assert.notDeepEqual(await page.locator('#tv-content .tv-service strong').allTextContents(),firstPage);
@@ -49,15 +49,15 @@ try {
  assert.equal(await page.locator('#tv-content .tv-service').count(),await page.evaluate(()=>innerWidth<700?4:innerHeight<850?6:8));
  const boardA11y=await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21aa']).analyze();assert.deepEqual(boardA11y.violations.map(v=>({id:v.id,nodes:v.nodes.map(n=>n.target)})),[]);
  await page.screenshot({path:'artifacts/board-services.png',animations:'disabled'});
- await page.locator('#tv-skip').click();assert.equal(await page.locator('#tv-channel').innerText(),'SIGNAL / WEATHER');await page.screenshot({path:'artifacts/board-weather.png',animations:'disabled'});
+ await page.locator('#tv-skip').click();await page.waitForFunction(expected=>document.getElementById('tv-board').dataset.scene===expected,'weather');await page.screenshot({path:'artifacts/board-weather.png',animations:'disabled'});
  await page.clock.fastForward(31000);assert.equal(await page.locator('#tv-board').getAttribute('data-weather-page'),'1');assert.equal(await page.locator('#tv-content .tv-hour').count(),6);assert.equal(await page.locator('#tv-content .tv-hour svg[role=img]').count(),6);assert.equal(await page.locator('#tv-content .tv-hour .tv-icon-unknown').count(),0);
  await page.screenshot({path:'artifacts/board-hourly.png',animations:'disabled'});
  await page.getByRole('button',{name:'03 AI temperature outlook'}).click();assert.equal(await page.locator('#tv-content .tv-model-line').count(),2);await page.screenshot({path:'artifacts/board-models.png',animations:'disabled'});
  await page.getByRole('button',{name:'04 The next few days'}).click();assert.equal(await page.locator('#tv-content .tv-extended-day').count(),5);await page.screenshot({path:'artifacts/board-days.png',animations:'disabled'});
  await page.emulateMedia({reducedMotion:'reduce'});await page.getByRole('button',{name:'02 Hour by hour'}).click();assert.equal(await page.locator('.tv-outgoing').count(),0);assert.equal(await page.locator('#tv-content').evaluate(el=>el.getAnimations({subtree:true}).length),0);await page.emulateMedia({reducedMotion:'no-preference'});
  const weatherA11y=await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21aa']).analyze();assert.deepEqual(weatherA11y.violations.map(v=>v.id),[]);
- await page.locator('#tv-skip').click();assert.equal(await page.locator('#tv-channel').innerText(),'SIGNAL / POWER');assert.match(await page.locator('#tv-content .tv-power-count').innerText(),/42 customers/);
- await page.locator('#tv-skip').click();assert.equal(await page.locator('#tv-channel').innerText(),'SIGNAL / NETWORK');
+ await page.locator('#tv-skip').click();await page.waitForFunction(expected=>document.getElementById('tv-board').dataset.scene===expected,'power');assert.match(await page.locator('#tv-content .tv-power-count').innerText(),/42 customers/);
+ await page.locator('#tv-skip').click();await page.waitForFunction(expected=>document.getElementById('tv-board').dataset.scene===expected,'network');
  await page.getByRole('button',{name:'Run again',exact:true}).waitFor();assert.match(await page.locator('#tv-content .tv-probe-metrics').innerText(),/5 \/ 5/);await page.screenshot({path:'artifacts/board-network.png',animations:'disabled'});
  await page.locator('#tv-exit').click();assert.equal(await page.locator('#tv-board').isHidden(),true);assert.equal(await page.locator('.content #station').isVisible(),true);assert.equal(await page.locator('audio').count(),1);
  // Stored scripts/HTML from upstream must remain inert text.

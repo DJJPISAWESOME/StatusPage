@@ -167,7 +167,6 @@ export function initTV({ api }) {
     screen.dataset.scene = scene.id;
     document.querySelectorAll('[data-tv-channel]').forEach(el => { el.classList.toggle('selected',el.dataset.tvChannel===scene.id); el.hidden=el.dataset.tvChannel==='power'&&!power?.active; });
     servicePage = 0; pageDeadline = Date.now() + 20_000; ribbon();
-    $('tv-channel').textContent = `SIGNAL / ${scene.id.toUpperCase()}`;
     $('tv-progress').style.animationDuration = `${scene.ms}ms`;
     $('tv-progress').classList.remove('tv-running'); void $('tv-progress').offsetWidth; $('tv-progress').classList.add('tv-running');
     changePage(({ services, weather, power: outage, network: connection })[scene.id]); if (scene.id === 'network') void connectionCheck();
