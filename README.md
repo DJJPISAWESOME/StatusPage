@@ -33,7 +33,7 @@ The hourly weather table includes rain chances, amounts and gusts. Coastal data 
 
 ## Cloudflare architecture
 
-Static Assets serves the UI. A Worker handles validated same-origin API requests; one SQLite Durable Object shares status collection, observation history, webhook receipts and pending invalidations. Cron runs every five minutes. Configured webhook sources reconcile hourly, with failures retried on the next scheduled cycle. Hibernating WebSockets distribute snapshots; disconnected visible clients fall back to one shared-snapshot request per minute. Hidden clients pause unless notifications are enabled and permitted.
+The existing `statuspage` Pages project serves the UI from `public/`. Its `/api/*` Pages Function forwards requests through the `STATUS_API` service binding to the `signal-status-dashboard` Worker. The Worker handles validated same-origin API requests; one SQLite Durable Object shares status collection, observation history, webhook receipts and pending invalidations. Cron runs every five minutes. Configured webhook sources reconcile hourly, with failures retried on the next scheduled cycle. Hibernating WebSockets distribute snapshots; disconnected visible clients fall back to one shared-snapshot request per minute. Hidden clients pause unless notifications are enabled and permitted.
 
 Weather caches use coordinate-specific keys: models 30 minutes, current/hourly conditions 15 minutes, NWS five minutes, coastal forecasts 30 minutes; provider-run metadata is shared for ten minutes. These are per-data-center Cache API entries, not a globally coherent cache. Audio streams directly from broadcasters. Optional now-playing metadata is bounded and cached.
 
@@ -41,17 +41,14 @@ Free-tier-conscious choices include static-first routing, one shared collector, 
 
 ## Deploy
 
-This is a Workers + Static Assets project, not a direct replacement ZIP for a Pages upload.
+This repository supports the existing Pages URL while running the stateful API in a Worker. Cloudflare Pages cannot create a Durable Object class or run the five-minute Cron itself, so both projects are required.
 
-1. Run `npm ci`; choose a unique Worker name in `wrangler.jsonc`.
-2. Replace `WEATHER_CONTACT` with a real operator contact URL or email.
-3. Run `npx wrangler login` in your environment.
-4. Run `npm run build`, `npm test`, and `npm run test:runtime`.
-5. Run `npm run deploy`. The included migration creates SQLite storage; no manual D1/KV setup is needed.
-6. Validate your visitor location, current sources and history on the resulting URL, then configure a custom domain. Keep your old deployment until acceptance checks pass.
-7. Configure actual provider subscriptions and secrets using [WEBHOOKS.md](docs/WEBHOOKS.md). Receiving endpoints alone do not subscribe to providers.
+1. In the existing `statuspage` Pages project, set the production build command to `npm run build` and output directory to `public`. The `.node-version` file selects Node.js 24. Leave the Git repository and `main` branch connected.
+2. Deploy the `signal-status-dashboard` Worker from this repository with `npm run deploy`, or connect the same repository as a Worker in Cloudflare Builds. Its `wrangler.jsonc` defines the SQLite Durable Object migration, Cron, rate limiter and static assets. No manual D1 or KV setup is needed.
+3. In `statuspage` > Settings > Bindings, add a **Service binding** named `STATUS_API` pointing to `signal-status-dashboard`. Add it to both production and preview if preview URLs need a working API. Redeploy Pages after adding the binding.
+4. Verify `https://statuspage-273.pages.dev/`, `/api/ping`, `/api/status`, `/api/location`, the WebSocket status feed, weather, and history. Check that the Worker Cron is enabled. Configure provider subscriptions and secrets using [WEBHOOKS.md](docs/WEBHOOKS.md); receiving endpoints alone do not subscribe to providers.
 
-No account, deployment, DNS, domain or real webhook subscription was changed while creating this archive. Existing 2.0 deployments retain the Durable Object name and migration tag. The new SQL table is created on initialization; history begins then.
+The Pages Function forwards the original request, preserving the Pages origin for same-origin checks and WebSocket upgrades. `public/_routes.json` limits Function invocations to `/api/*`; ordinary assets stay on the static Pages path. The Worker can also serve the UI directly on its own `workers.dev` URL. Existing 2.0 deployments retain the Durable Object name and migration tag. The SQL history table is created on initialization; history begins then.
 
 Open-Meteo's free endpoint is for non-commercial use. For commercial use, obtain an appropriate plan and set `OPEN_METEO_API_KEY` with `npx wrangler secret put OPEN_METEO_API_KEY`. Forecast and marine requests then use customer hosts. This does not enable a paid subscription automatically.
 
@@ -81,6 +78,7 @@ GitHub workflows under `.github/workflows/` automate these gates after the proje
 | `public/preferences.js`, `policy.js` | Validated preferences, scoping, notifications and coverage policy |
 | `public/radio-player.js`, `stations.js` | Bounded audio recovery and radio catalog |
 | `public/sw.js` | Notification click handling; no asset cache or closed-browser push |
+| `functions/api/[[path]].js`, `public/_routes.json` | Pages-to-Worker API forwarding and API-only Function routing |
 | `src/worker.js`, `security.js` | Validated routes, visitor location, rate limiting, signatures and response bounds |
 | `src/hub.js`, `history.js` | Shared collector, alarms, deduplication, WebSockets and SQL intervals |
 | `src/providers.js`, `catalog.js` | Allowlisted provider adapters and endpoints |
