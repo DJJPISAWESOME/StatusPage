@@ -4,7 +4,7 @@ export async function verifyRequests(browser){
  const context=await browser.newContext({viewport:{width:1440,height:1100}}),errors=[];let current=null,items=[],online=false;
  const song={videoId:'dQw4w9WgXcQ',title:'A requested song',artist:'Example artist'},second={videoId:'aaaaaaaaaaa',title:'Second request',artist:'Another artist'};
  await context.route('**/api/requests**',async route=>{
-  const req=route.request(),url=new URL(req.url);let data;
+  const req=route.request(),url=new URL(req.url());let data;
   if(url.pathname.endsWith('/search'))data={results:[song]};
   else if(req.method()==='POST'){
    const body=req.postDataJSON();
