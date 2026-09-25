@@ -61,9 +61,13 @@
 @media(max-width:900px){.tv-current-stage{grid-template-columns:1fr;flex:none;gap:12px}.tv-current-metrics{grid-template-columns:repeat(3,minmax(0,1fr))}.tv-weather-now .tv-weather-symbol{justify-self:end}.tv-daylight{gap:12px;padding:12px}.tv-daylight .tv-network-card span{font-size:11px}}
 @media(max-width:480px){.tv-current-metrics{grid-template-columns:1fr 1fr}.tv-daylight{grid-template-columns:1fr 1fr}.tv-daylight>.tv-network-card:last-child{grid-column:1/-1}.tv-today-range .tv-network-card{padding:0}}
 
-/* Idle controls retain their space so the broadcast does not jump. */
-.tv-weather-tabs,.tv-network-tabs{transition:opacity .35s ease,transform .35s ease}
-.tv-idle .tv-weather-tabs,.tv-idle .tv-network-tabs{opacity:0;pointer-events:none;transform:translateY(8px)}
+/* Idle navigation collapses so report cards can fill the freed space. */
+.tv-weather-tabs,.tv-network-tabs{max-height:100px;min-height:0;overflow:hidden;transition:opacity .35s ease,max-height .35s ease,margin .35s ease,border-width .35s ease}
+.tv-idle .tv-weather-tabs,.tv-idle .tv-network-tabs{opacity:0;pointer-events:none;max-height:0;border-top-width:0;margin-top:-14px}
+.tv-idle .tv-model-chart{max-height:none}
+.tv-report-paging button{transition:opacity .3s}.tv-idle .tv-report-paging button{visibility:hidden;pointer-events:none}
+@media(min-width:700px) and (max-height:849px){.tv-idle .tv-weather-tabs{margin-top:-10px}}
+@media(max-width:699px){.tv-idle .tv-weather-tabs{margin-top:-12px}}
 .tv-board[data-conditions]{transition:background 1.4s ease;background:linear-gradient(120deg,#163d59,#386986)}
 .tv-board[data-conditions=sunny]{background:radial-gradient(ellipse at 78% 20%,#997b48 0,transparent 48%),linear-gradient(125deg,#143957,#326385)}
 .tv-board[data-conditions=night],.tv-board[data-conditions=night-cloudy]{background:linear-gradient(125deg,#070f29,#1e345b)}

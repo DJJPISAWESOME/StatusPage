@@ -1,0 +1,6 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {reportPage,asnLabel,appendNetworkFeed,buildNetworkReport} from '../public/network-report.js';
+test('report pages rotate through every record and wrap in both directions',()=>{const events=Array.from({length:13},(_,id)=>({id}));assert.deepEqual([0,1,2].flatMap(i=>reportPage(events,i).events),events);assert.equal(reportPage(events,3).page,0);assert.equal(reportPage(events,-1).page,2);assert.equal(reportPage([],7).pages,1);assert.equal(reportPage(events,0,2).pages,7);});
+test('failed continuation retains loaded events and reports incomplete coverage',()=>{const event={id:'1',countries:['US'],asns:[]};let report=buildNetworkReport([],[{kind:'outages',asn:0,available:true,events:[event],nextPage:3}],{});report=appendNetworkFeed(report,{kind:'outages',asn:0,available:false,events:[],nextPage:null});assert.equal(report.northAmerica.events.length,1);assert.equal(report.northAmerica.available,false);assert.equal(report.loadFailed,true);assert.equal(report.loadingMore,false);});
+test('ASN labels keep names beside numbers and explicitly label missing names',()=>{assert.equal(asnLabel({names:{32145:'OPENCAPE - OpenCape Corporation'}},32145),'AS32145 · OpenCape Corporation');assert.equal(asnLabel({},123),'AS123 · Name unavailable');});
