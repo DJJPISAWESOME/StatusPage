@@ -52,7 +52,7 @@ export async function searchYoutube(query,fetcher=fetch,cache=globalThis.caches?
 }
 export async function requestRoute(request,env){
   const url=new URL(request.url),path=url.pathname;
-  if(!['/api/requests','/api/requests/search','/api/requests/control'].includes(path))throw new HttpError(404,'Not found');
+  if(!['/api/requests','/api/requests/search','/api/requests/control','/api/requests/remote'].includes(path))throw new HttpError(404,'Not found');
   if(request.method==='GET'&&path==='/api/requests/search')return json(await searchYoutube(url.searchParams.get('q')));
   const hub=env.STATUS_HUB.get(env.STATUS_HUB.idFromName('request-radio-v1'));
   if(request.method==='GET'&&path==='/api/requests'){
@@ -63,8 +63,11 @@ export async function requestRoute(request,env){
   if(!request.headers.get('Content-Type')?.startsWith('application/json'))throw new HttpError(415,'JSON required');
   let body;try{body=JSON.parse(await readLimited(request,4096));}catch(error){if(error instanceof HttpError)throw error;throw new HttpError(400,'Invalid JSON');}
   if(!body||typeof body!=='object'||Array.isArray(body))throw new HttpError(400,'Invalid request');
+  if(path==='/api/requests/remote'){
+    return hub.fetch('https://hub/requests',{method:'POST',body:JSON.stringify({action:'remote',command:body.command,id:body.id,volume:body.volume})});
+  }
   if(path==='/api/requests/control'){
-    return hub.fetch('https://hub/requests',{method:'POST',body:JSON.stringify({action:body.action,session:body.session,id:body.id})});
+    return hub.fetch('https://hub/requests',{method:'POST',body:JSON.stringify({action:body.action,session:body.session,id:body.id,playback:body.playback})});
   }
   if(path!=='/api/requests')throw new HttpError(405,'Method not allowed');
   const video=await videoDetails(youtubeId(body.url));
@@ -90,6 +93,18 @@ export class RequestQueue{
         if(state.items.length>=50)throw new HttpError(409,'The queue is full. Please try again after a song plays.');
         if(state.recent.filter(r=>r.client===body.client&&now-r.at<60000).length>=3)throw new HttpError(429,'Please wait a minute before adding more songs.');
         state.items.push({...body.video,id:crypto.randomUUID(),addedAt:now});state.recent.push({id:body.requestId,client:body.client,at:now});state.recent=state.recent.slice(-1000);
+      }else if(body.action==='remote'){
+        if(!['pause','resume','rewind','skip','volume'].includes(body.command))throw new HttpError(400,'Invalid playback command');
+        if(state.leaseUntil<=now||(!state.current&&body.command!=='volume'))throw new HttpError(409,'Board playback is offline or idle.');
+        if(body.command!=='volume'&&body.id!==state.current.id)throw new HttpError(409,'The song changed. Please try again.');
+        if(body.command==='volume'){
+          if(!Number.isFinite(body.volume)||body.volume<0||body.volume>1)throw new HttpError(400,'Volume must be between 0 and 1');
+          state.remoteVolume={value:body.volume,revision:(state.remoteVolume?.revision||0)+1};
+        }else if(body.command==='skip'){state.current=state.items.shift()||null;state.transport=null;state.playback=null;}
+        else{
+          const previous=state.transport||{revision:0,paused:false,rewind:0};
+          state.transport={revision:previous.revision+1,paused:body.command==='pause'?true:body.command==='resume'?false:previous.paused,rewind:previous.rewind+(body.command==='rewind'?1:0)};
+        }
       }else{
         if(!/^[\w-]{16,80}$/.test(body.session||''))throw new HttpError(400,'Invalid player session');
         if(!['claim','heartbeat','next','release'].includes(body.action))throw new HttpError(400,'Invalid player action');
@@ -99,13 +114,19 @@ export class RequestQueue{
         }else if(state.owner!==body.session||state.leaseUntil<=now)throw new HttpError(409,'Player session expired. Press Play to reconnect.');
         if(body.action==='next'){
           // Compare-and-swap protects against duplicate end/error callbacks and retries.
-          if((state.current?.id||null)===(body.id||null))state.current=state.items.shift()||null;
+          if((state.current?.id||null)===(body.id||null)){state.current=state.items.shift()||null;state.transport=null;state.playback=null;}
         }else if(body.action==='claim'&&!state.current)state.current=state.items.shift()||null;
+        if(body.action==='heartbeat'&&body.id===state.current?.id&&body.playback){
+          const p=body.playback;
+          if(Number.isFinite(p.position)&&Number.isFinite(p.duration)&&p.position>=0&&p.duration>=0&&p.duration<=604800){
+            state.playback={position:Math.min(p.position,p.duration),duration:p.duration,paused:p.paused===true,volume:Number.isFinite(p.volume)?Math.max(0,Math.min(1,p.volume)):null,at:now};
+          }
+        }
         if(body.action==='release'){state.owner=null;state.leaseUntil=0;}else state.leaseUntil=now+45000;
       }
       await tx.put('music',state);return json(this.public(state));
     });}catch(error){if(error instanceof HttpError)return json({error:error.message},error.status);throw error;}
   }
   empty(){return {items:[],current:null,owner:null,leaseUntil:0,recent:[]};}
-  public(state){return {current:state.current,items:state.items,playerOnline:state.leaseUntil>Date.now()};}
+  public(state){return {current:state.current,items:state.items,playerOnline:state.leaseUntil>Date.now(),remoteVolume:state.remoteVolume||null,transport:state.transport||null,playback:state.playback||null};}
 }
