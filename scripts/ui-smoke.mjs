@@ -33,11 +33,25 @@ try {
  await page.locator('#mobile-theme').click();await page.setViewportSize({width:390,height:844});await page.screenshot({path:'artifacts/mobile.png',fullPage:true});
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'Mobile horizontal overflow');
  await page.locator('#board').click();assert.equal(await page.locator('#board').getAttribute('aria-pressed'),'true');
- assert.equal(await page.locator('#tv-channel').innerText(),'SIGNAL / SERVICES');assert.equal(await page.locator('.tv-service').count(),32);
- await page.locator('#tv-skip').click();assert.equal(await page.locator('#tv-channel').innerText(),'SIGNAL / WEATHER');
+ assert.equal(await page.locator('#tv-channel').innerText(),'SIGNAL / SERVICES');assert.equal(await page.locator('.tv-service').count(),4);
+ const firstPage = await page.locator('.tv-service strong').allTextContents();
+ await page.getByRole('button',{name:'Next service page',exact:true}).click();
+ assert.notDeepEqual(await page.locator('.tv-service strong').allTextContents(),firstPage);
+ assert.equal(await page.locator('#tv-radio-dock #station').isVisible(),true);
+ await page.locator('#station').selectOption({index:1});
+ assert.equal(await page.locator('#tv-radio-dock #radio-state').isVisible(),true);
+ await page.locator('#tv-exit').click();
+ await page.waitForFunction(()=>!document.fullscreenElement);
+ await page.setViewportSize({width:1920,height:1080});
+ await page.locator('#board').click();
+ await page.getByRole('button',{name:'Next service page',exact:true}).click();
+ assert.equal(await page.locator('.tv-service').count(),8);
+ const boardA11y=await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21aa']).analyze();assert.deepEqual(boardA11y.violations.map(v=>({id:v.id,nodes:v.nodes.map(n=>n.target)})),[]);
+ await page.screenshot({path:'artifacts/board-services.png'});
+ await page.locator('#tv-skip').click();assert.equal(await page.locator('#tv-channel').innerText(),'SIGNAL / WEATHER');await page.screenshot({path:'artifacts/board-weather.png'});
  await page.locator('#tv-skip').click();assert.equal(await page.locator('#tv-channel').innerText(),'SIGNAL / POWER');assert.match(await page.locator('.tv-power-count').innerText(),/42 customers/);
  await page.locator('#tv-skip').click();assert.equal(await page.locator('#tv-channel').innerText(),'SIGNAL / NETWORK');
- await page.locator('#tv-exit').click();assert.equal(await page.locator('#tv-board').isHidden(),true);
+ await page.locator('#tv-exit').click();assert.equal(await page.locator('#tv-board').isHidden(),true);assert.equal(await page.locator('.content #station').isVisible(),true);assert.equal(await page.locator('audio').count(),1);
  // Stored scripts/HTML from upstream must remain inert text.
  await page.route('**/api/status',route=>route.fulfill({json:{services:[{id:'xss',name:'<img src=x onerror=alert(1)>',homepage:'https://example.com',status:'degraded',incidents:[],staleAfterMs:720000,checkedAt:new Date().toISOString()}],history:[]}}));
  await page.reload();await page.waitForSelector('.service-card');assert.equal(await page.locator('.service-card img').count(),0);
