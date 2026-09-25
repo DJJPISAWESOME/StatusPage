@@ -1,0 +1,17 @@
+# Exclude server-side and tooling files from Workers Assets upload.
+# Only index.html should be served as a static asset.
+node_modules/
+api/
+functions/
+worker.js
+wrangler.toml
+vercel.json
+_routes.json
+README.md
+package.json
+package-lock.json
+bun.lock
+bun.lockb
+.git/
+.gitignore
+*.log
