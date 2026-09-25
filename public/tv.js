@@ -13,7 +13,7 @@ export function initTV({ api }) {
   let servicePage = 0, pageDeadline = 0;
   const pageSize = () => window.innerWidth < 700 ? 4 : window.innerHeight < 850 ? 6 : 8;
   function pageCount() { return Math.max(1, Math.ceil((snapshot?.services?.length || 0) / pageSize())); }
-  function turnPage(direction = 1) { servicePage = (servicePage + direction + pageCount()) % pageCount(); pageDeadline = Date.now() + 20_000; services(); }
+  function turnPage(direction = 1) { servicePage = (servicePage + direction + pageCount()) % pageCount(); pageDeadline = Date.now() + 20_000; services(); animatePage(); }
   function ribbon() {
     const list = snapshot?.services || [];
     $('tv-overview').textContent = list.length ? `${list.filter(s => status(s) === 'operational').length} / ${list.length} services operational` : 'Services · connecting';
@@ -45,25 +45,65 @@ export function initTV({ api }) {
     if (!list.length) content.append(node('p', 'tv-empty', 'Connecting to the shared status feed…'));
   }
 
+  const weatherPages = ['Local conditions', 'Hour by hour', 'AI temperature outlook', 'The next few days'];
+  let weatherPage = 0, weatherDeadline = 0, networkResult = null, probeVersion = 0;
+  const localTime = stamp => new Date(stamp * 1000).toLocaleTimeString([], { hour: 'numeric', timeZone: forecast?.conditions?.timezone || place?.timezone });
+  const symbol = code => code === 0 ? '☀' : [1,2,3,45,48].includes(code) ? '☁' : [71,73,75,77,85,86].includes(code) ? '❄' : code >= 95 ? 'ϟ' : Number.isFinite(code) ? '☂' : '—';
+  function animatePage() {
+    if (!matchMedia('(prefers-reduced-motion: reduce)').matches) content.animate([{ opacity: .2, transform: 'translateX(24px)' }, { opacity: 1, transform: 'translateX(0)' }], { duration: 550, easing: 'cubic-bezier(.16,1,.3,1)' });
+  }
+  function weatherTurn(direction = 1) { weatherPage = (weatherPage + direction + weatherPages.length) % weatherPages.length; weatherDeadline = Date.now() + 30_000; weather(); animatePage(); }
+  function metric(label, value, className = 'tv-network-card') { const card = node('div', className); card.append(node('span', '', label), node('strong', '', value)); return card; }
   function weather() {
-    title('Weather report', place?.label || 'Local forecast');
-    const data = forecast?.conditions;
-    if (!data?.current) { content.append(node('p', 'tv-empty', 'Weather is unavailable. The next update will retry.')); return; }
-    const main = node('div', 'tv-weather');
-    const now = node('div', 'tv-weather-now');
-    now.append(node('div', 'tv-temperature', `${number(data.current.temperature_2m)}°F`), node('div', 'tv-weather-symbol', data.current.weather_code === 0 ? '☀' : [1, 2, 3].includes(data.current.weather_code) ? '☁' : '☂'), node('h2', '', condition(data.current.weather_code)), node('p', '', `Feels like ${number(data.current.apparent_temperature, '°')} · Wind ${number(data.current.wind_speed_10m, ' mph')} · Humidity ${number(data.current.relative_humidity_2m, '%')}`));
-    const days = node('div', 'tv-days');
-    (data.daily?.time || []).slice(0, 5).forEach((stamp, i) => {
-      const day = node('div', 'tv-day');
-      const label = i ? new Date(stamp * 1000).toLocaleDateString([], { weekday: 'long', timeZone: data.timezone }) : 'Today';
-      day.append(node('strong', '', label), node('span', '', condition(data.daily.weather_code?.[i])), node('span', '', `${number(data.daily.temperature_2m_max?.[i])}° / ${number(data.daily.temperature_2m_min?.[i])}°`), node('small', '', `${number(data.daily.precipitation_probability_max?.[i], '%')} rain`));
-      days.append(day);
-    });
-    main.append(now, days); content.append(main);
+    title(weatherPages[weatherPage], `${place?.label || 'Local forecast'} · WEATHER ON SIGNAL`);
+    screen.dataset.weatherPage = String(weatherPage);
+    const navigation = node('div', 'tv-weather-tabs'); navigation.setAttribute('aria-label', 'Weather pages');
+    weatherPages.forEach((label, i) => { const button = node('button', i === weatherPage ? 'selected' : '', `${String(i + 1).padStart(2,'0')}  ${label}`); button.type = 'button'; button.setAttribute('aria-pressed', String(i === weatherPage)); button.onclick = () => { weatherPage = i; weatherDeadline = Date.now() + 30_000; weather(); animatePage(); }; navigation.append(button); });
+    content.append(navigation);
+    [weatherCurrent, weatherHourly, weatherModels, weatherDays][weatherPage]();
     const alerts = forecast?.alerts?.items || [];
-    if (alerts.length) content.append(node('p', 'tv-weather-alert', `Weather alert: ${alerts.slice(0, 2).map(a => a.event).join(' · ')} — check weather.gov for details.`));
+    if (alerts.length) content.append(node('p', 'tv-weather-alert', `WEATHER ALERT · ${alerts.slice(0,2).map(a => a.event).join(' · ')}`));
     else if (forecast?.alerts?.available === false) content.append(node('p', 'tv-muted', 'Weather alerts could not be checked.'));
-    content.append(node('p', 'tv-muted', `Model estimate · ${data.fetchedAt ? 'fetched ' + new Date(data.fetchedAt).toLocaleTimeString() : 'time unavailable'}`));
+    const stamp = forecast?.conditions?.fetchedAt;
+    content.append(node('p', 'tv-muted', `Forecast estimates · °F / mph · ${stamp ? 'updated ' + new Date(stamp).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}) : 'update time unavailable'} · pages change every 30 seconds`));
+  }
+  function weatherCurrent() {
+    const data = forecast?.conditions?.current;
+    if (!data) { content.append(node('p','tv-empty','Local conditions are unavailable.')); return; }
+    const main = node('div','tv-current-stage'), hero = node('div','tv-weather-now');
+    hero.append(node('div','tv-temperature',`${number(data.temperature_2m)}°`), node('div','tv-weather-symbol',symbol(data.weather_code)), node('h2','',condition(data.weather_code)));
+    const metrics = node('div','tv-current-metrics');
+    metrics.append(metric('Feels like',number(data.apparent_temperature,'°F')),metric('Wind',number(data.wind_speed_10m,' mph')),metric('Humidity',number(data.relative_humidity_2m,'%')),metric('Today’s high / low',`${number(forecast.conditions.daily?.temperature_2m_max?.[0])}° / ${number(forecast.conditions.daily?.temperature_2m_min?.[0])}°`));
+    main.append(hero,metrics);content.append(main);
+  }
+  function weatherHourly() {
+    const hourly = forecast?.conditions?.hourly;
+    const indices = (hourly?.time || []).map((t,i)=>({t,i})).filter(({t})=>t >= Math.floor(Date.now()/3600000)*3600).slice(0,6);
+    if (!indices.length) { content.append(node('p','tv-empty','Hourly forecast is unavailable.')); return; }
+    const grid=node('div','tv-hourly');
+    for (const {t,i} of indices) { const card=node('article','tv-hour'); card.append(node('h2','',localTime(t)),node('div','tv-forecast-symbol',symbol(hourly.weather_code?.[i])),node('strong','tv-hour-temp',number(hourly.temperature_2m?.[i],'°')),node('p','',condition(hourly.weather_code?.[i])),node('span','',`${number(hourly.precipitation_probability?.[i],'%')} precip.`),node('small','',`Wind ${number(hourly.wind_speed_10m?.[i],' mph')}`));grid.append(card); }
+    content.append(grid);
+  }
+  function weatherDays() {
+    const daily=forecast?.conditions?.daily;
+    if (!daily?.time?.length) { content.append(node('p','tv-empty','Daily forecast is unavailable.'));return; }
+    const grid=node('div','tv-extended');
+    daily.time.slice(0,5).forEach((stamp,i)=>{const day=node('article','tv-extended-day');day.append(node('h2','',i?new Date(stamp*1000).toLocaleDateString([],{weekday:'short',timeZone:forecast.conditions.timezone}):'Today'),node('div','tv-forecast-symbol',symbol(daily.weather_code?.[i])),node('p','',condition(daily.weather_code?.[i])),node('strong','tv-day-high',number(daily.temperature_2m_max?.[i],'°')),node('span','tv-day-low',`${number(daily.temperature_2m_min?.[i],'°')} low`),node('small','',`${number(daily.precipitation_probability_max?.[i],'%')} precip.`));grid.append(day);});content.append(grid);
+  }
+  function weatherModels() {
+    const start=Math.floor(Date.now()/3600000)*3600,end=start+48*3600;
+    const models=(forecast?.models || []).map(m=>({...m,points:m.available?(m.hourly?.time || []).map((t,i)=>[t,m.hourly.temperature_2m?.[i]]).filter(([t])=>t>=start&&t<=end):[]}));
+    const values=models.flatMap(m=>m.points.map(p=>p[1])).filter(Number.isFinite);
+    const legend=node('div','tv-model-legend'); models.forEach((m,i)=>legend.append(node('span',`tv-model-${i}`,`${m.name} · ${m.available&&m.points.some(p=>Number.isFinite(p[1]))?'48-hour forecast':'unavailable'}`)));content.append(legend);
+    if (!values.length) { content.append(node('p','tv-empty','AI forecasts are unavailable. No substitute model is shown.'));return; }
+    const svg=(tag,attrs={},text)=>{const el=document.createElementNS('http://www.w3.org/2000/svg',tag);for(const [key,value] of Object.entries(attrs))el.setAttribute(key,String(value));if(text!==undefined)el.textContent=text;return el;};
+    const chart=svg('svg',{viewBox:'0 0 1100 390',role:'img','aria-label':'Temperature forecast over the next 48 hours from ECMWF AIFS and NOAA AIGFS',class:'tv-model-chart'});
+    const low=Math.floor((Math.min(...values)-4)/5)*5,high=Math.ceil((Math.max(...values)+4)/5)*5;
+    const x=t=>75+(t-start)/(end-start)*980,y=v=>325-(v-low)/(high-low)*290;
+    for(let i=0;i<=4;i++){const v=low+(high-low)*i/4;chart.append(svg('line',{x1:75,x2:1055,y1:y(v),y2:y(v),class:'tv-chart-grid'}),svg('text',{x:60,y:y(v)+6,'text-anchor':'end'},`${Math.round(v)}°`));}
+    for(let h=0;h<=48;h+=12){const t=start+h*3600;chart.append(svg('text',{x:x(t),y:365,'text-anchor':'middle'},`${new Date(t*1000).toLocaleDateString([],{weekday:'short',timeZone:forecast?.conditions?.timezone})} ${localTime(t)}`));}
+    models.forEach((m,i)=>{let path='',pen=false,last=0;for(const [t,v] of m.points){if(!Number.isFinite(v)){pen=false;continue;}path+=`${pen&&t-last<=3600?'L':'M'}${x(t).toFixed(1)},${y(v).toFixed(1)} `;pen=true;last=t;}chart.append(svg('path',{d:path,class:`tv-model-line tv-model-${i}`,pathLength:1}));});
+    content.append(chart,node('p','tv-muted','Independent AI models · lines show predicted temperatures, not a confidence range. Gaps mean missing data. Hourly values may be interpolated.'));
   }
   function outage() {
     title('Power outages', `${power.provider} · ${power.scope}`);
@@ -73,35 +113,52 @@ export function initTV({ api }) {
     content.append(lead, frame, node('p', 'tv-muted', 'Regional total does not confirm an outage at your address. If the map cannot load here, use the official map link.'), link);
   }
   async function connectionCheck() {
-    $('tv-latency').textContent = 'Checking dashboard connection…';
-    try {
-      const samples = [];
-      for (let i = 0; i < 3 && active; i++) { const start = performance.now(); await api(`/api/ping?tv=${Date.now()}-${i}`); samples.push(performance.now() - start); }
-      if (active && current().id === 'network') $('tv-latency').textContent = samples.length === 3 ? `${Math.round(samples.sort((a,b) => a-b)[1])} ms median round trip · 3 requests` : 'Connection check interrupted';
-    } catch { if (active && current().id === 'network') $('tv-latency').textContent = 'Dashboard connection check unavailable'; }
+    const version=++probeVersion,samples=[];let failures=0;
+    networkResult={pending:true}; connection();
+    for(let i=0;i<5;i++) {
+      if(!active||sceneId!=='network'||version!==probeVersion)return;
+      const start=performance.now();
+      try{await api(`/api/ping?tv=${Date.now()}-${i}`,{signal:AbortSignal.timeout(5000)});samples.push(performance.now()-start);}catch{failures++;}
+    }
+    if(!active||sceneId!=='network'||version!==probeVersion)return;
+    const sorted=[...samples].sort((a,b)=>a-b);
+    networkResult={pending:false,samples,failures,median:sorted.length?sorted[Math.floor(sorted.length/2)]:null,min:sorted[0],max:sorted.at(-1),at:Date.now()};connection();
   }
   function connection() {
-    title('Network connection', 'This display to the Cloudflare edge');
-    const grid = node('div', 'tv-network');
-    for (const [label, value] of [['Connection', navigator.onLine ? 'Online' : 'Offline'], ['Cloudflare edge', network?.colo], ['Network', network?.asOrganization], ['Protocol', network?.protocol], ['Encryption', network?.tls]]) {
-      const card = node('div', 'tv-network-card'); card.append(node('span', '', label), node('strong', '', value || 'Unavailable')); grid.append(card);
-    }
-    content.append(grid, node('p', 'tv-latency', 'Checking dashboard connection…'), node('p', 'tv-muted', 'Round-trip time includes server time. This does not test other websites or identify your DNS resolver.'));
-    content.querySelector('.tv-latency').id = 'tv-latency'; void connectionCheck();
+    title('Your connection', 'NETWORK REPORT · This display to the dashboard');
+    const route=node('div','tv-route');route.append(node('span','',navigator.onLine?'This display · online':'This display · offline'),node('span','tv-route-line','→'),node('span','',network?.asOrganization||'Network unavailable'),node('span','tv-route-line','→'),node('span','',`Cloudflare · ${network?.colo||'unknown edge'}`));content.append(route);
+    const grid=node('div','tv-network tv-network-expanded');
+    for(const [label,value] of [['Edge location',network?.colo],['Network / ASN',network?.asn?`AS${network.asn}`:null],['Approx. region',[network?.region,network?.country].filter(Boolean).join(', ')],['HTTP protocol',network?.protocol],['Transport security',network?.tls],['Browser connectivity',navigator.onLine?'Online':'Offline']])grid.append(metric(label,value||'Unavailable'));
+    content.append(grid);
+    const panel=node('div','tv-probe');
+    const result=networkResult;
+    const headline=node('div','tv-probe-heading');headline.append(node('h2','',result?.pending?'Checking dashboard response…':'Dashboard response check'));
+    const retry=node('button','',result?.pending?'Checking…':'Run again');retry.type='button';retry.disabled=!!result?.pending;retry.onclick=()=>void connectionCheck();headline.append(retry);panel.append(headline);
+    const metrics=node('div','tv-probe-metrics');
+    metrics.append(metric('Median round trip',number(result?.median,' ms')),metric('Fastest / slowest',result?.samples?.length?`${number(result.min)} / ${number(result.max)} ms`:'—'),metric('Response variation',result?.samples?.length>1?number(result.max-result.min,' ms'):'—'),metric('Requests completed',result&&!result.pending?`${result.samples.length} / 5`:'—'));
+    panel.append(metrics);
+    const bars=node('div','tv-probe-bars');bars.setAttribute('aria-label','Individual response times');
+    (result?.samples||[]).forEach((ms,i)=>{const bar=node('div','tv-probe-sample',`${i+1} · ${number(ms,' ms')}`);bar.style.setProperty('--sample-width',`${Math.max(8,ms/Math.max(result.max,1)*100)}%`);bars.append(bar);});panel.append(bars);
+    panel.append(node('p','tv-muted',result?.pending?'Sending 5 small requests…':result?`${result.failures} failed requests · checked ${new Date(result.at).toLocaleTimeString()} · each request times out after 5 seconds`:'No check yet.'));
+    content.append(panel,node('p','tv-muted','Browser online status does not guarantee internet access. This check includes server time; it does not measure download speed, packet loss, DNS, or other websites.'));
   }
   function draw() {
     if (!active) return;
     const scene = current();
-    screen.dataset.scene = scene.id; servicePage = 0; pageDeadline = Date.now() + 20_000; ribbon();
+    ++probeVersion; weatherPage = 0; weatherDeadline = Date.now() + 30_000;
+    screen.dataset.scene = scene.id;
+    document.querySelectorAll('[data-tv-channel]').forEach(el => { el.classList.toggle('selected',el.dataset.tvChannel===scene.id); el.hidden=el.dataset.tvChannel==='power'&&!power?.active; });
+    servicePage = 0; pageDeadline = Date.now() + 20_000; ribbon();
     $('tv-channel').textContent = `SIGNAL / ${scene.id.toUpperCase()}`;
     $('tv-progress').style.animationDuration = `${scene.ms}ms`;
     $('tv-progress').classList.remove('tv-running'); void $('tv-progress').offsetWidth; $('tv-progress').classList.add('tv-running');
     ({ services, weather, power: outage, network: connection })[scene.id]();
+    animatePage(); if (scene.id === 'network') void connectionCheck();
     deadline = Date.now() + scene.ms;
     clearTimeout(timer); timer = setTimeout(next, scene.ms);
     tick();
   }
-  function tick() { if (!active) return; ribbon(); if (sceneId === 'services' && Date.now() >= pageDeadline) turnPage(); const seconds = Math.max(0, Math.ceil((deadline - Date.now()) / 1000)); $('tv-next').textContent = `Next channel in ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`; $('tv-clock').textContent = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }); }
+  function tick() { if (!active) return; ribbon(); if (sceneId === 'services' && Date.now() >= pageDeadline) turnPage(); if (sceneId === 'weather' && Date.now() >= weatherDeadline) weatherTurn(); const seconds = Math.max(0, Math.ceil((deadline - Date.now()) / 1000)); $('tv-next').textContent = `Next channel in ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`; $('tv-clock').textContent = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }); }
   function next() { const scenes = available(), at = scenes.findIndex(s => s.id === sceneId); sceneId = scenes[(at + 1) % scenes.length].id; draw(); }
   async function refreshPower() {
     if (!active || !place) return;
@@ -115,7 +172,7 @@ export function initTV({ api }) {
     } catch { if (version === powerVersion) { power = null; if (active && sceneId === 'power') { sceneId = 'network'; draw(); } } }
   }
   function start() { if (active) return; active = true; sceneId = 'services'; screen.hidden = false; $('tv-radio-dock').append(radio); draw(); ticker = setInterval(tick, 1000); void refreshPower(); powerRefresh = setInterval(refreshPower, 5 * 60_000); }
-  function stop() { radioHome.insertBefore(radio, radioAnchor.nextSibling); active = false; ++powerVersion; screen.hidden = true; clearTimeout(timer); clearInterval(ticker); clearInterval(powerRefresh); content.replaceChildren(); }
+  function stop() { radioHome.insertBefore(radio, radioAnchor.nextSibling); active = false; ++probeVersion; ++powerVersion; screen.hidden = true; clearTimeout(timer); clearInterval(ticker); clearInterval(powerRefresh); content.replaceChildren(); }
   function update(data) { if ('snapshot' in data) snapshot = data.snapshot; if ('forecast' in data) forecast = data.forecast; if ('place' in data) { place = data.place; power = null; if (active) { if (sceneId === 'power') { sceneId = 'network'; draw(); } void refreshPower(); } } if ('network' in data) network = data.network; if (active && sceneId !== 'power') ({ services, weather, network: connection })[sceneId](); }
   $('tv-skip').addEventListener('click', next);
   return { start, stop, update };
