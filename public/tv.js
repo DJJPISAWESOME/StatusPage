@@ -50,7 +50,7 @@ export function initTV({ api }) {
     if(!panel.isConnected||panel.dataset.leaving)return;
     panel.dataset.leaving='true';clearTimeout(noticeTimer);
     if(matchMedia('(prefers-reduced-motion: reduce)').matches){panel.remove();return;}
-    const exit=panel.animate([{opacity:1,transform:'translateY(0) scale(1)'},{opacity:0,transform:'translateY(24px) scale(.98)'}],{duration:280,easing:'ease-in',fill:'forwards'});
+    const exit=panel.animate([{opacity:1,transform:'translateY(0) scale(1)'},{opacity:0,transform:'translateY(-24px) scale(.98)'}],{duration:280,easing:'ease-in',fill:'forwards'});
     exit.finished.then(()=>panel.remove()).catch(()=>panel.remove());
   }
   const testStates=['outage','degraded','maintenance','operational','unknown'];let testIndex=0;
