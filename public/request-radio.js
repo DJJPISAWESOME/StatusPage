@@ -41,7 +41,7 @@ export function initRequestRadio({container,audio,onState}){
  }
  async function stop(){
   const oldSession=session,oldToken=token;active=false;starting=false;generation++;clearInterval(timer);clearTimeout(readyTimer);timer=null;ready=false;loadedId=null;current=null;session=null;busy=false;
-  player?.destroy?.();player=null;media.replaceChildren();skip.disabled=true;form.hidden=false;start.disabled=false;key.disabled=false;status('Request mode stopped');
+  player?.destroy?.();player=null;media.replaceChildren();container.dataset.playing='false';skip.disabled=true;form.hidden=false;start.disabled=false;key.disabled=false;status('Request mode stopped');
   if(oldSession)try{await requestAPI('/control',{action:'release',session:oldSession},oldToken);}catch{}
  }
  async function begin(){
