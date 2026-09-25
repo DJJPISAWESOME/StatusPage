@@ -30,9 +30,9 @@ export async function weather(point, env = {}, fetcher = fetch, cache = globalTh
     const metadata = await cachedJSON(`metadata/${model.id}`,600,async()=>{const meta=JSON.parse(await upstream(`https://${host}/data/${model.id}/static/meta.json${env.OPEN_METEO_API_KEY ? '?apikey='+encodeURIComponent(env.OPEN_METEO_API_KEY) : ''}`,{fetcher,limit:10000}));if(!Number.isFinite(meta.last_run_initialisation_time)||!Number.isFinite(meta.last_run_availability_time))throw new Error('Model metadata unavailable');return meta;},cache).catch(()=>null);
     return { ...model, metadata, available: true, timezone: data.timezone, hourly: data.hourly, units: data.hourly_units };
   }, cache).catch(() => ({ ...model, available: false, error: 'Model unavailable. No substitute model is shown.' })));
-  const currentTask = cachedJSON(`current-v4/${latitude}/${longitude}`, 900, async () => {
+  const currentTask = cachedJSON(`current-v5/${latitude}/${longitude}`, 900, async () => {
     const query = new URLSearchParams(base); query.set('current', 'temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,weather_code,wind_speed_10m,wind_direction_10m,wind_gusts_10m,dew_point_2m,cloud_cover');
-    query.set('hourly','temperature_2m,weather_code,wind_speed_10m,precipitation_probability,precipitation,wind_gusts_10m');
+    query.set('hourly','temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,wind_speed_10m,wind_direction_10m,precipitation_probability,precipitation,wind_gusts_10m,dew_point_2m,cloud_cover,is_day');
     query.set('daily', 'temperature_2m_max,temperature_2m_min,precipitation_probability_max,weather_code,sunrise,sunset');
     const data = JSON.parse(await upstream(`https://${host}/v1/forecast?${query}`, { fetcher }));
     if (!Number.isFinite(data.current?.temperature_2m)) throw new Error('Weather unavailable');

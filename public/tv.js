@@ -1,4 +1,6 @@
-import { WARREN, currentHour, localDayIndex } from './board-weather.js';
+import { WARREN, currentHour, localDayIndex, localConditions, weatherEffect } from './board-weather.js';
+import { renderNetworkWatch } from './network-channel.js';
+import { createBoardAlerts } from './board-alerts.js';
 import { boardStatus, boardChanges } from './board-status.js';
 import { weatherInfo, weatherIcon } from './weather-icons.js';
 const $ = id => document.getElementById(id);
@@ -13,7 +15,7 @@ export function initTV({ api }) {
   const screen = $('tv-board'), content = $('tv-content');
   const radio = document.querySelector('.radio-bar'), radioHome = radio.parentNode;
   const radioAnchor = document.createComment('radio home'); radio.before(radioAnchor);
-  let idleTimer, noticeTimer, previousStates, weatherRefresh, weatherVersion = 0, renderedWeatherHour;
+  let idleTimer, noticeTimer, previousStates, weatherRefresh, weatherVersion = 0, renderedWeatherHour, watchReport, watchRefresh, watchVersion=0;
   function wake() {
     if (!active) return;
     screen.classList.remove('tv-idle');clearTimeout(idleTimer);
@@ -21,11 +23,13 @@ export function initTV({ api }) {
   }
   for (const event of ['pointermove','pointerdown','keydown','focusin']) document.addEventListener(event,wake,{passive:true});
   const audio=$('audio');
+  const sound=createBoardAlerts({radio:audio,volumeInput:$('volume'),button:$('tv-audio')});
   function radioState() { radio.dataset.playing=String(!audio.paused&&!audio.ended&&audio.readyState>=3); }
   for (const event of ['playing','pause','waiting','ended','emptied','error']) audio.addEventListener(event,radioState);
   const equalizer=node('div','tv-equalizer');equalizer.setAttribute('aria-hidden','true');for(let i=0;i<5;i++)equalizer.append(node('i',''));radio.append(equalizer);
   function announce(changes) {
     if (!active || !changes.length) return;
+    sound.announce(changes);
     const panel=node('article','tv-notice');panel.append(node('span','tv-notice-kicker','SERVICE UPDATE'));
     for(const change of changes.slice(0,3)) {
       const row=node('div',`tv-notice-row tv-${change.to}`);
@@ -47,7 +51,7 @@ export function initTV({ api }) {
   function available() { return SCENES.filter(scene => scene.id !== 'power' || power?.available && power.active); }
   function current() { return available().find(scene => scene.id === sceneId) || available()[0]; }
   const status = boardStatus;
-  function title(text, subtext) { const heading=node('div','tv-heading');heading.append(node('h1','tv-title',text),node('p','tv-subtitle',subtext));content.replaceChildren(heading); }
+  function title(text, subtext) { delete screen.dataset.conditions; const heading=node('div','tv-heading');heading.append(node('h1','tv-title',text),node('p','tv-subtitle',subtext));content.replaceChildren(heading); }
   function services() {
     const list = snapshot?.services || [];
     const issues = list.filter(s => !['operational', 'unknown'].includes(status(s)));
@@ -70,7 +74,8 @@ export function initTV({ api }) {
   }
 
   const weatherPages = ['Local conditions', 'Hour by hour', 'AI temperature outlook', 'The next few days'];
-  let weatherPage = 0, weatherDeadline = 0, networkResult = null, probeVersion = 0;
+  let weatherPage = 0, weatherDeadline = 0, networkResult = null, probeVersion = 0, networkPage=0, networkDeadline=0;
+  const networkPages=['Your connection','Your ASNs','Downstream watch','North America'];
   const localTime = stamp => new Date(stamp * 1000).toLocaleTimeString([], { hour: 'numeric', timeZone: WARREN.timezone });
   let outgoing = null, sceneAnimations = [];
   function clearTransition() { for (const animation of sceneAnimations) animation.cancel(); sceneAnimations=[]; outgoing?.remove(); outgoing=null; }
@@ -107,12 +112,15 @@ export function initTV({ api }) {
     if (alerts.length) content.append(node('p', 'tv-weather-alert', `WEATHER ALERT · ${alerts.slice(0,2).map(a => a.event).join(' · ')}`));
     else if (forecast?.alerts?.available === false) content.append(node('p', 'tv-muted', 'Weather alerts could not be checked.'));
     const stamp = forecast?.conditions?.fetchedAt;
-    content.append(node('p', 'tv-muted', `Forecast estimates · °F / mph · ${stamp ? 'updated ' + new Date(stamp).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}) : 'update time unavailable'} · pages change every 30 seconds`));
+    content.append(node('p', 'tv-muted', `${forecast?.refreshFailed?'Refresh unavailable · showing last received report · ':''}Forecast estimates · °F / mph · ${stamp ? 'updated ' + new Date(stamp).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}) : 'update time unavailable'} · pages change every 30 seconds`));
   }
   const detailedTime = stamp => Number.isFinite(stamp) ? new Date(stamp*1000).toLocaleTimeString([], {hour:'numeric',minute:'2-digit',timeZone:WARREN.timezone}) : '—';
   function weatherCurrent() {
-    const data = forecast?.conditions?.current;
-    if (!data) { content.append(node('p','tv-empty','Local conditions are unavailable.')); return; }
+    const resolved=localConditions(forecast?.conditions),data=resolved.current;
+    if (!Number.isFinite(data.temperature_2m)) { content.append(node('p','tv-empty','Local conditions are unavailable.')); return; }
+    screen.dataset.conditions=weatherEffect(data.weather_code,data.is_day);
+    const effect=node('div','tv-weather-effects');effect.setAttribute('aria-hidden','true');for(let i=0;i<16;i++){const particle=node('i','');particle.style.setProperty('--i',i);effect.append(particle);}content.append(effect);
+    if(resolved.fallbackFields.length)content.append(node('p','tv-muted','Some details use this hour’s forecast where current readings are unavailable.'));
     const daily=forecast.conditions.daily, day=localDayIndex(daily?.time, WARREN.timezone);
     const main=node('div','tv-current-stage'), hero=node('div','tv-weather-now');
     hero.append(node('span','tv-now-kicker','RIGHT NOW · WARREN, RI'),node('div','tv-temperature',number(data.temperature_2m,'°')),weatherIcon(data.weather_code,'tv-weather-symbol'),node('h2','',condition(data.weather_code)),node('p','tv-feels',`Feels like ${number(data.apparent_temperature,'°F')}`));
@@ -189,7 +197,7 @@ export function initTV({ api }) {
     const sorted=[...samples].sort((a,b)=>a-b);
     networkResult={pending:false,samples,failures,median:sorted.length?sorted[Math.floor(sorted.length/2)]:null,min:sorted[0],max:sorted.at(-1),at:Date.now()};connection();
   }
-  function connection() {
+  function connectionDetails() {
     title('Your connection', 'NETWORK REPORT · This display to the dashboard');
     const route=node('div','tv-route');route.append(node('span','',navigator.onLine?'This display · online':'This display · offline'),node('span','tv-route-line','→'),node('span','',network?.asOrganization||'Network unavailable'),node('span','tv-route-line','→'),node('span','',`Cloudflare · ${network?.colo||'unknown edge'}`));content.append(route);
     const grid=node('div','tv-network tv-network-expanded');
@@ -207,10 +215,23 @@ export function initTV({ api }) {
     panel.append(node('p','tv-muted',result?.pending?'Sending 5 small requests…':result?`${result.failures} failed requests · checked ${new Date(result.at).toLocaleTimeString()} · each request times out after 5 seconds`:'No check yet.'));
     content.append(panel,node('p','tv-muted','Browser online status does not guarantee internet access. This check includes server time; it does not measure download speed, packet loss, DNS, or other websites.'));
   }
+  function connection() {
+    screen.dataset.networkPage=String(networkPage);
+    if(networkPage===0)connectionDetails();
+    else {title(networkPages[networkPage],networkPage===3?'RADAR REPORTS · Last 7 days':'AS25710 · AS32145 · AS402280');renderNetworkWatch(content,watchReport,networkPage);}
+    const tabs=node('div','tv-weather-tabs tv-network-tabs');tabs.setAttribute('aria-label','Network pages');
+    networkPages.forEach((label,i)=>{const button=node('button',i===networkPage?'selected':'',`${String(i+1).padStart(2,'0')} ${label}`);button.type='button';button.setAttribute('aria-pressed',String(i===networkPage));button.onclick=()=>{networkPage=i;networkDeadline=Date.now()+30000;changePage(connection);};tabs.append(button);});content.append(tabs);
+  }
+  async function refreshWatch(){
+    if(!active)return;const version=++watchVersion;
+    try{const data=await api('/api/network-watch');if(!active||version!==watchVersion)return;watchReport=data;}
+    catch{if(!active||version!==watchVersion)return;watchReport={error:true};}
+    if(sceneId==='network'&&networkPage!==0)connection();
+  }
   function draw() {
     if (!active) return;
     const scene = current();
-    ++probeVersion; weatherPage = 0; weatherDeadline = Date.now() + 30_000;
+    ++probeVersion; networkPage=0;networkDeadline=Date.now()+30000;weatherPage = 0; weatherDeadline = Date.now() + 30_000;
     screen.dataset.scene = scene.id;
     document.querySelectorAll('[data-tv-channel]').forEach(el => { el.classList.toggle('selected',el.dataset.tvChannel===scene.id); el.hidden=el.dataset.tvChannel==='power'&&!power?.active; });
     servicePage = 0; pageDeadline = Date.now() + 20_000; ribbon();
@@ -221,7 +242,7 @@ export function initTV({ api }) {
     clearTimeout(timer); timer = setTimeout(next, scene.ms);
     tick();
   }
-  function tick() { if (!active) return; ribbon(); if(sceneId==='weather'){if(renderedWeatherHour!==Math.floor(Date.now()/3600000))weather();else updateWeatherTime();} if (sceneId === 'services' && Date.now() >= pageDeadline) turnPage(); if (sceneId === 'weather' && Date.now() >= weatherDeadline) weatherTurn(); const seconds = Math.max(0, Math.ceil((deadline - Date.now()) / 1000)); $('tv-next').textContent = `Next channel in ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`; $('tv-clock').textContent = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }); }
+  function tick() { if (!active) return; ribbon(); if(sceneId==='weather'){if(renderedWeatherHour!==Math.floor(Date.now()/3600000))weather();else updateWeatherTime();} if(sceneId==='network'&&Date.now()>=networkDeadline){networkPage=(networkPage+1)%networkPages.length;networkDeadline=Date.now()+30000;changePage(connection);} if (sceneId === 'services' && Date.now() >= pageDeadline) turnPage(); if (sceneId === 'weather' && Date.now() >= weatherDeadline) weatherTurn(); const seconds = Math.max(0, Math.ceil((deadline - Date.now()) / 1000)); $('tv-next').textContent = `Next channel in ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`; $('tv-clock').textContent = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }); }
   function next() { const scenes = available(), at = scenes.findIndex(s => s.id === sceneId); sceneId = scenes[(at + 1) % scenes.length].id; draw(); }
   async function refreshPower() {
     if (!active || !place) return;
@@ -240,13 +261,14 @@ export function initTV({ api }) {
     try {
       const data=await api(`/api/weather?lat=${WARREN.latitude}&lon=${WARREN.longitude}`);
       if(!active||version!==weatherVersion)return;
-      forecast=data;
-    } catch { if(!active||version!==weatherVersion)return;forecast=null; }
+      if(!Number.isFinite(localConditions(data.conditions).current.temperature_2m))throw Error('Missing weather');
+      forecast=data;forecast.refreshFailed=false;
+    } catch { if(!active||version!==weatherVersion)return;if(forecast)forecast.refreshFailed=true; }
     ribbon();if(sceneId==='weather')weather();
   }
-  function start() { if (active) return; active = true; sceneId = 'services'; screen.hidden = false; $('tv-radio-dock').append(radio); radioState();wake(); draw(); ticker = setInterval(tick, 1000); void refreshPower(); void refreshWeather(); weatherRefresh=setInterval(refreshWeather,15*60_000); powerRefresh = setInterval(refreshPower, 5 * 60_000); }
-  function stop() { ++weatherVersion;clearInterval(weatherRefresh);clearTimeout(idleTimer);clearTimeout(noticeTimer);screen.classList.remove('tv-idle');$('tv-notifications').replaceChildren();clearTransition(); radioHome.insertBefore(radio, radioAnchor.nextSibling); active = false; ++probeVersion; ++powerVersion; screen.hidden = true; clearTimeout(timer); clearInterval(ticker); clearInterval(powerRefresh); content.replaceChildren(); }
-  function update(data) { if ('snapshot' in data) { snapshot=data.snapshot;const result=boardChanges(previousStates,snapshot?.services||[]);previousStates=result.next;announce(result.changes); } if ('forecast' in data && place?.latitude===WARREN.latitude && place?.longitude===WARREN.longitude && data.forecast) forecast = data.forecast; if ('place' in data) { place = data.place; power = null; if (active) { if (sceneId === 'power') { sceneId = 'network'; draw(); } void refreshPower(); } } if ('network' in data) network = data.network; if (active && sceneId !== 'power') ({ services, weather, network: connection })[sceneId](); }
+  function start() { if (active) return; active = true; sound.start(); sceneId = 'services'; screen.hidden = false; $('tv-radio-dock').append(radio); radioState();wake(); draw(); ticker = setInterval(tick, 1000); void refreshPower(); void refreshWeather();void refreshWatch();watchRefresh=setInterval(refreshWatch,5*60_000); weatherRefresh=setInterval(refreshWeather,15*60_000); powerRefresh = setInterval(refreshPower, 5 * 60_000); }
+  function stop() { sound.stop();++watchVersion;clearInterval(watchRefresh); ++weatherVersion;clearInterval(weatherRefresh);clearTimeout(idleTimer);clearTimeout(noticeTimer);screen.classList.remove('tv-idle');$('tv-notifications').replaceChildren();clearTransition(); radioHome.insertBefore(radio, radioAnchor.nextSibling); active = false; ++probeVersion; ++powerVersion; screen.hidden = true; clearTimeout(timer); clearInterval(ticker); clearInterval(powerRefresh); content.replaceChildren(); }
+  function update(data) { if ('snapshot' in data) { snapshot=data.snapshot;const result=boardChanges(previousStates,snapshot?.services||[]);previousStates=result.next;announce(result.changes); } if ('forecast' in data && place?.latitude===WARREN.latitude && place?.longitude===WARREN.longitude && Number.isFinite(localConditions(data.forecast?.conditions).current.temperature_2m)) forecast = data.forecast; if ('place' in data) { place = data.place; power = null; if (active) { if (sceneId === 'power') { sceneId = 'network'; draw(); } void refreshPower(); } } if ('network' in data) network = data.network; if (active && sceneId !== 'power') ({ services, weather, network: connection })[sceneId](); }
   $('tv-skip').addEventListener('click', next);
   return { start, stop, update };
 }

@@ -94,3 +94,19 @@ Primary references: [Cloudflare Durable Objects pricing](https://developers.clou
 ### Board broadcast pages
 
 The two-minute weather channel cycles through local conditions, the next six hours, a 48-hour ECMWF AIFS / NOAA AIGFS temperature comparison, and a five-day outlook (30 seconds each). Buttons select a weather page without restarting the channel timer. Missing sources remain explicitly unavailable. Network reports include edge / ASN / region / HTTP / TLS details and a five-request dashboard response check (median, range, variation, and request failures). This is not a bandwidth or packet-loss test. Scene transitions and weather / chart animations respect reduced-motion preferences. Radio remains visible throughout.
+
+## Board weather, audio, and network watch
+
+Board weather is pinned to Warren, RI. Local Conditions uses current values with same-hour forecast fallbacks; missing values are never replaced with a future hour. Failed refreshes keep the last successful report and show a refresh warning. Weather backgrounds follow the condition code and day/night flag; reduced-motion preferences disable motion. Weather and network page controls fade after four seconds without input, while page rotation continues.
+
+Board entry enables status tones and browser speech (subject to browser audio/voice support). The **Sound alerts** button toggles and saves this preference. Outages, degradation, maintenance, recovery, and unconfirmed status use different tones. Announcements say the service and old/new statuses; the radio is lowered during speech and restored afterward. Initial snapshots are silent. Leaving Board or muting cancels queued speech. This is an in-page feature, not an OS notification permission or a background push service.
+
+The network channel has four 30-second pages: Connection, Your ASNs, Downstream Watch, and North America. `/api/network-watch` tracks AS25710, AS32145, and AS402280. Public RIPE RIS observations show routing visibility and adjacent AS paths. Right-side neighbours are used as downstream-side candidates; this is an observed routing direction, not proof of a commercial customer relationship or an outage affecting your circuit. No recursive customer-cone coverage is claimed.
+
+To enable Cloudflare Radar outage, route-leak, and high-confidence potential-hijack feeds:
+
+1. Create a Cloudflare API token with Radar read access as described in [Cloudflare's Radar guide](https://developers.cloudflare.com/radar/get-started/first-request/).
+2. Store it as the **encrypted Worker secret** `RADAR_API_TOKEN` on `signal-status-dashboard` (Settings → Variables and Secrets), or run `npx wrangler secret put RADAR_API_TOKEN`. Do not put it in Pages public variables or client code.
+3. Deploy the updated Worker and Pages assets. Check `/api/network-watch`: `radarConfigured` should be true, and each feed should be available.
+
+Radar data is cached for five minutes; RIPE data for fifteen. Board polls every five minutes. Feeds cover seven days and include ended events. Direct queries cover each watched ASN; downstream and North American reports match the global event feeds. North America includes Canada, the US, Mexico, Central America, and the Caribbean. Pagination is capped at 200 events per source/query; hitting the cap is visibly reported as partial coverage. Source failures and absent credentials are shown as unavailable, never as healthy. Radar has incomplete ISP coverage and routing detections do not prove customer impact. The API token stays server-side; only normalized public event data is returned.
