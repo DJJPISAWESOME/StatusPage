@@ -1,6 +1,15 @@
 const labels={operational:'operational',degraded:'degraded',outage:'an outage',maintenance:'maintenance',unknown:'unconfirmed'};
 export const tones={operational:[523,659,784],degraded:[440,349],outage:[330,220,330],maintenance:[392,494],unknown:[294,262]};
 export function spokenChange(change){return `${change.name}. Status changed from ${labels[change.from]||'unconfirmed'} to ${labels[change.to]||'unconfirmed'}.`;}
+// Voice names vary by browser and OS; only rank voices actually exposed by the device.
+export function preferredAlertVoice(voices=[]){
+  const score=voice=>{
+    const lang=voice.lang.toLowerCase().replaceAll('_','-'),name=voice.name;
+    const quality=/natural|neural|premium|enhanced/i.test(name)?300:/google/i.test(name)?200:0;
+    return quality+(lang==='en-us'?50:0)+(voice.default?10:0);
+  };
+  return voices.filter(voice=>/^en(?:[-_]|$)/i.test(voice.lang)).sort((a,b)=>score(b)-score(a))[0]||null;
+}
 export function createBoardAlerts({radio,volumeInput,button,host=globalThis}) {
   let context,enabled=true,active=false,queue=[],busy=false,timer,voiceTimer,restoreVolume=null,generation=0,oscillators=[];
   try{enabled=host.localStorage.getItem('signal:board-audio')!=='off';}catch{}
@@ -17,10 +26,10 @@ export function createBoardAlerts({radio,volumeInput,button,host=globalThis}) {
     const finish=()=>{if(version!==generation||finished)return;finished=true;clearTimeout(voiceTimer);busy=false;restore();timer=setTimeout(next,250);};
     timer=setTimeout(()=>{
       if(version!==generation)return;
-      if(host.speechSynthesis&&host.SpeechSynthesisUtterance){const utterance=new host.SpeechSynthesisUtterance(spokenChange(item));utterance.lang='en-US';utterance.rate=1;utterance.onend=finish;utterance.onerror=finish;voiceTimer=setTimeout(()=>{host.speechSynthesis.cancel();finish();},15000);try{host.speechSynthesis.speak(utterance);}catch{finish();}}
+      if(host.speechSynthesis&&host.SpeechSynthesisUtterance){const utterance=new host.SpeechSynthesisUtterance(spokenChange(item));const voice=preferredAlertVoice(host.speechSynthesis.getVoices?.()||[]);if(voice)utterance.voice=voice;utterance.lang=voice?.lang||'en-US';utterance.rate=1;utterance.pitch=1;utterance.onend=finish;utterance.onerror=finish;voiceTimer=setTimeout(()=>{host.speechSynthesis.cancel();finish();},15000);try{host.speechSynthesis.speak(utterance);}catch{finish();}}
       else finish();
     },notes.length*180+100);
   }
   button.onclick=()=>{enabled=!enabled;try{host.localStorage.setItem('signal:board-audio',enabled?'on':'off');}catch{}if(enabled)unlock();else cancel();paint();};paint();
-  return {start(){active=true;unlock();},stop(){active=false;cancel();void context?.suspend().catch(()=>{});},announce(changes){if(!active||!enabled)return;for(const change of changes){const i=queue.findIndex(x=>x.name===change.name);if(i>=0)queue[i]=change;else queue.push(change);}queue=queue.slice(-32);next();}};
+  return {start(){active=true;host.speechSynthesis?.getVoices?.();unlock();},stop(){active=false;cancel();void context?.suspend().catch(()=>{});},announce(changes){if(!active||!enabled)return;for(const change of changes){const i=queue.findIndex(x=>x.name===change.name);if(i>=0)queue[i]=change;else queue.push(change);}queue=queue.slice(-32);next();}};
 }

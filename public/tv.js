@@ -41,7 +41,9 @@ export function initTV({ api }) {
     const close=node('button','tv-notice-close','×');close.type='button';close.setAttribute('aria-label','Dismiss service update');close.onclick=()=>$('tv-notifications').replaceChildren();panel.append(close);
     $('tv-notifications').replaceChildren(panel);clearTimeout(noticeTimer);noticeTimer=setTimeout(()=>$('tv-notifications').replaceChildren(),12000);
   }
-  $('tv-test-alert').addEventListener('click',()=>announce([{name:'Test service',from:'operational',to:'outage'}],true));
+  const testStates=['outage','degraded','maintenance','operational','unknown'];let testIndex=0;
+  $('tv-test-alert').title='Click again to test outage, degradation, maintenance, recovery, and unconfirmed alerts';
+  $('tv-test-alert').addEventListener('click',()=>{const to=testStates[testIndex++%testStates.length];announce([{name:'Test service',from:to==='operational'?'outage':'operational',to}],true);});
   let servicePage = 0, pageDeadline = 0;
   const pageSize = () => window.innerWidth < 700 ? 4 : window.innerHeight < 850 ? 6 : 8;
   function pageCount() { return Math.max(1, Math.ceil((snapshot?.services?.length || 0) / pageSize())); }
