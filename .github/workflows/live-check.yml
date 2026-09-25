@@ -1,0 +1,26 @@
+name: Live integrations
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '37 11 * * *'
+permissions:
+  contents: read
+jobs:
+  sources:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run test:live
+        env:
+          WEATHER_CONTACT: ${{ vars.WEATHER_CONTACT }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: live-integrations
+          path: artifacts/live-check.json
