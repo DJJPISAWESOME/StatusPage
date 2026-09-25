@@ -1,4 +1,4 @@
-import { appendNetworkFeed, asnLabel, visibleNetworkASNs } from './network-report.js';
+import { appendNetworkFeed, visibleNetworkASNs } from './network-report.js';
 import { WARREN, currentHour, localDayIndex, localConditions, weatherEffect } from './board-weather.js';
 import { renderNetworkWatch } from './network-channel.js';
 import { createBoardAlerts } from './board-alerts.js';
@@ -78,7 +78,7 @@ export function initTV({ api }) {
   const weatherPages = ['Local conditions', 'Hour by hour', 'AI temperature outlook', 'The next few days'];
   let weatherPage = 0, weatherDeadline = 0, networkResult = null, probeVersion = 0, networkPage=0, networkDeadline=0, reportDeadline=0;
   const reportPages={2:0,3:0};
-  const reportSize=()=>window.innerWidth<700?2:window.innerHeight<850?4:6;
+  const reportSize=()=>window.innerWidth<700?2:networkPage===2?(window.innerHeight<850?2:4):window.innerHeight<850?4:6;
   const networkPages=['Your connection','Your ASNs','Downstream watch','North America'];
   const localTime = stamp => new Date(stamp * 1000).toLocaleTimeString([], { hour: 'numeric', timeZone: WARREN.timezone });
   let outgoing = null, sceneAnimations = [];
@@ -222,7 +222,7 @@ export function initTV({ api }) {
   function connection() {
     screen.dataset.networkPage=String(networkPage);
     if(networkPage===0)connectionDetails();
-    else {title(networkPages[networkPage],networkPage===3?'RADAR REPORTS · Last 7 days':[25710,32145,402280].map(asn=>asnLabel(watchReport,asn)).join(' / '));renderNetworkWatch(content,watchReport,networkPage,{index:reportPages[networkPage]||0,size:reportSize(),onTurn:turnReport});}
+    else {title(networkPages[networkPage],networkPage===3?'RADAR REPORTS · Last 7 days':'RIPE RIS + RADAR · 3 watched networks');renderNetworkWatch(content,watchReport,networkPage,{index:reportPages[networkPage]||0,size:reportSize(),onTurn:turnReport});}
     const tabs=node('div','tv-weather-tabs tv-network-tabs');tabs.setAttribute('aria-label','Network pages');
     networkPages.forEach((label,i)=>{const button=node('button',i===networkPage?'selected':'',`${String(i+1).padStart(2,'0')} ${label}`);button.type='button';button.setAttribute('aria-pressed',String(i===networkPage));button.onclick=()=>{networkPage=i;networkDeadline=Date.now()+45000;reportDeadline=Date.now()+15000;changePage(connection);};tabs.append(button);});content.append(tabs);
     void loadVisibleNames();
