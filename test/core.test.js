@@ -57,7 +57,8 @@ test('response cap counts actual bytes even without Content-Length',async()=>{
  assert.equal(await readLimited(new Response('ok'),2),'ok');
 });
 test('upstream requests forbid redirects and preserve timeout through the response body',async()=>{
- let init;await upstream('https://allowed.test',{fetcher:async(_url,options)=>{init=options;return new Response('{}');}});assert.equal(init.redirect,'error');
+ let init;await upstream('https://allowed.test',{fetcher:async(_url,options)=>{init=options;return new Response('{}');}});assert.equal(init.redirect,'manual');
+ await assert.rejects(upstream('https://allowed.test',{fetcher:async()=>new Response(null,{status:302,headers:{Location:'https://elsewhere.test'}})}),/Upstream HTTP 302/);
  await assert.rejects(upstream('https://allowed.test',{timeout:10,fetcher:async(_url,{signal})=>new Response(new ReadableStream({start(c){signal.addEventListener('abort',()=>c.error(new Error('timeout')));}}))}),/timeout/);
 });
 test('provider failures are unknown and previous freshness is preserved honestly',async()=>{

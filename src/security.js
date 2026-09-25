@@ -24,13 +24,9 @@ export async function readLimited(response, limit = 1024 * 1024) {
 export async function upstream(url, { fetcher = fetch, accept = 'application/json', limit = 1024 * 1024, timeout = 12000, headers = {} } = {}) {
   const controller = new AbortController(); const timer = setTimeout(() => controller.abort(), timeout);
   try {
-    let response;
-    try {
-      response = await fetcher(url, { headers: { Accept: accept, 'User-Agent': 'SignalStatus/2.0', ...headers }, signal: controller.signal, redirect: 'error' });
-    } catch (error) {
-      console.error('Upstream fetch failed', new URL(url).hostname, error.name, error.message);
-      throw error;
-    }
+    // Cloudflare Workers support manual redirects, but not redirect: 'error'.
+    // A 3xx response is rejected by the non-OK check below without following it.
+    const response = await fetcher(url, { headers: { Accept: accept, 'User-Agent': 'SignalStatus/2.0', ...headers }, signal: controller.signal, redirect: 'manual' });
     if (!response.ok) { await response.body?.cancel(); throw new Error(`Upstream HTTP ${response.status}`); }
     return await readLimited(response, limit);
   } finally { clearTimeout(timer); }
