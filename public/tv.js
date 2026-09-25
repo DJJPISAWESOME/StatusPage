@@ -1,9 +1,10 @@
+import { weatherInfo, weatherIcon } from './weather-icons.js';
 const $ = id => document.getElementById(id);
 const SCENES = [{ id: 'services', ms: 5 * 60_000 }, { id: 'weather', ms: 2 * 60_000 }, { id: 'power', ms: 2 * 60_000 }, { id: 'network', ms: 2 * 60_000 }];
 const names = { operational: 'Operational', degraded: 'Degraded', outage: 'Outage', maintenance: 'Maintenance', unknown: 'Unconfirmed' };
 const node = (tag, className, value) => { const element = document.createElement(tag); element.className = className; if (value !== undefined) element.textContent = value; return element; };
 const number = (value, suffix = '') => Number.isFinite(value) ? `${Math.round(value)}${suffix}` : '—';
-const condition = code => code === 0 ? 'Clear' : [1, 2, 3].includes(code) ? 'Cloudy' : [45, 48].includes(code) ? 'Fog' : code >= 95 ? 'Thunderstorms' : [71, 73, 75, 77, 85, 86].includes(code) ? 'Snow' : Number.isFinite(code) ? 'Rain or showers' : 'Conditions unavailable';
+const condition = code => weatherInfo(code).label;
 
 export function initTV({ api }) {
   let active = false, sceneId = 'services', deadline = 0, timer, ticker, powerRefresh, powerVersion = 0, snapshot, forecast, place, network, power;
@@ -13,7 +14,7 @@ export function initTV({ api }) {
   let servicePage = 0, pageDeadline = 0;
   const pageSize = () => window.innerWidth < 700 ? 4 : window.innerHeight < 850 ? 6 : 8;
   function pageCount() { return Math.max(1, Math.ceil((snapshot?.services?.length || 0) / pageSize())); }
-  function turnPage(direction = 1) { servicePage = (servicePage + direction + pageCount()) % pageCount(); pageDeadline = Date.now() + 20_000; services(); animatePage(); }
+  function turnPage(direction = 1) { servicePage = (servicePage + direction + pageCount()) % pageCount(); pageDeadline = Date.now() + 20_000; changePage(services); }
   function ribbon() {
     const list = snapshot?.services || [];
     $('tv-overview').textContent = list.length ? `${list.filter(s => status(s) === 'operational').length} / ${list.length} services operational` : 'Services · connecting';
@@ -23,7 +24,7 @@ export function initTV({ api }) {
   function available() { return SCENES.filter(scene => scene.id !== 'power' || power?.available && power.active); }
   function current() { return available().find(scene => scene.id === sceneId) || available()[0]; }
   function status(service) { return service.checkedAt && Date.now() - Date.parse(service.checkedAt) > service.staleAfterMs ? 'unknown' : service.status; }
-  function title(text, subtext) { content.replaceChildren(node('h1', 'tv-title', text), node('p', 'tv-subtitle', subtext)); }
+  function title(text, subtext) { const heading=node('div','tv-heading');heading.append(node('h1','tv-title',text),node('p','tv-subtitle',subtext));content.replaceChildren(heading); }
   function services() {
     const list = snapshot?.services || [];
     const issues = list.filter(s => !['operational', 'unknown'].includes(status(s)));
@@ -48,17 +49,34 @@ export function initTV({ api }) {
   const weatherPages = ['Local conditions', 'Hour by hour', 'AI temperature outlook', 'The next few days'];
   let weatherPage = 0, weatherDeadline = 0, networkResult = null, probeVersion = 0;
   const localTime = stamp => new Date(stamp * 1000).toLocaleTimeString([], { hour: 'numeric', timeZone: forecast?.conditions?.timezone || place?.timezone });
-  const symbol = code => code === 0 ? '☀' : [1,2,3,45,48].includes(code) ? '☁' : [71,73,75,77,85,86].includes(code) ? '❄' : code >= 95 ? 'ϟ' : Number.isFinite(code) ? '☂' : '—';
-  function animatePage() {
-    if (!matchMedia('(prefers-reduced-motion: reduce)').matches) content.animate([{ opacity: .2, transform: 'translateX(24px)' }, { opacity: 1, transform: 'translateX(0)' }], { duration: 550, easing: 'cubic-bezier(.16,1,.3,1)' });
+  let outgoing = null, sceneAnimations = [];
+  function clearTransition() { for (const animation of sceneAnimations) animation.cancel(); sceneAnimations=[]; outgoing?.remove(); outgoing=null; }
+  function changePage(render) {
+    clearTransition();
+    const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (!reduced && content.childElementCount) {
+      const bounds=content.getBoundingClientRect();
+      outgoing=content.cloneNode(true); outgoing.removeAttribute('id');outgoing.classList.add('tv-outgoing');outgoing.setAttribute('aria-hidden','true');outgoing.inert=true;
+      outgoing.querySelectorAll('[id]').forEach(el=>el.removeAttribute('id'));
+      outgoing.querySelectorAll('iframe').forEach(el=>el.remove());
+      Object.assign(outgoing.style,{position:'fixed',left:`${bounds.left}px`,top:`${bounds.top}px`,width:`${bounds.width}px`,height:`${bounds.height}px`,margin:'0'});screen.append(outgoing);
+    }
+    render();content.scrollTop=0;
+    if(reduced)return;
+    if(outgoing){const old=outgoing;const exit=old.animate([{transform:'translateX(0)'},{transform:'translateX(-105%)'}],{duration:600,easing:'cubic-bezier(.65,0,.35,1)',fill:'forwards'});sceneAnimations.push(exit);exit.finished.then(()=>old.remove()).catch(()=>{});}
+    const heading=content.querySelector('.tv-heading');
+    if(heading)sceneAnimations.push(heading.animate([{transform:'translateX(90px)',opacity:0},{transform:'translateX(0)',opacity:1}],{duration:650,delay:130,easing:'cubic-bezier(.16,1,.3,1)',fill:'backwards'}));
+    const cards=content.querySelectorAll('.tv-hour,.tv-extended-day,.tv-service,.tv-current-metrics>.tv-network-card');
+    if(cards.length)cards.forEach((card,i)=>sceneAnimations.push(card.animate([{transform:'perspective(1000px) translateX(110px) rotateY(-18deg)',opacity:0},{transform:'perspective(1000px) translateX(0) rotateY(0)',opacity:1}],{duration:720,delay:180+i*80,easing:'cubic-bezier(.16,1,.3,1)',fill:'backwards'})));
+    else for(const panel of content.querySelectorAll('.tv-model-chart,.tv-route,.tv-network,.tv-probe,.tv-map'))sceneAnimations.push(panel.animate([{transform:'translateX(100%)'},{transform:'translateX(0)'}],{duration:750,delay:120,easing:'cubic-bezier(.16,1,.3,1)',fill:'backwards'}));
   }
-  function weatherTurn(direction = 1) { weatherPage = (weatherPage + direction + weatherPages.length) % weatherPages.length; weatherDeadline = Date.now() + 30_000; weather(); animatePage(); }
+  function weatherTurn(direction = 1) { weatherPage = (weatherPage + direction + weatherPages.length) % weatherPages.length; weatherDeadline = Date.now() + 30_000; changePage(weather); }
   function metric(label, value, className = 'tv-network-card') { const card = node('div', className); card.append(node('span', '', label), node('strong', '', value)); return card; }
   function weather() {
-    title(weatherPages[weatherPage], `${place?.label || 'Local forecast'} · WEATHER ON SIGNAL`);
+    title(weatherPages[weatherPage], place?.label || 'Local forecast');
     screen.dataset.weatherPage = String(weatherPage);
     const navigation = node('div', 'tv-weather-tabs'); navigation.setAttribute('aria-label', 'Weather pages');
-    weatherPages.forEach((label, i) => { const button = node('button', i === weatherPage ? 'selected' : '', `${String(i + 1).padStart(2,'0')}  ${label}`); button.type = 'button'; button.setAttribute('aria-pressed', String(i === weatherPage)); button.onclick = () => { weatherPage = i; weatherDeadline = Date.now() + 30_000; weather(); animatePage(); }; navigation.append(button); });
+    weatherPages.forEach((label, i) => { const button = node('button', i === weatherPage ? 'selected' : '', `${String(i + 1).padStart(2,'0')}  ${label}`); button.type = 'button'; button.setAttribute('aria-pressed', String(i === weatherPage)); button.onclick = () => { weatherPage = i; weatherDeadline = Date.now() + 30_000; changePage(weather); }; navigation.append(button); });
     content.append(navigation);
     [weatherCurrent, weatherHourly, weatherModels, weatherDays][weatherPage]();
     const alerts = forecast?.alerts?.items || [];
@@ -71,7 +89,7 @@ export function initTV({ api }) {
     const data = forecast?.conditions?.current;
     if (!data) { content.append(node('p','tv-empty','Local conditions are unavailable.')); return; }
     const main = node('div','tv-current-stage'), hero = node('div','tv-weather-now');
-    hero.append(node('div','tv-temperature',`${number(data.temperature_2m)}°`), node('div','tv-weather-symbol',symbol(data.weather_code)), node('h2','',condition(data.weather_code)));
+    hero.append(node('div','tv-temperature',`${number(data.temperature_2m)}°`), weatherIcon(data.weather_code,'tv-weather-symbol'), node('h2','',condition(data.weather_code)));
     const metrics = node('div','tv-current-metrics');
     metrics.append(metric('Feels like',number(data.apparent_temperature,'°F')),metric('Wind',number(data.wind_speed_10m,' mph')),metric('Humidity',number(data.relative_humidity_2m,'%')),metric('Today’s high / low',`${number(forecast.conditions.daily?.temperature_2m_max?.[0])}° / ${number(forecast.conditions.daily?.temperature_2m_min?.[0])}°`));
     main.append(hero,metrics);content.append(main);
@@ -81,14 +99,14 @@ export function initTV({ api }) {
     const indices = (hourly?.time || []).map((t,i)=>({t,i})).filter(({t})=>t >= Math.floor(Date.now()/3600000)*3600).slice(0,6);
     if (!indices.length) { content.append(node('p','tv-empty','Hourly forecast is unavailable.')); return; }
     const grid=node('div','tv-hourly');
-    for (const {t,i} of indices) { const card=node('article','tv-hour'); card.append(node('h2','',localTime(t)),node('div','tv-forecast-symbol',symbol(hourly.weather_code?.[i])),node('strong','tv-hour-temp',number(hourly.temperature_2m?.[i],'°')),node('p','',condition(hourly.weather_code?.[i])),node('span','',`${number(hourly.precipitation_probability?.[i],'%')} precip.`),node('small','',`Wind ${number(hourly.wind_speed_10m?.[i],' mph')}`));grid.append(card); }
+    for (const {t,i} of indices) { const card=node('article','tv-hour'); card.append(node('h2','',localTime(t)),weatherIcon(hourly.weather_code?.[i] ?? hourly.weathercode?.[i]),node('strong','tv-hour-temp',number(hourly.temperature_2m?.[i],'°')),node('p','',condition(hourly.weather_code?.[i] ?? hourly.weathercode?.[i])),node('span','',`${number(hourly.precipitation_probability?.[i],'%')} precip.`),node('small','',`Wind ${number(hourly.wind_speed_10m?.[i],' mph')}`));grid.append(card); }
     content.append(grid);
   }
   function weatherDays() {
     const daily=forecast?.conditions?.daily;
     if (!daily?.time?.length) { content.append(node('p','tv-empty','Daily forecast is unavailable.'));return; }
     const grid=node('div','tv-extended');
-    daily.time.slice(0,5).forEach((stamp,i)=>{const day=node('article','tv-extended-day');day.append(node('h2','',i?new Date(stamp*1000).toLocaleDateString([],{weekday:'short',timeZone:forecast.conditions.timezone}):'Today'),node('div','tv-forecast-symbol',symbol(daily.weather_code?.[i])),node('p','',condition(daily.weather_code?.[i])),node('strong','tv-day-high',number(daily.temperature_2m_max?.[i],'°')),node('span','tv-day-low',`${number(daily.temperature_2m_min?.[i],'°')} low`),node('small','',`${number(daily.precipitation_probability_max?.[i],'%')} precip.`));grid.append(day);});content.append(grid);
+    daily.time.slice(0,5).forEach((stamp,i)=>{const day=node('article','tv-extended-day');day.append(node('h2','',i?new Date(stamp*1000).toLocaleDateString([],{weekday:'short',timeZone:forecast.conditions.timezone}):'Today'),weatherIcon(daily.weather_code?.[i]),node('p','',condition(daily.weather_code?.[i])),node('strong','tv-day-high',number(daily.temperature_2m_max?.[i],'°')),node('span','tv-day-low',`${number(daily.temperature_2m_min?.[i],'°')} low`),node('small','',`${number(daily.precipitation_probability_max?.[i],'%')} precip.`));grid.append(day);});content.append(grid);
   }
   function weatherModels() {
     const start=Math.floor(Date.now()/3600000)*3600,end=start+48*3600;
@@ -152,8 +170,7 @@ export function initTV({ api }) {
     $('tv-channel').textContent = `SIGNAL / ${scene.id.toUpperCase()}`;
     $('tv-progress').style.animationDuration = `${scene.ms}ms`;
     $('tv-progress').classList.remove('tv-running'); void $('tv-progress').offsetWidth; $('tv-progress').classList.add('tv-running');
-    ({ services, weather, power: outage, network: connection })[scene.id]();
-    animatePage(); if (scene.id === 'network') void connectionCheck();
+    changePage(({ services, weather, power: outage, network: connection })[scene.id]); if (scene.id === 'network') void connectionCheck();
     deadline = Date.now() + scene.ms;
     clearTimeout(timer); timer = setTimeout(next, scene.ms);
     tick();
@@ -172,7 +189,7 @@ export function initTV({ api }) {
     } catch { if (version === powerVersion) { power = null; if (active && sceneId === 'power') { sceneId = 'network'; draw(); } } }
   }
   function start() { if (active) return; active = true; sceneId = 'services'; screen.hidden = false; $('tv-radio-dock').append(radio); draw(); ticker = setInterval(tick, 1000); void refreshPower(); powerRefresh = setInterval(refreshPower, 5 * 60_000); }
-  function stop() { radioHome.insertBefore(radio, radioAnchor.nextSibling); active = false; ++probeVersion; ++powerVersion; screen.hidden = true; clearTimeout(timer); clearInterval(ticker); clearInterval(powerRefresh); content.replaceChildren(); }
+  function stop() { clearTransition(); radioHome.insertBefore(radio, radioAnchor.nextSibling); active = false; ++probeVersion; ++powerVersion; screen.hidden = true; clearTimeout(timer); clearInterval(ticker); clearInterval(powerRefresh); content.replaceChildren(); }
   function update(data) { if ('snapshot' in data) snapshot = data.snapshot; if ('forecast' in data) forecast = data.forecast; if ('place' in data) { place = data.place; power = null; if (active) { if (sceneId === 'power') { sceneId = 'network'; draw(); } void refreshPower(); } } if ('network' in data) network = data.network; if (active && sceneId !== 'power') ({ services, weather, network: connection })[sceneId](); }
   $('tv-skip').addEventListener('click', next);
   return { start, stop, update };
