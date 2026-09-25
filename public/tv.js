@@ -1,3 +1,4 @@
+import { boardStatus, boardChanges } from './board-status.js';
 import { weatherInfo, weatherIcon } from './weather-icons.js';
 const $ = id => document.getElementById(id);
 const SCENES = [{ id: 'services', ms: 5 * 60_000 }, { id: 'weather', ms: 2 * 60_000 }, { id: 'power', ms: 2 * 60_000 }, { id: 'network', ms: 2 * 60_000 }];
@@ -11,6 +12,28 @@ export function initTV({ api }) {
   const screen = $('tv-board'), content = $('tv-content');
   const radio = document.querySelector('.radio-bar'), radioHome = radio.parentNode;
   const radioAnchor = document.createComment('radio home'); radio.before(radioAnchor);
+  let idleTimer, noticeTimer, previousStates;
+  function wake() {
+    if (!active) return;
+    screen.classList.remove('tv-idle');clearTimeout(idleTimer);
+    idleTimer=setTimeout(()=>screen.classList.add('tv-idle'),4000);
+  }
+  for (const event of ['pointermove','pointerdown','keydown','focusin']) document.addEventListener(event,wake,{passive:true});
+  const audio=$('audio');
+  function radioState() { radio.dataset.playing=String(!audio.paused&&!audio.ended&&audio.readyState>=3); }
+  for (const event of ['playing','pause','waiting','ended','emptied','error']) audio.addEventListener(event,radioState);
+  const equalizer=node('div','tv-equalizer');equalizer.setAttribute('aria-hidden','true');for(let i=0;i<5;i++)equalizer.append(node('i',''));radio.append(equalizer);
+  function announce(changes) {
+    if (!active || !changes.length) return;
+    const panel=node('article','tv-notice');panel.append(node('span','tv-notice-kicker','SERVICE UPDATE'));
+    for(const change of changes.slice(0,3)) {
+      const row=node('div',`tv-notice-row tv-${change.to}`);
+      row.append(node('strong','',change.name),node('span','',`${names[change.from]||'Unconfirmed'} → ${names[change.to]||'Unconfirmed'}`));panel.append(row);
+    }
+    if(changes.length>3)panel.append(node('p','',`+ ${changes.length-3} other services changed. See the Services channel.`));
+    const close=node('button','tv-notice-close','×');close.type='button';close.setAttribute('aria-label','Dismiss service update');close.onclick=()=>$('tv-notifications').replaceChildren();panel.append(close);
+    $('tv-notifications').replaceChildren(panel);clearTimeout(noticeTimer);noticeTimer=setTimeout(()=>$('tv-notifications').replaceChildren(),12000);
+  }
   let servicePage = 0, pageDeadline = 0;
   const pageSize = () => window.innerWidth < 700 ? 4 : window.innerHeight < 850 ? 6 : 8;
   function pageCount() { return Math.max(1, Math.ceil((snapshot?.services?.length || 0) / pageSize())); }
@@ -19,11 +42,10 @@ export function initTV({ api }) {
     const list = snapshot?.services || [];
     $('tv-overview').textContent = list.length ? `${list.filter(s => status(s) === 'operational').length} / ${list.length} services operational` : 'Services · connecting';
     $('tv-local-weather').textContent = forecast?.conditions?.current ? `${number(forecast.conditions.current.temperature_2m)}°F · ${condition(forecast.conditions.current.weather_code)}` : 'Weather · unavailable';
-    $('tv-power-summary').textContent = power?.available ? `${power.region} power · ${number(power.count)} ${power.countKind === 'outages' ? 'outages' : 'affected'}` : 'Power · not confirmed';
   }
   function available() { return SCENES.filter(scene => scene.id !== 'power' || power?.available && power.active); }
   function current() { return available().find(scene => scene.id === sceneId) || available()[0]; }
-  function status(service) { return service.checkedAt && Date.now() - Date.parse(service.checkedAt) > service.staleAfterMs ? 'unknown' : service.status; }
+  const status = boardStatus;
   function title(text, subtext) { const heading=node('div','tv-heading');heading.append(node('h1','tv-title',text),node('p','tv-subtitle',subtext));content.replaceChildren(heading); }
   function services() {
     const list = snapshot?.services || [];
@@ -124,11 +146,18 @@ export function initTV({ api }) {
     content.append(chart,node('p','tv-muted','Independent AI models · lines show predicted temperatures, not a confidence range. Gaps mean missing data. Hourly values may be interpolated.'));
   }
   function outage() {
-    title('Power outages', `${power.provider} · ${power.scope}`);
-    const lead = node('p', 'tv-power-count', `${number(power.count)} ${power.countKind === 'outages' ? 'active outages' : 'customers affected'} across ${power.region}`);
-    const link = node('a', 'tv-map-link', 'Open official outage map ↗'); link.href = power.mapUrl; link.target = '_blank'; link.rel = 'noopener noreferrer';
-    const frame = node('iframe', 'tv-map'); frame.title = `${power.provider} outage map`; frame.src = power.mapUrl; frame.loading = 'eager'; frame.referrerPolicy = 'no-referrer';
-    content.append(lead, frame, node('p', 'tv-muted', 'Regional total does not confirm an outage at your address. If the map cannot load here, use the official map link.'), link);
+    title('Power in your area', `${power.provider} · official utility map`);
+    const layout=node('div','tv-power-layout'),details=node('aside','tv-power-details');
+    details.append(node('span','tv-power-label','REGIONAL OUTAGE REPORT'),node('p','tv-power-count',`${number(power.count)} ${power.countKind==='outages'?'active outages':'customers affected'}`),node('p','tv-power-region',power.scope||power.region));
+    details.append(node('p','tv-muted',`Last checked ${power.checkedAt?new Date(power.checkedAt).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'}):'unavailable'}`),node('p','tv-muted','This is a regional total, not confirmation of an outage at your address. Select an area on the map for utility details.'));
+    const link=node('a','tv-map-link','Open official map ↗');link.href=power.mapUrl;link.target='_blank';link.rel='noopener noreferrer';details.append(link);
+    const mapPanel=node('div','tv-map-panel'),toolbar=node('div','tv-map-toolbar');
+    toolbar.append(node('strong','',`${power.provider} · ${power.region}`));
+    const reload=node('button','','Reload map');reload.type='button';toolbar.append(reload);
+    const frame=node('iframe','tv-map');frame.title=`${power.provider} outage map`;frame.src=power.mapUrl;frame.loading='eager';frame.referrerPolicy='no-referrer';
+    reload.onclick=()=>{frame.src=power.mapUrl;};
+    mapPanel.append(toolbar,frame,node('p','tv-map-help','Map blank or blocked? Use “Open official map.” Utility maps may restrict embedded display.'));
+    layout.append(details,mapPanel);content.append(layout);
   }
   async function connectionCheck() {
     const version=++probeVersion,samples=[];let failures=0;
@@ -184,12 +213,12 @@ export function initTV({ api }) {
       const data = await api(`/api/power?lat=${place.latitude}&lon=${place.longitude}&region=${region}`);
       if (!active || version !== powerVersion) return;
       power = data;
-      if (sceneId === 'power' && !data.active) { sceneId = 'network'; draw(); }
+      if (sceneId === 'power' && !data.active) { sceneId = 'network'; draw(); } else if(sceneId==='power') outage();
     } catch { if (version === powerVersion) { power = null; if (active && sceneId === 'power') { sceneId = 'network'; draw(); } } }
   }
-  function start() { if (active) return; active = true; sceneId = 'services'; screen.hidden = false; $('tv-radio-dock').append(radio); draw(); ticker = setInterval(tick, 1000); void refreshPower(); powerRefresh = setInterval(refreshPower, 5 * 60_000); }
-  function stop() { clearTransition(); radioHome.insertBefore(radio, radioAnchor.nextSibling); active = false; ++probeVersion; ++powerVersion; screen.hidden = true; clearTimeout(timer); clearInterval(ticker); clearInterval(powerRefresh); content.replaceChildren(); }
-  function update(data) { if ('snapshot' in data) snapshot = data.snapshot; if ('forecast' in data) forecast = data.forecast; if ('place' in data) { place = data.place; power = null; if (active) { if (sceneId === 'power') { sceneId = 'network'; draw(); } void refreshPower(); } } if ('network' in data) network = data.network; if (active && sceneId !== 'power') ({ services, weather, network: connection })[sceneId](); }
+  function start() { if (active) return; active = true; sceneId = 'services'; screen.hidden = false; $('tv-radio-dock').append(radio); radioState();wake(); draw(); ticker = setInterval(tick, 1000); void refreshPower(); powerRefresh = setInterval(refreshPower, 5 * 60_000); }
+  function stop() { clearTimeout(idleTimer);clearTimeout(noticeTimer);screen.classList.remove('tv-idle');$('tv-notifications').replaceChildren();clearTransition(); radioHome.insertBefore(radio, radioAnchor.nextSibling); active = false; ++probeVersion; ++powerVersion; screen.hidden = true; clearTimeout(timer); clearInterval(ticker); clearInterval(powerRefresh); content.replaceChildren(); }
+  function update(data) { if ('snapshot' in data) { snapshot=data.snapshot;const result=boardChanges(previousStates,snapshot?.services||[]);previousStates=result.next;announce(result.changes); } if ('forecast' in data) forecast = data.forecast; if ('place' in data) { place = data.place; power = null; if (active) { if (sceneId === 'power') { sceneId = 'network'; draw(); } void refreshPower(); } } if ('network' in data) network = data.network; if (active && sceneId !== 'power') ({ services, weather, network: connection })[sceneId](); }
   $('tv-skip').addEventListener('click', next);
   return { start, stop, update };
 }
