@@ -1,3 +1,4 @@
+import {createAudioFades} from './audio-fades.js';
 import {requestAPI} from './request-api.js';
 let youtubeReady;
 function loadYouTube(){
@@ -16,14 +17,23 @@ export function initRequestRadio({container,audio,onState,startFallback,stopFall
  panel.append(media);container.prepend(panel);
  let lastData={items:[],current:null},readyTimer,revision=0,appliedTransport=0,appliedRewind=0,appliedVolume=0;
  let selected=false,active=false,starting=false,player=null,ready=false,current=null,session=null,timer=null,generation=0,busy=false,loadedId=null,fallback=false;
+ const fades=createAudioFades(audio,()=>ready?player:null);let transitioning=false;
  function status(text){onState(text,active);}
  function paint(data){lastData=data;}
- const control=(action,id)=>requestAPI('/control',{action,session,id,playback:action==='heartbeat'&&ready?{position:player.getCurrentTime?.()||0,duration:player.getDuration?.()||0,paused:player.getPlayerState?.()!==1,volume:audio.volume}:undefined});
+ const control=(action,id)=>requestAPI('/control',{action,session,id,playback:action==='heartbeat'&&ready?{position:player.getCurrentTime?.()||0,duration:player.getDuration?.()||0,paused:player.getPlayerState?.()!==1,volume:fades.volume}:undefined});
  function sync(data){
   paint(data);current=data.current;
-  if(data.remoteVolume&&data.remoteVolume.revision!==appliedVolume){appliedVolume=data.remoteVolume.revision;audio.volume=data.remoteVolume.value;const slider=document.getElementById('volume');if(slider)slider.value=audio.volume;}
-  if(!current){loadedId=null;player?.stopVideo?.();panel.hidden=true;if(!fallback){fallback=true;startFallback();}return;}
-  if(fallback){fallback=false;stopFallback();}panel.hidden=false;
+  if(data.remoteVolume&&data.remoteVolume.revision!==appliedVolume){appliedVolume=data.remoteVolume.revision;fades.volumeTo(data.remoteVolume.value);const slider=document.getElementById('volume');if(slider)slider.value=fades.volume;}
+  if(transitioning)return;
+  if(!current){
+   loadedId=null;if(fallback)return;
+   transitioning=true;
+   const toRadio=()=>{player?.stopVideo?.();panel.hidden=true;fallback=true;fades.set('radio',0);startFallback();fades.fade('radio',1,1100);transitioning=false;sync(lastData);};
+   if(ready&&player.getPlayerState?.()===1)fades.fade('youtube',0,650,toRadio);else toRadio();
+   return;
+  }
+  if(fallback){transitioning=true;fades.fade('radio',0,650,()=>{fallback=false;stopFallback();fades.set('youtube',0);transitioning=false;sync(lastData);});return;}
+  panel.hidden=false;
   if(ready&&loadedId!==current.id){loadedId=current.id;appliedTransport=0;appliedRewind=0;status(current.title);player.loadVideoById(current.videoId);}
   if(ready&&data.transport&&data.transport.revision!==appliedTransport){
    const t=data.transport;appliedTransport=t.revision;
@@ -42,6 +52,7 @@ export function initRequestRadio({container,audio,onState,startFallback,stopFall
   catch(error){if(version===generation){await stop();status(`Playback stopped: ${error.message}`);}}
  }
  async function stop(){
+  transitioning=false;fades.reset();
   if(fallback){fallback=false;stopFallback();}
   const oldSession=session;active=false;starting=false;generation++;clearInterval(timer);clearTimeout(readyTimer);timer=null;ready=false;loadedId=null;current=null;session=null;busy=false;
   player?.destroy?.();player=null;media.replaceChildren();panel.hidden=true;container.dataset.playing='false';status('Request mode stopped');
@@ -55,8 +66,8 @@ export function initRequestRadio({container,audio,onState,startFallback,stopFall
    session=crypto.randomUUID();const claimSession=session;const data=await control(takeover?'takeover':'claim');if(version!==generation||!selected){try{await requestAPI('/control',{action:'release',session:claimSession});}catch{}return;}
    active=true;starting=false;panel.hidden=false;paint(data);current=data.current;const mount=node('div');media.replaceChildren(mount);
    player=new YT.Player(mount,{width:'100%',height:'200',playerVars:{playsinline:1,origin:location.origin,autoplay:0,controls:1},events:{
-    onReady:event=>{if(version!==generation)return;ready=true;clearTimeout(readyTimer);event.target.setVolume(Math.round(audio.volume*100));sync(lastData);},
-    onStateChange:event=>{if(!active||version!==generation||fallback)return;if(event.data===1){status(current?.title||'Playing requests');container.dataset.playing='true';}if(event.data===2){status('Paused · use the YouTube play button to resume');container.dataset.playing='false';}if(event.data===0&&loadedId&&player.getVideoData?.().video_id===current?.videoId)void advance();},
+    onReady:event=>{if(version!==generation)return;ready=true;clearTimeout(readyTimer);event.target.setVolume(Math.round(fades.volume*100));sync(lastData);},
+    onStateChange:event=>{if(!active||version!==generation||fallback)return;if(event.data===1){if(fades.youtubeGain<1)fades.fade('youtube',1,1100);status(current?.title||'Playing requests');container.dataset.playing='true';}if(event.data===2){status('Paused · use the YouTube play button to resume');container.dataset.playing='false';}if(event.data===0&&loadedId&&player.getVideoData?.().video_id===current?.videoId)void advance();},
     onAutoplayBlocked:()=>{if(version===generation&&!fallback)status('Press Play in the YouTube player to allow playback.');},
     onError:event=>{if(!active||version!==generation)return;if([2,5,100,101,150].includes(event.data))void advance('That video cannot play here.');else{void stop().then(()=>status('YouTube playback is unavailable. Check the connection and press Play to retry.'));}}
    }});
@@ -65,7 +76,7 @@ export function initRequestRadio({container,audio,onState,startFallback,stopFall
   }catch(error){if(version===generation){await stop();status(error.message);}}
   finally{if(version===generation){starting=false;}}
  }
- audio.addEventListener('volumechange',()=>{if(ready)player?.setVolume(Math.round(audio.volume*100));});
+
  // Moving an iframe between the dashboard and Board reloads it. Stop before that move.
  document.addEventListener('request-radio-layout',()=>{if(active||starting)void stop();});
  document.addEventListener('visibilitychange',()=>{if(document.hidden&&(active||starting))void stop();});
