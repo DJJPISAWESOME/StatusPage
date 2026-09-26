@@ -1,4 +1,4 @@
-qrcode.mjs is the unmodified ES module from qrcode-generator 2.0.4 (npm), by Kazuhiko Arase.
+qrcode.js is the unmodified ES module from qrcode-generator 2.0.4 (npm), by Kazuhiko Arase.
 Source: https://github.com/kazuhikoarase/qrcode-generator
 
 MIT License

@@ -1,4 +1,4 @@
-import qrcode from './vendor/qrcode.mjs';
+import qrcode from './vendor/qrcode.js';
 export function requestCode(origin){
  const url=new URL('/requests.html',origin).href;
  const code=qrcode(0,'M');code.addData(url,'Byte');code.make();return {url,code};
