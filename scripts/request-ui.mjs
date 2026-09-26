@@ -11,7 +11,8 @@ export async function verifyRequests(browser){
    if(url.pathname.endsWith('/control')){
     assert.equal(req.headers().authorization,undefined);
     if(body.action==='claim'){online=true;if(!current)current=items.shift()||null;}
-    if(body.action==='release')online=false,transport=null,playback=null,remoteVolume=null;
+    if(body.action==='release')online=false;
+    if(body.action==='heartbeat'&&body.id===current?.id)playback={...body.playback,at:Date.now()};
     if(body.action==='next'&&(current?.id||null)===(body.id||null))current=items.shift()||null;
    }else if(url.pathname.endsWith('/remote')){
     if(body.command==='skip'){current=items.shift()||null;transport=null;playback=null;}
@@ -22,6 +23,10 @@ export async function verifyRequests(browser){
   await route.fulfill({json:data||{current,items,transport,playback,remoteVolume,playerOnline:online,searchEnabled:true,playerEnabled:true}});
  });
  await context.addInitScript(()=>{
+  HTMLMediaElement.prototype.play=function(){this.testPaused=false;this.testPlayCount=(this.testPlayCount||0)+1;this.dispatchEvent(new Event('playing'));return Promise.resolve();};
+  HTMLMediaElement.prototype.pause=function(){this.testPaused=true;this.dispatchEvent(new Event('pause'));};
+  Object.defineProperty(HTMLMediaElement.prototype,'paused',{get(){return this.testPaused!==false;}});
+
   window.YT={Player:class{
    constructor(mount,options){this.options=options;this.frame=document.createElement('iframe');this.frame.title='YouTube video player';this.frame.width='356';this.frame.height='200';mount.replaceWith(this.frame);window.testYT=this;setTimeout(()=>options.events.onReady({target:this}),0);}
    getCurrentTime(){return this.position||0;}getDuration(){return 180;}getPlayerState(){return this.state;}pauseVideo(){this.state=2;}playVideo(){this.state=1;}seekTo(n){this.position=n;}setVolume(n){this.volume=n;}loadVideoById(id){this.id=id;this.position=30;this.state=1;this.options.events.onStateChange({data:1});}getVideoData(){return {video_id:this.id};}stopVideo(){}destroy(){this.frame.remove();}finish(){this.options.events.onStateChange({data:0});}
@@ -41,8 +46,10 @@ export async function verifyRequests(browser){
  await portal.getByRole('button',{name:'Resume',exact:true}).click();await portal.waitForFunction(()=>!document.getElementById('request-pause').disabled);await board.clock.fastForward(5100);await board.waitForFunction(()=>window.testYT.state===1);
  await portal.getByRole('button',{name:'Restart current song',exact:true}).click();await portal.waitForFunction(()=>!document.getElementById('request-pause').disabled);await board.clock.fastForward(5100);await board.waitForFunction(()=>window.testYT.position===0);
  await portal.locator('#request-volume').fill('0.25');await portal.locator('#request-volume').dispatchEvent('change');await portal.waitForFunction(()=>!document.getElementById('request-volume').disabled);await board.clock.fastForward(5100);await board.waitForFunction(()=>window.testYT.volume===25);
- await portal.getByRole('button',{name:'Skip',exact:false}).click();await portal.waitForFunction(()=>!document.getElementById('request-pause').disabled);await board.clock.fastForward(5100);await board.waitForFunction(()=>window.testYT.id==='aaaaaaaaaaa');await board.evaluate(()=>window.testYT.finish());await board.waitForFunction(()=>document.querySelector('#radio-state').textContent.includes('Waiting for requests'));assert.equal(current,null);
- await board.evaluate(()=>fetch('/api/requests',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url:'https://youtu.be/dQw4w9WgXcQ',requestId:crypto.randomUUID()})}));await board.clock.fastForward(11000);await board.waitForFunction(()=>window.testYT.id==='dQw4w9WgXcQ');
+ await portal.getByRole('button',{name:'Skip',exact:false}).click();await portal.waitForFunction(()=>!document.getElementById('request-pause').disabled);await board.clock.fastForward(5100);await board.waitForFunction(()=>window.testYT.id==='aaaaaaaaaaa');await board.evaluate(()=>window.testYT.finish());await board.waitForFunction(()=>document.querySelector('#radio-state').textContent.includes('waiting for requests'));assert.equal(current,null);assert.equal(await board.locator('#audio').evaluate(a=>a.paused),false);assert.equal(await board.locator('.request-panel').isVisible(),false);assert.equal(await board.locator('#station').inputValue(),'requests');
+ const radioStarts=await board.locator('#audio').evaluate(a=>a.testPlayCount);await board.clock.fastForward(5100);assert.equal(await board.locator('#audio').evaluate(a=>a.testPlayCount),radioStarts,'An empty queue does not repeatedly restart radio');
+ await board.evaluate(()=>fetch('/api/requests',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url:'https://youtu.be/dQw4w9WgXcQ',requestId:crypto.randomUUID()})}));await board.clock.fastForward(11000);await board.waitForFunction(()=>window.testYT.id==='dQw4w9WgXcQ'&&document.getElementById('audio').paused);assert.equal(await board.locator('.request-panel').isVisible(),true);
+ await board.evaluate(()=>window.testYT.finish());await board.waitForFunction(()=>!document.getElementById('audio').paused);await board.locator('#radio-play').click();assert.equal(await board.locator('#audio').evaluate(a=>a.paused),true);await board.locator('#radio-play').click();await board.waitForFunction(()=>!document.getElementById('audio').paused);
  await board.locator('#station').selectOption('river');await board.waitForFunction(()=>document.querySelector('.request-panel').hidden);assert.equal(await board.locator('.request-video iframe').count(),0);assert.deepEqual(errors,[]);await context.close();
  console.log('Request mode checks passed: portal search/link submissions, shared queue, Board playback contract, skip/end, volume, and station cleanup.');
 }
