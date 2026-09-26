@@ -9,8 +9,20 @@ function progress(){
  $('request-progress').max=duration||1;$('request-progress').value=position;
  $('request-elapsed').textContent=clock(position);$('request-duration').textContent=duration?clock(duration):'--:--';
 }
+function artwork(item){
+ const art=make('div','♫');art.className='track-art';art.setAttribute('aria-hidden','true');
+ if(/^[A-Za-z0-9_-]{11}$/.test(item?.videoId||'')){const img=document.createElement('img');img.alt='';img.loading='lazy';img.src=`https://i.ytimg.com/vi/${item.videoId}/mqdefault.jpg`;img.onerror=()=>img.remove();art.append(img);}
+ return art;
+}
+let artworkId=null,queueKey='';
 function render(data){
  latest=data;
+ document.querySelector('.request-now').dataset.online=String(data.playerOnline);
+ $('player-badge').textContent=data.playerOnline?(data.current?'CONNECTED':'RADIO'):'OFFLINE';
+ $('request-artist').textContent=data.current?.artist||'';
+ const videoId=data.current?.videoId||'';
+ if(videoId!==artworkId){artworkId=videoId;$('request-art').querySelector('img')?.remove();if(/^[A-Za-z0-9_-]{11}$/.test(videoId)){const img=document.createElement('img');img.alt='';img.src=`https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;img.onerror=()=>img.remove();$('request-art').append(img);}}
+ $('queue-nav-count').textContent=String(data.items.length);$('queue-empty').hidden=data.items.length>0;
  $('request-volume').disabled=controlling||!data.playerOnline;
  if(!draggingVolume){const volume=data.remoteVolume?.value??data.playback?.volume??0.4;$('request-volume').value=volume;$('request-volume-value').textContent=`${Math.round(volume*100)}%`;}
  for(const id of ['request-rewind','request-pause','request-skip'])$(id).disabled=controlling||!data.playerOnline||!data.current;
@@ -18,8 +30,8 @@ function render(data){
  $('request-current').textContent=data.current?.title||'The next song could be yours';
  $('request-online').textContent=data.playerOnline?(data.current?'Request mode is connected · songs play in queue order':'Queue is empty · Board is using radio fallback'):'Board playback is offline · requests will wait in the queue';
  $('request-count').textContent=`${data.items.length} / 50 songs`;
- $('request-queue').replaceChildren(...data.items.map(item=>{const li=make('li',item.title);li.append(make('span',item.artist));return li;}));
- if(!data.items.length)$('request-queue').append(make('p','No songs waiting. Add the first request.'));
+ const key=JSON.stringify(data.items);
+ if(key!==queueKey){queueKey=key;$('request-queue').replaceChildren(...data.items.map(item=>{const li=make('li',''),copy=make('div','');copy.className='track-copy';copy.append(make('strong',item.title),make('span',item.artist));li.append(artwork(item),copy);return li;}));}
  $('request-query').placeholder=data.searchEnabled?'Search a song or paste a YouTube link':'Paste a YouTube or YouTube Music video link';
 }
 async function refresh(){try{render(await requestAPI());}catch(error){$('request-online').textContent=`Queue unavailable: ${error.message}`;}}
@@ -33,7 +45,7 @@ $('request-form').addEventListener('submit',async event=>{
  if(/^https?:\/\//i.test(query)){await add(query);return;}
  searching=true;$('request-submit').disabled=true;$('request-feedback').textContent='Searching YouTube…';$('request-results').replaceChildren();
  try{const data=await requestAPI(`/search?q=${encodeURIComponent(query)}`);$('request-feedback').textContent=data.results.length?'Choose a video to add.':'No results found. Try another search.';
- for(const item of data.results){const row=make('article',''),copy=make('div',''),title=make('h3',item.title),by=make('p',item.artist),link=make('a','View on YouTube ↗'),button=make('button','Add to queue');link.href=youtubeLink(item.videoId);link.target='_blank';link.rel='noopener noreferrer';button.type='button';button.onclick=()=>add(youtubeLink(item.videoId));copy.append(title,by,link);row.append(copy,button);$('request-results').append(row);}}
+ for(const item of data.results){const row=make('article',''),copy=make('div',''),title=make('h3',item.title),by=make('p',item.artist),link=make('a','View on YouTube ↗'),button=make('button','Add to queue');link.href=youtubeLink(item.videoId);link.target='_blank';link.rel='noopener noreferrer';button.type='button';button.onclick=()=>add(youtubeLink(item.videoId));copy.className='track-copy';copy.append(title,by,link);row.append(artwork(item),copy,button);$('request-results').append(row);}}
  catch(error){$('request-feedback').textContent=error.message;}finally{searching=false;$('request-submit').disabled=false;}
 });
 async function command(action,volume){
