@@ -74,11 +74,11 @@ export function initTV({ api }) {
     const list = snapshot?.services || [];
     const issues = list.filter(s => !['operational', 'unknown'].includes(status(s)));
     servicePage %= pageCount();
-    title('Service report', `${list.length} services · ${issues.length} issues / maintenance · ${list.filter(s => status(s) === 'unknown').length} unconfirmed`);
+    title('Service report', `${list.length} services · ${issues.length} issues / maintenance · ${list.filter(s => status(s) === 'unknown').length} unconfirmed · PAGE ${servicePage + 1} OF ${pageCount()}`);
     const paging = node('div', 'tv-paging');
     const previous = node('button', '', '←'); previous.type = 'button'; previous.setAttribute('aria-label', 'Previous service page'); previous.onclick = () => turnPage(-1);
     const nextPage = node('button', '', '→'); nextPage.type = 'button'; nextPage.setAttribute('aria-label', 'Next service page'); nextPage.onclick = () => turnPage();
-    paging.append(node('span', '', `PAGE ${servicePage + 1} OF ${pageCount()} · changes every 20 seconds`), previous, nextPage); content.append(paging);
+    paging.append(previous, nextPage);content.querySelector('.tv-heading').append(paging);
     const grid = node('div', 'tv-services');
     for (const s of [...list].sort((a, b) => (['outage','degraded','maintenance','unknown','operational'].indexOf(status(a)) - ['outage','degraded','maintenance','unknown','operational'].indexOf(status(b))) || a.name.localeCompare(b.name)).slice(servicePage * pageSize(), (servicePage + 1) * pageSize())) {
       const card = node('article', `tv-service tv-${status(s)}`);
@@ -96,6 +96,22 @@ export function initTV({ api }) {
   const reportPages={2:0,3:0};
   const reportSize=()=>window.innerWidth<700?2:networkPage===2?(window.innerHeight<850?2:4):window.innerHeight<850?4:6;
   const networkPages=['Your connection','Your ASNs','Downstream watch','North America'];
+  function pageNavigation(pages,index,label,onSelect){
+    const heading=content.querySelector('.tv-heading');heading.classList.add('tv-heading-with-pages');
+    const nav=node('nav','tv-page-navigation');nav.setAttribute('aria-label',label);
+    const meta=node('div','tv-page-meta');meta.append(node('span','',`PAGE ${index+1} OF ${pages.length}`),node('span','tv-page-next'));nav.append(meta);
+    const tabs=node('div','tv-page-tabs');
+    pages.forEach((name,i)=>{const button=node('button',i===index?'selected':'',name);button.type='button';button.setAttribute('aria-label',`${String(i+1).padStart(2,'0')} ${name}`);button.setAttribute('aria-pressed',String(i===index));button.onclick=()=>onSelect(i);tabs.append(button);});
+    nav.append(tabs);heading.append(nav);updatePageProgress();
+  }
+  function updatePageProgress(){
+    const nav=content.querySelector('.tv-page-navigation');if(!nav)return;
+    const isWeather=sceneId==='weather',pages=isWeather?weatherPages:networkPages,index=isWeather?weatherPage:networkPage,end=isWeather?weatherDeadline:networkDeadline,duration=isWeather?30000:45000;
+    const channelNext=deadline>0&&deadline<=end,until=channelNext?deadline:end,seconds=Math.max(0,Math.ceil((until-Date.now())/1000));
+    const scenes=available(),sceneIndex=scenes.findIndex(s=>s.id===sceneId),nextChannel=scenes[(sceneIndex+1)%scenes.length]?.id;
+    nav.querySelector('.tv-page-next').textContent=`NEXT · ${channelNext?`${nextChannel} channel`:pages[(index+1)%pages.length]} · ${seconds}s`;
+    nav.style.setProperty('--page-progress',`${Math.max(0,Math.min(100,(1-(end-Date.now())/duration)*100))}%`);
+  }
   const localTime = stamp => new Date(stamp * 1000).toLocaleTimeString([], { hour: 'numeric', timeZone: WARREN.timezone });
   let outgoing = null, sceneAnimations = [];
   function clearTransition() { for (const animation of sceneAnimations) animation.cancel(); sceneAnimations=[]; outgoing?.remove(); outgoing=null; }
@@ -124,9 +140,7 @@ export function initTV({ api }) {
     renderedWeatherHour = Math.floor(Date.now()/3600000);
     title(weatherPages[weatherPage], WARREN.label);
     screen.dataset.weatherPage = String(weatherPage);
-    const navigation = node('div', 'tv-weather-tabs'); navigation.setAttribute('aria-label', 'Weather pages');
-    weatherPages.forEach((label, i) => { const button = node('button', i === weatherPage ? 'selected' : '', `${String(i + 1).padStart(2,'0')}  ${label}`); button.type = 'button'; button.setAttribute('aria-pressed', String(i === weatherPage)); button.onclick = () => { weatherPage = i; weatherDeadline = Date.now() + 30_000; changePage(weather); }; navigation.append(button); });
-    content.append(navigation);
+    pageNavigation(weatherPages,weatherPage,'Weather pages',i=>{weatherPage=i;weatherDeadline=Date.now()+30000;changePage(weather);});
     [weatherCurrent, weatherHourly, weatherModels, weatherDays][weatherPage]();
     const alerts = forecast?.alerts?.items || [];
     if (alerts.length) content.append(node('p', 'tv-weather-alert', `WEATHER ALERT · ${alerts.slice(0,2).map(a => a.event).join(' · ')}`));
@@ -236,8 +250,7 @@ export function initTV({ api }) {
     screen.dataset.networkPage=String(networkPage);
     if(networkPage===0)connectionDetails();
     else {title(networkPages[networkPage],networkPage===3?'RADAR REPORTS · Last 7 days':'RIPE RIS + RADAR · 3 watched networks');renderNetworkWatch(content,watchReport,networkPage,{index:reportPages[networkPage]||0,size:reportSize(),onTurn:turnReport});}
-    const tabs=node('div','tv-weather-tabs tv-network-tabs');tabs.setAttribute('aria-label','Network pages');
-    networkPages.forEach((label,i)=>{const button=node('button',i===networkPage?'selected':'',`${String(i+1).padStart(2,'0')} ${label}`);button.type='button';button.setAttribute('aria-pressed',String(i===networkPage));button.onclick=()=>{networkPage=i;networkDeadline=Date.now()+45000;reportDeadline=Date.now()+15000;changePage(connection);};tabs.append(button);});content.append(tabs);
+    pageNavigation(networkPages,networkPage,'Network pages',i=>{rememberNextReport();networkPage=i;networkDeadline=Date.now()+45000;reportDeadline=Date.now()+15000;changePage(connection);});
     void loadVisibleNames();
   }
   async function loadVisibleNames(){
@@ -280,12 +293,13 @@ export function initTV({ api }) {
     servicePage = 0; pageDeadline = Date.now() + 20_000; ribbon();
     $('tv-progress').style.animationDuration = `${scene.ms}ms`;
     $('tv-progress').classList.remove('tv-running'); void $('tv-progress').offsetWidth; $('tv-progress').classList.add('tv-running');
+    deadline = Date.now() + scene.ms;
     changePage(({ services, weather, power: outage, network: connection })[scene.id]); if (scene.id === 'network') void connectionCheck();
     deadline = Date.now() + scene.ms;
     clearTimeout(timer); timer = setTimeout(next, scene.ms);
     tick();
   }
-  function tick() { if (!active) return; ribbon(); if(sceneId==='weather'){if(renderedWeatherHour!==Math.floor(Date.now()/3600000))weather();else updateWeatherTime();} if(sceneId==='network'&&Date.now()>=networkDeadline){rememberNextReport();networkPage=(networkPage+1)%networkPages.length;networkDeadline=Date.now()+45000;reportDeadline=Date.now()+15000;changePage(connection);} if(sceneId==='network'&&networkPage>=2&&Date.now()>=reportDeadline)turnReport(); if (sceneId === 'services' && Date.now() >= pageDeadline) turnPage(); if (sceneId === 'weather' && Date.now() >= weatherDeadline) weatherTurn(); const seconds = Math.max(0, Math.ceil((deadline - Date.now()) / 1000)); $('tv-next').textContent = `Next channel in ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`; $('tv-clock').textContent = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }); }
+  function tick() { if (!active) return; ribbon(); if(sceneId==='weather'){if(renderedWeatherHour!==Math.floor(Date.now()/3600000))weather();else updateWeatherTime();} if(sceneId==='network'&&Date.now()>=networkDeadline){rememberNextReport();networkPage=(networkPage+1)%networkPages.length;networkDeadline=Date.now()+45000;reportDeadline=Date.now()+15000;changePage(connection);} if(sceneId==='network'&&networkPage>=2&&Date.now()>=reportDeadline)turnReport(); if (sceneId === 'services' && Date.now() >= pageDeadline) turnPage(); if (sceneId === 'weather' && Date.now() >= weatherDeadline) weatherTurn(); updatePageProgress(); const seconds = Math.max(0, Math.ceil((deadline - Date.now()) / 1000)); $('tv-next').textContent = `Next channel in ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`; $('tv-clock').textContent = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }); }
   function next() { const wasTest=powerTest;if(sceneId==='network')rememberNextReport(); const scenes = available(), at = scenes.findIndex(s => s.id === sceneId); sceneId = scenes[(at + 1) % scenes.length].id;if(wasTest)powerTest=false; draw(); }
   async function refreshPower() {
     if (!active) return;
