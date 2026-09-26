@@ -47,12 +47,12 @@ export function initRequestRadio({container,audio,onState,startFallback,stopFall
   player?.destroy?.();player=null;media.replaceChildren();panel.hidden=true;container.dataset.playing='false';status('Request mode stopped');
   if(oldSession)try{await requestAPI('/control',{action:'release',session:oldSession});}catch{}
  }
- async function begin(){
+ async function begin(takeover=false){
   if(!selected||active||starting)return;
   starting=true;const version=++generation;status('Connecting to YouTube…');
   try{
    const YT=await loadYouTube();if(version!==generation||!selected)return;
-   session=crypto.randomUUID();const claimSession=session;const data=await control('claim');if(version!==generation||!selected){try{await requestAPI('/control',{action:'release',session:claimSession});}catch{}return;}
+   session=crypto.randomUUID();const claimSession=session;const data=await control(takeover?'takeover':'claim');if(version!==generation||!selected){try{await requestAPI('/control',{action:'release',session:claimSession});}catch{}return;}
    active=true;starting=false;panel.hidden=false;paint(data);current=data.current;const mount=node('div');media.replaceChildren(mount);
    player=new YT.Player(mount,{width:'100%',height:'200',playerVars:{playsinline:1,origin:location.origin,autoplay:0,controls:1},events:{
     onReady:event=>{if(version!==generation)return;ready=true;clearTimeout(readyTimer);event.target.setVolume(Math.round(audio.volume*100));sync(lastData);},
@@ -69,5 +69,5 @@ export function initRequestRadio({container,audio,onState,startFallback,stopFall
  // Moving an iframe between the dashboard and Board reloads it. Stop before that move.
  document.addEventListener('request-radio-layout',()=>{if(active||starting)void stop();});
  document.addEventListener('visibilitychange',()=>{if(document.hidden&&(active||starting))void stop();});
- return {get active(){return active||starting;},select(value){selected=value;panel.hidden=true;container.classList.toggle('request-mode',value);if(!value)void stop();else{status('Press Play to start requests.');void requestAPI().then(paint).catch(error=>{if(selected)status(error.message);});}},toggle(){if(active||starting)void stop();else void begin();}};
+ return {get fallbackActive(){return fallback;},get active(){return active||starting;},select(value){selected=value;panel.hidden=true;container.classList.toggle('request-mode',value);if(!value)void stop();else{status('Press Play to start requests.');void requestAPI().then(paint).catch(error=>{if(selected)status(error.message);});}},takeover(){if(!active&&!starting)void begin(true);},toggle(){if(active||starting)void stop();else void begin();}};
 }

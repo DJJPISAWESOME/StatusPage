@@ -69,3 +69,10 @@ test('remote controls keep ownership private, reject stale skips and report Boar
  await call(q,{action:'heartbeat',session,id:first.current.id,playback:{position:60,duration:180}});assert.equal((await call(q)).playback,null);
  await call(q,{action:'release',session});assert.equal((await call(q,{action:'remote',command:'volume',volume:.5})).status,409);
 });
+test('explicit Board takeover preserves the song and revokes old player commands',async()=>{
+ const q=new RequestQueue(new Storage());await call(q,add());await call(q,add('aaaaaaaaaaa'));
+ const before=await call(q,{action:'claim',session});const replacement='replacement-board-12345';
+ const after=await call(q,{action:'takeover',session:replacement});assert.equal(after.current.id,before.current.id);assert.equal(after.items.length,1);
+ for(const action of ['heartbeat','next','release'])assert.equal((await call(q,{action,session,id:before.current.id})).status,409);
+ assert.equal((await call(q,{action:'heartbeat',session:replacement})).status,200);
+});
