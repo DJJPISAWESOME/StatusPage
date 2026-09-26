@@ -96,7 +96,7 @@ export function initTV({ api }) {
   const reportPages={2:0,3:0};
   const reportSize=()=>window.innerWidth<700?2:networkPage===2?(window.innerHeight<850?2:4):window.innerHeight<850?4:6;
   const networkPages=['Your connection','Your ASNs','Downstream watch','North America'];
-  const channelStep = id => ({services:20000,weather:30000,network:45000,power:120000})[id];
+  const channelStep = id => ({services:20000,weather:SCENES.find(scene=>scene.id==='weather').ms/weatherPages.length,network:45000,power:120000})[id];
   function channelPages(id){return id==='weather'?weatherPages:id==='network'?networkPages:id==='services'?Array.from({length:pageCount()},(_,i)=>`Service page ${i+1}`):['Local outages'];}
   function buildChannelProgress(){
     document.querySelectorAll('[data-tv-channel]').forEach(channel=>{
@@ -155,7 +155,7 @@ export function initTV({ api }) {
     if(cards.length)cards.forEach((card,i)=>sceneAnimations.push(card.animate([{transform:'perspective(1000px) translateX(110px) rotateY(-18deg)',opacity:0},{transform:'perspective(1000px) translateX(0) rotateY(0)',opacity:1}],{duration:720,delay:180+i*80,easing:'cubic-bezier(.16,1,.3,1)',fill:'backwards'})));
     else for(const panel of content.querySelectorAll('.tv-model-chart,.tv-route,.tv-network,.tv-probe,.tv-map'))sceneAnimations.push(panel.animate([{transform:'translateX(100%)'},{transform:'translateX(0)'}],{duration:750,delay:120,easing:'cubic-bezier(.16,1,.3,1)',fill:'backwards'}));
   }
-  function weatherTurn(direction = 1) { weatherPage = (weatherPage + direction + weatherPages.length) % weatherPages.length; weatherDeadline = Date.now() + 30_000; changePage(weather); }
+  function weatherTurn(direction = 1) { weatherPage = Math.max(0, Math.min(weatherPages.length - 1, weatherPage + direction)); weatherDeadline = Date.now() + channelStep('weather'); changePage(weather); }
   function metric(label, value, className = 'tv-network-card') { const card = node('div', className); card.append(node('span', '', label), node('strong', '', value)); return card; }
   function weather() {
     renderedWeatherHour = Math.floor(Date.now()/3600000);
@@ -166,7 +166,7 @@ export function initTV({ api }) {
     if (alerts.length) content.append(node('p', 'tv-weather-alert', `WEATHER ALERT · ${alerts.slice(0,2).map(a => a.event).join(' · ')}`));
     else if (forecast?.alerts?.available === false) content.append(node('p', 'tv-muted', 'Weather alerts could not be checked.'));
     const stamp = forecast?.conditions?.fetchedAt;
-    content.append(node('p', 'tv-muted', `${forecast?.refreshFailed?'Refresh unavailable · showing last received report · ':''}Forecast estimates · °F / mph · ${stamp ? 'updated ' + new Date(stamp).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}) : 'update time unavailable'} · pages change every 30 seconds`));
+    content.append(node('p', 'tv-muted', `${forecast?.refreshFailed?'Refresh unavailable · showing last received report · ':''}Forecast estimates · °F / mph · ${stamp ? 'updated ' + new Date(stamp).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}) : 'update time unavailable'} · pages change every ${channelStep('weather')/1000} seconds`));
   }
   const detailedTime = stamp => Number.isFinite(stamp) ? new Date(stamp*1000).toLocaleTimeString([], {hour:'numeric',minute:'2-digit',timeZone:WARREN.timezone}) : '—';
   function weatherCurrent() {
@@ -306,7 +306,7 @@ export function initTV({ api }) {
   function draw() {
     if (!active) return;
     const scene = current();
-    ++probeVersion; networkPage=0;networkDeadline=Date.now()+45000;reportDeadline=Date.now()+15000;weatherPage = 0; weatherDeadline = Date.now() + 30_000;
+    ++probeVersion; networkPage=0;networkDeadline=Date.now()+45000;reportDeadline=Date.now()+15000;weatherPage = 0; weatherDeadline = Date.now() + channelStep('weather');
     screen.dataset.scene = scene.id;
     document.querySelectorAll('[data-tv-channel]').forEach(el => { el.classList.toggle('selected',el.dataset.tvChannel===scene.id); el.hidden=el.dataset.tvChannel==='power'&&!powerTest&&!power?.active; });
     servicePage = 0; pageDeadline = Date.now() + 20_000; ribbon();
