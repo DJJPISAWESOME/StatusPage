@@ -16,7 +16,7 @@ function render(data){
  for(const id of ['request-rewind','request-pause','request-skip'])$(id).disabled=controlling||!data.playerOnline||!data.current;
  $('request-pause').textContent=(data.transport?.paused??data.playback?.paused)?'Resume':'Pause';progress();
  $('request-current').textContent=data.current?.title||'The next song could be yours';
- $('request-online').textContent=data.playerOnline?'Request mode is connected · songs play in queue order':'Board playback is offline · requests will wait in the queue';
+ $('request-online').textContent=data.playerOnline?(data.current?'Request mode is connected · songs play in queue order':'Queue is empty · Board is using radio fallback'):'Board playback is offline · requests will wait in the queue';
  $('request-count').textContent=`${data.items.length} / 50 songs`;
  $('request-queue').replaceChildren(...data.items.map(item=>{const li=make('li',item.title);li.append(make('span',item.artist));return li;}));
  if(!data.items.length)$('request-queue').append(make('p','No songs waiting. Add the first request.'));
