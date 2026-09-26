@@ -1,8 +1,8 @@
-import { coordinates } from './security.js';
+import { coordinates, upstream } from './security.js';
 
 // These utilities report regional totals, not a household's power status.
 const SOURCES = {
-  RI: { name: 'Rhode Island Energy', page: 'https://www.rienergy.com/site/outages-and-safety/outages-and-safety', map: 'https://outagemap.rienergy.com/omap', marker: /Customers currently without electric power\s*:?\s*([\d,]+)/i },
+  RI: { name: 'Rhode Island Energy', page: 'https://www.rienergy.com/site/outages-and-safety/outages-and-safety', map: 'https://outagemap.rienergy.com/OMAP', marker: /Customers currently without electric power\s*:?\s*([\d,]+)/i },
   MA: { name: 'National Grid', map: 'https://outagemap.ma.nationalgridus.com/', instance: '9cb2e5b7-d321-4575-a552-4ae7078cbc31', view: 'ec79df5b-2c54-4fb9-a86a-b20775678236' },
   NY: { name: 'National Grid', map: 'https://outagemap.ny.nationalgridus.com/', instance: '9cb2e5b7-d321-4575-a552-4ae7078cbc31', view: '1b69b604-7588-4753-8591-9f135a962a2f' }
 };
@@ -42,14 +42,40 @@ async function officialCount(source, fetcher) {
   return parsePowerCount((await response.text()).slice(0, 5_000_000), source.marker);
 }
 
+export function parseLocalPower(data) {
+  const county=data?.data?.find(row=>row.nm==='Bristol');
+  const towns=['Warren','Bristol'].map(name=>{
+    const row=county?.mun?.find(row=>row.nm===name);
+    if(!Number.isSafeInteger(row?.nc)||row.nc<0)throw Error('Missing town total');
+    return {name,count:row.nc};
+  });
+  return {towns,count:towns.reduce((sum,town)=>sum+town.count,0)};
+}
+async function localPower(fetcher) {
+  const root='https://outagemap.rienergy.com/OMAP/api/Omap/';
+  const summary=JSON.parse(await upstream(`${root}Outage/Tabular?opco=RI`,{fetcher}));
+  const local=parseLocalPower(summary);
+  let locations=[],locationsAvailable=false;
+  try {
+    const pins=JSON.parse(await upstream(`${root}Outage/Pins?opco=RI`,{fetcher,limit:4*1024*1024}));
+    if(!Array.isArray(pins))throw Error('Missing pins');
+    locations=pins.filter(p=>['WARREN','BRISTOL'].includes(p.mun)&&p.cty==='BRISTOL').map(p=>{
+      const latitude=Number(p.a),longitude=Number(p.o);
+      if(!Number.isFinite(latitude)||!Number.isFinite(longitude)||latitude<41.6||latitude>41.8||longitude< -71.4||longitude> -71.1||!Number.isSafeInteger(p.nc)||p.nc<0)throw Error('Invalid outage location');
+      return {latitude,longitude,count:p.nc,town:p.mun};
+    });locationsAvailable=true;
+  } catch { /* Town totals remain useful if map locations are unavailable. */ }
+  return {...local,locations,locationsAvailable};
+}
+
 export async function powerStatus(point, preferred = '', fetcher = fetch, cache = globalThis.caches?.default) {
   const region = powerRegion(point, preferred), source = SOURCES[region];
   if (!source) return { available: false, active: false, region: null, reason: 'No supported utility for this location' };
-  const key = new Request(`https://signal-cache.invalid/power-v1/${region}`);
+  const key = new Request(`https://signal-cache.invalid/power-v2/${region}`);
   if (cache) { const hit = await cache.match(key); if (hit) return hit.json(); }
-  let count = null;
-  try { count = await officialCount(source, fetcher); } catch { /* Unknown is not zero outages. */ }
-  const result = { available: count !== null, active: count !== null && count > 0, count, countKind: source.instance ? 'outages' : 'customers', region, provider: source.name, mapUrl: source.map, checkedAt: new Date().toISOString(), scope: `${region} regional total` };
+  let count = null, local={};
+  try { if(region==='RI'){local=await localPower(fetcher);count=local.count;}else count = await officialCount(source, fetcher); } catch { /* Unknown is not zero outages. */ }
+  const result = { available: count !== null, active: count !== null && count > 0, count, countKind: source.instance ? 'outages' : 'customers', region, provider: source.name, mapUrl: source.map, checkedAt: new Date().toISOString(), scope: region==='RI'?'Warren & Bristol, RI':`${region} regional total`, ...local };
   if (cache) await cache.put(key, new Response(JSON.stringify(result), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=300' } }));
   return result;
 }

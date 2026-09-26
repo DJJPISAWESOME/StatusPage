@@ -1,3 +1,4 @@
+import { renderPowerMap } from './power-map.js';
 import { appendNetworkFeed, visibleNetworkASNs } from './network-report.js';
 import { WARREN, currentHour, localDayIndex, localConditions, weatherEffect } from './board-weather.js';
 import { renderNetworkWatch } from './network-channel.js';
@@ -12,7 +13,7 @@ const number = (value, suffix = '') => Number.isFinite(value) ? `${Math.round(va
 const condition = code => weatherInfo(code).label;
 
 export function initTV({ api }) {
-  let active = false, sceneId = 'services', deadline = 0, timer, ticker, powerRefresh, powerVersion = 0, snapshot, forecast, place, network, power;
+  let active = false, sceneId = 'services', deadline = 0, timer, ticker, powerRefresh, powerVersion = 0, snapshot, forecast, place, network, power, powerTest=false;
   const screen = $('tv-board'), content = $('tv-content');
   const radio = document.querySelector('.radio-bar'), radioHome = radio.parentNode;
   const radioAnchor = document.createComment('radio home'); radio.before(radioAnchor);
@@ -65,7 +66,7 @@ export function initTV({ api }) {
     $('tv-overview').textContent = list.length ? `${list.filter(s => status(s) === 'operational').length} / ${list.length} services operational` : 'Services · connecting';
     $('tv-local-weather').textContent = forecast?.conditions?.current ? `${number(forecast.conditions.current.temperature_2m)}°F · ${condition(forecast.conditions.current.weather_code)}` : 'Weather · unavailable';
   }
-  function available() { return SCENES.filter(scene => scene.id !== 'power' || power?.available && power.active); }
+  function available() { return SCENES.filter(scene => scene.id !== 'power' || powerTest || power?.available && power.active); }
   function current() { return available().find(scene => scene.id === sceneId) || available()[0]; }
   const status = boardStatus;
   function title(text, subtext) { delete screen.dataset.conditions; const heading=node('div','tv-heading');heading.append(node('h1','tv-title',text),node('p','tv-subtitle',subtext));content.replaceChildren(heading); }
@@ -191,18 +192,15 @@ export function initTV({ api }) {
     marker.querySelector('text').textContent=`NOW · ${detailedTime(now)}`;
   }
   function outage() {
-    title('Power in your area', `${power.provider} · official utility map`);
+    const report=power||{};
+    title('Warren & Bristol power', powerTest?'TEST VIEW · live data when available · no simulated outages':'Rhode Island Energy · local outage report');
     const layout=node('div','tv-power-layout'),details=node('aside','tv-power-details');
-    details.append(node('span','tv-power-label','REGIONAL OUTAGE REPORT'),node('p','tv-power-count',`${number(power.count)} ${power.countKind==='outages'?'active outages':'customers affected'}`),node('p','tv-power-region',power.scope||power.region));
-    details.append(node('p','tv-muted',`Last checked ${power.checkedAt?new Date(power.checkedAt).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'}):'unavailable'}`),node('p','tv-muted','This is a regional total, not confirmation of an outage at your address. Select an area on the map for utility details.'));
-    const link=node('a','tv-map-link','Open official map ↗');link.href=power.mapUrl;link.target='_blank';link.rel='noopener noreferrer';details.append(link);
-    const mapPanel=node('div','tv-map-panel'),toolbar=node('div','tv-map-toolbar');
-    toolbar.append(node('strong','',`${power.provider} · ${power.region}`));
-    const reload=node('button','','Reload map');reload.type='button';toolbar.append(reload);
-    const frame=node('iframe','tv-map');frame.title=`${power.provider} outage map`;frame.src=power.mapUrl;frame.loading='eager';frame.referrerPolicy='no-referrer';
-    reload.onclick=()=>{frame.src=power.mapUrl;};
-    mapPanel.append(toolbar,frame,node('p','tv-map-help','Map blank or blocked? Use “Open official map.” Utility maps may restrict embedded display.'));
-    layout.append(details,mapPanel);content.append(layout);
+    details.append(node('span','tv-power-label',powerTest?'POWER CHANNEL PREVIEW':'LOCAL OUTAGE REPORT'),node('p','tv-power-count',report.available?`${number(report.count)} customers affected`:'Status unavailable'),node('p','tv-power-region','Warren & Bristol, RI'));
+    for(const town of report.towns||[])details.append(node('p','tv-power-town',`${town.name} · ${number(town.count)} affected`));
+    details.append(node('p','tv-muted',`Last checked ${report.checkedAt?new Date(report.checkedAt).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'}):'unavailable'}`));
+    details.append(node('p','tv-muted',report.available&&report.count===0?'No outages reported in these two towns.':'Utility reports may be delayed. Markers show approximate outage locations, not individual homes.'));
+    const link=node('a','tv-map-link','Open Rhode Island Energy map ↗');link.href='https://outagemap.rienergy.com/OMAP';link.target='_blank';link.rel='noopener noreferrer';details.append(link);
+    layout.append(details,renderPowerMap(report));content.append(layout);
   }
   async function connectionCheck() {
     const version=++probeVersion,samples=[];let failures=0;
@@ -278,7 +276,7 @@ export function initTV({ api }) {
     const scene = current();
     ++probeVersion; networkPage=0;networkDeadline=Date.now()+45000;reportDeadline=Date.now()+15000;weatherPage = 0; weatherDeadline = Date.now() + 30_000;
     screen.dataset.scene = scene.id;
-    document.querySelectorAll('[data-tv-channel]').forEach(el => { el.classList.toggle('selected',el.dataset.tvChannel===scene.id); el.hidden=el.dataset.tvChannel==='power'&&!power?.active; });
+    document.querySelectorAll('[data-tv-channel]').forEach(el => { el.classList.toggle('selected',el.dataset.tvChannel===scene.id); el.hidden=el.dataset.tvChannel==='power'&&!powerTest&&!power?.active; });
     servicePage = 0; pageDeadline = Date.now() + 20_000; ribbon();
     $('tv-progress').style.animationDuration = `${scene.ms}ms`;
     $('tv-progress').classList.remove('tv-running'); void $('tv-progress').offsetWidth; $('tv-progress').classList.add('tv-running');
@@ -288,17 +286,16 @@ export function initTV({ api }) {
     tick();
   }
   function tick() { if (!active) return; ribbon(); if(sceneId==='weather'){if(renderedWeatherHour!==Math.floor(Date.now()/3600000))weather();else updateWeatherTime();} if(sceneId==='network'&&Date.now()>=networkDeadline){rememberNextReport();networkPage=(networkPage+1)%networkPages.length;networkDeadline=Date.now()+45000;reportDeadline=Date.now()+15000;changePage(connection);} if(sceneId==='network'&&networkPage>=2&&Date.now()>=reportDeadline)turnReport(); if (sceneId === 'services' && Date.now() >= pageDeadline) turnPage(); if (sceneId === 'weather' && Date.now() >= weatherDeadline) weatherTurn(); const seconds = Math.max(0, Math.ceil((deadline - Date.now()) / 1000)); $('tv-next').textContent = `Next channel in ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`; $('tv-clock').textContent = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }); }
-  function next() { if(sceneId==='network')rememberNextReport(); const scenes = available(), at = scenes.findIndex(s => s.id === sceneId); sceneId = scenes[(at + 1) % scenes.length].id; draw(); }
+  function next() { const wasTest=powerTest;if(sceneId==='network')rememberNextReport(); const scenes = available(), at = scenes.findIndex(s => s.id === sceneId); sceneId = scenes[(at + 1) % scenes.length].id;if(wasTest)powerTest=false; draw(); }
   async function refreshPower() {
-    if (!active || !place) return;
+    if (!active) return;
     const version = ++powerVersion;
     try {
-      const region = place.regionCode || (/Rhode Island|, RI(?:,|$)/i.test(place.label) ? 'RI' : /Massachusetts|, MA(?:,|$)/i.test(place.label) ? 'MA' : /New York|, NY(?:,|$)/i.test(place.label) ? 'NY' : '');
-      const data = await api(`/api/power?lat=${place.latitude}&lon=${place.longitude}&region=${region}`);
+      const data = await api(`/api/power?lat=${WARREN.latitude}&lon=${WARREN.longitude}&region=RI`);
       if (!active || version !== powerVersion) return;
       power = data;
-      if (sceneId === 'power' && !data.active) { sceneId = 'network'; draw(); } else if(sceneId==='power') outage();
-    } catch { if (version === powerVersion) { power = null; if (active && sceneId === 'power') { sceneId = 'network'; draw(); } } }
+      if (sceneId === 'power' && !powerTest && !data.active) { sceneId = 'network'; draw(); } else if(sceneId==='power') outage();
+    } catch { if (version === powerVersion) { power = null; if (active && sceneId === 'power') { if(powerTest)outage();else{sceneId = 'network'; draw();} } } }
   }
   async function refreshWeather() {
     if(!active)return;
@@ -312,8 +309,9 @@ export function initTV({ api }) {
     ribbon();if(sceneId==='weather')weather();
   }
   function start() { if (active) return; active = true; sound.start(); sceneId = 'services'; screen.hidden = false; $('tv-radio-dock').append(radio); radioState();wake(); draw(); ticker = setInterval(tick, 1000); void refreshPower(); void refreshWeather();void refreshWatch();watchRefresh=setInterval(refreshWatch,5*60_000); weatherRefresh=setInterval(refreshWeather,15*60_000); powerRefresh = setInterval(refreshPower, 5 * 60_000); }
-  function stop() { sound.stop();clearTimeout(nameTimer);clearTimeout(watchMoreTimer);++watchVersion;clearInterval(watchRefresh); ++weatherVersion;clearInterval(weatherRefresh);clearTimeout(idleTimer);clearTimeout(noticeTimer);screen.classList.remove('tv-idle');$('tv-notifications').replaceChildren();clearTransition(); radioHome.insertBefore(radio, radioAnchor.nextSibling); active = false; ++probeVersion; ++powerVersion; screen.hidden = true; clearTimeout(timer); clearInterval(ticker); clearInterval(powerRefresh); content.replaceChildren(); }
+  function stop() { powerTest=false;sound.stop();clearTimeout(nameTimer);clearTimeout(watchMoreTimer);++watchVersion;clearInterval(watchRefresh); ++weatherVersion;clearInterval(weatherRefresh);clearTimeout(idleTimer);clearTimeout(noticeTimer);screen.classList.remove('tv-idle');$('tv-notifications').replaceChildren();clearTransition(); radioHome.insertBefore(radio, radioAnchor.nextSibling); active = false; ++probeVersion; ++powerVersion; screen.hidden = true; clearTimeout(timer); clearInterval(ticker); clearInterval(powerRefresh); content.replaceChildren(); }
   function update(data) { if ('snapshot' in data) { snapshot=data.snapshot;const result=boardChanges(previousStates,snapshot?.services||[]);previousStates=result.next;announce(result.changes); } if ('forecast' in data && place?.latitude===WARREN.latitude && place?.longitude===WARREN.longitude && Number.isFinite(localConditions(data.forecast?.conditions).current.temperature_2m)) forecast = data.forecast; if ('place' in data) { place = data.place; power = null; if (active) { if (sceneId === 'power') { sceneId = 'network'; draw(); } void refreshPower(); } } if ('network' in data) network = data.network; if (active && sceneId !== 'power') ({ services, weather, network: connection })[sceneId](); }
+  $('tv-test-power').addEventListener('click',()=>{powerTest=true;sceneId='power';wake();draw();void refreshPower();});
   $('tv-skip').addEventListener('click', next);
   return { start, stop, update };
 }
