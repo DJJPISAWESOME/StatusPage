@@ -1,3 +1,4 @@
+import {addRequestQR} from './request-qr.js';
 import {createAudioFades} from './audio-fades.js';
 import {requestAPI} from './request-api.js';
 let youtubeReady;
@@ -14,7 +15,7 @@ const node=(tag,text,cls)=>{const el=document.createElement(tag);el.textContent=
 export function initRequestRadio({container,audio,onState,startFallback,stopFallback}){
  const panel=node('section','','request-panel');panel.hidden=true;panel.setAttribute('aria-label','YouTube request player');
  const media=node('div','','request-video');
- panel.append(media);container.prepend(panel);
+ panel.append(media);container.prepend(panel);addRequestQR(container);
  let lastData={items:[],current:null},readyTimer,revision=0,appliedTransport=0,appliedRewind=0,appliedVolume=0;
  let selected=false,active=false,starting=false,player=null,ready=false,current=null,session=null,timer=null,generation=0,busy=false,loadedId=null,fallback=false;
  const fades=createAudioFades(audio,()=>ready?player:null);let transitioning=false;
