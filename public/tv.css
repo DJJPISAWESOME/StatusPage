@@ -138,3 +138,7 @@
 @media(max-width:699px){.board-mode #tv-radio-dock .request-panel{--request-size:44px}.board-mode #tv-radio-dock .request-mode{gap:8px}.board-mode #tv-radio-dock .request-mode .radio-controls{gap:8px}}
 .request-mode #radio-state{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .request-portal-link{font-size:11px;color:var(--muted);width:fit-content}#tv-radio-dock .request-portal-link{grid-column:1;font-size:11px;color:#c3d9ea}
+
+.board-mode .request-portal-link,.board-mode .request-mode #station-site{display:none!important}
+
+.tv-header .tv-actions{max-width:calc(100vw - 32px);flex-wrap:wrap;justify-content:flex-end}

@@ -107,15 +107,15 @@ export class RequestQueue{
         }
       }else{
         if(!/^[\w-]{16,80}$/.test(body.session||''))throw new HttpError(400,'Invalid player session');
-        if(!['claim','heartbeat','next','release'].includes(body.action))throw new HttpError(400,'Invalid player action');
-        if(body.action==='claim'){
-          if(state.leaseUntil>now&&state.owner!==body.session)throw new HttpError(409,'Another Board is playing this queue. Stop it first or wait one minute.');
+        if(!['claim','takeover','heartbeat','next','release'].includes(body.action))throw new HttpError(400,'Invalid player action');
+        if(body.action==='claim'||body.action==='takeover'){
+          if(body.action!=='takeover'&&state.leaseUntil>now&&state.owner!==body.session)throw new HttpError(409,'Another Board is playing this queue. Stop it first or wait one minute.');
           state.owner=body.session;
         }else if(state.owner!==body.session||state.leaseUntil<=now)throw new HttpError(409,'Player session expired. Press Play to reconnect.');
         if(body.action==='next'){
           // Compare-and-swap protects against duplicate end/error callbacks and retries.
           if((state.current?.id||null)===(body.id||null)){state.current=state.items.shift()||null;state.transport=null;state.playback=null;}
-        }else if(body.action==='claim'&&!state.current)state.current=state.items.shift()||null;
+        }else if(['claim','takeover'].includes(body.action)&&!state.current)state.current=state.items.shift()||null;
         if(body.action==='heartbeat'&&body.id===state.current?.id&&body.playback){
           const p=body.playback;
           if(Number.isFinite(p.position)&&Number.isFinite(p.duration)&&p.position>=0&&p.duration>=0&&p.duration<=604800){

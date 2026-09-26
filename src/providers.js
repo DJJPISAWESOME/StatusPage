@@ -67,8 +67,8 @@ export async function collectService(service, fetcher = fetch) {
   try {
     if (service.parser === 'adobe') {
       // Documented in the migration: do not impersonate a browser to bypass Adobe's WAF.
-      const raw = await upstream('https://data.status.adobe.com/adobestatus/StatusEvents', { fetcher });
-      const registry = JSON.parse(await upstream(service.url, { fetcher }));
+      const raw = await upstream('https://data.status.adobe.com/adobestatus/StatusEvents', { fetcher, limit:16*1024*1024 });
+      const registry = JSON.parse(await upstream(service.url, { fetcher, limit:4*1024*1024 }));
       const cc = Object.values(registry.clouds || {}).find(x => /creative cloud/i.test(x.name));
       if (!cc?.id) throw new Error('Adobe schema changed');
       const events = JSON.parse(raw);
@@ -77,16 +77,21 @@ export async function collectService(service, fetcher = fetch) {
       for (const [kind, items] of [['degraded', events.incidentEvent?.incidents], ['maintenance', events.maintenanceEvent?.maintenance]]) {
         for (const item of Object.values(items || {})) {
           if (!item.clouds || !(cc.id in item.clouds)) continue;
-          const history = Object.entries(item.history || {}).sort((a, b) => Number(b[0]) - Number(a[0]));
-          const latest = history[0]?.[1] || item;
-          if (/resolved|closed|completed/i.test(latest.status || '')) continue;
-          if (!latest.status) throw new Error('Adobe event schema changed');
-          active.push({ status: kind, title: text(item.headline || item.name), body: text(latest.description) });
+          const products=Object.values(item.products||{});
+          for(const product of products.length?products:[item]){
+            if(products.length&&!cc.cloudProducts?.includes(product.id))continue;
+            const history=Object.entries(product.history||item.history||{}).sort((a,b)=>Number(b[0])-Number(a[0]));
+            const latest=history[0]?.[1]||item;
+            if(/resolved|closed|completed|dismissed|cancelled|canceled/i.test(latest.status||''))continue;
+            if(!latest.status)throw new Error('Adobe event schema changed');
+            if(kind==='maintenance'&&/scheduled|pending|approved/i.test(latest.status))continue;
+            active.push({status:kind,title:text(product.name||item.headline||item.name||'Adobe Creative Cloud'),body:text(latest.description||`${latest.status} · ${latest.operationsImpact||kind}`)});
+          }
         }
       }
       return { id: service.id, status: active.length ? worst(active.map(x => x.status)) : 'operational', incidents: active.slice(0, 8), checkedAt, lastSuccessAt: checkedAt };
     }
-    const raw = await upstream(service.url, { fetcher, accept: service.parser === 'rss' ? 'application/rss+xml, application/atom+xml, application/xml, text/xml' : '*/*' });
+    const raw = await upstream(service.url, { fetcher, timeout:service.id==='dnsfilter'?20000:12000, accept: service.parser === 'rss' ? 'application/rss+xml, application/atom+xml, application/xml, text/xml' : '*/*' });
     return { id: service.id, ...parseProvider(service, raw), checkedAt, lastSuccessAt: checkedAt };
   } catch (error) {
     return { id: service.id, status: 'unknown', incidents: [], checkedAt, error: error.status === 413 ? 'Provider response exceeds the safe size limit. Open its status page for current details.' : 'Provider unavailable or response format changed', detail: error.status === 413 ? 'response_too_large' : /Timeout|Abort/.test(error.name) ? 'timeout' : /schema|JSON|Unexpected|XML|feed/i.test(error.message) ? 'schema' : 'upstream', httpStatus: Number(error.message.match(/Upstream HTTP (\d{3})/)?.[1]) || null };

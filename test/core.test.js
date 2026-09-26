@@ -119,7 +119,7 @@ test('radio metadata reads an ICY block and cancels the audio stream',async()=>{
  const {radioMetadata}=await import('../src/radio.js');let cancelled=false;
  const meta="StreamTitle='Artist - Song';";const size=Math.ceil(meta.length/16);const bytes=new Uint8Array(16+1+size*16);bytes[16]=size;bytes.set(new TextEncoder().encode(meta),17);
  const mock=async()=>new Response(new ReadableStream({start(c){c.enqueue(bytes);},cancel(){cancelled=true;}}),{headers:{'icy-metaint':'16'}});
- const result=await radioMetadata('river',mock,null);assert.equal(result.title,'Artist - Song');assert.equal(cancelled,true);
+ const result=await radioMetadata('river',mock,null);assert.equal(result.title,'Artist — Song');assert.equal(cancelled,true);
 });
 test('radio metadata rejects untrusted redirects and unknown station IDs',async()=>{
  const {radioMetadata}=await import('../src/radio.js');let calls=0;
@@ -129,4 +129,20 @@ test('radio metadata rejects untrusted redirects and unknown station IDs',async(
 test('webhook mode requires configured credentials and does not accidentally disable polling',()=>{
  const hooks=StatusHub.prototype.webhookServices.call({env:{WEBHOOK_SERVICES:'cloudflare,openai',WEBHOOK_SECRETS:JSON.stringify({cloudflare:secret})}});
  assert.deepEqual([...hooks],['cloudflare']);
+});
+test('radio metadata preserves apostrophes and normalizes station-specific song order',async()=>{
+ const {parseRadioTitle}=await import('../src/radio.js');
+ assert.deepEqual(parseRadioTitle("StreamTitle='Guns N’ Roses - Don't Cry';StreamUrl='';",{id:'river'}),{title:"Guns N’ Roses — Don't Cry",artist:'Guns N’ Roses',song:"Don't Cry"});
+ assert.equal(parseRadioTitle("StreamTitle='Song - Artist';",{id:'x1023'}).title,'Artist — Song');
+ assert.equal(parseRadioTitle("StreamTitle='Artist    -   Rock &amp; Roll';",{id:'wocn'}).title,'Artist — Rock & Roll');
+});
+test('Adobe product histories ignore dismissed events and identify active Creative Cloud products',async()=>{
+ const {collectService}=await import('../src/providers.js');
+ const registry={clouds:{cc:{id:'cc',name:'Creative Cloud',cloudProducts:['ps']}}};
+ const events={incidentEvent:{incidents:{a:{clouds:{cc:{}},products:{ps:{id:'ps',name:'Photoshop',history:{1:{status:'Open'},2:{status:'Dismissed'}}}}}}},maintenanceEvent:{maintenance:{}}};
+ const service={id:'adobe-cc',parser:'adobe',url:'https://data.status.adobe.com/adobestatus/SnowServiceRegistry'};
+ const fetcher=async url=>Response.json(url.endsWith('StatusEvents')?events:registry);
+ assert.equal((await collectService(service,fetcher)).status,'operational');
+ events.incidentEvent.incidents.a.products.ps.history[3]={status:'Open',operationsImpact:'Availability'};
+ const result=await collectService(service,fetcher);assert.equal(result.status,'degraded');assert.equal(result.incidents[0].title,'Photoshop');
 });
