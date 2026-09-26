@@ -96,21 +96,42 @@ export function initTV({ api }) {
   const reportPages={2:0,3:0};
   const reportSize=()=>window.innerWidth<700?2:networkPage===2?(window.innerHeight<850?2:4):window.innerHeight<850?4:6;
   const networkPages=['Your connection','Your ASNs','Downstream watch','North America'];
-  function pageNavigation(pages,index,label,onSelect){
-    const heading=content.querySelector('.tv-heading');heading.classList.add('tv-heading-with-pages');
-    const nav=node('nav','tv-page-navigation');nav.setAttribute('aria-label',label);
-    const meta=node('div','tv-page-meta');meta.append(node('span','',`PAGE ${index+1} OF ${pages.length}`),node('span','tv-page-next'));nav.append(meta);
-    const tabs=node('div','tv-page-tabs');
-    pages.forEach((name,i)=>{const button=node('button',i===index?'selected':'',name);button.type='button';button.setAttribute('aria-label',`${String(i+1).padStart(2,'0')} ${name}`);button.setAttribute('aria-pressed',String(i===index));button.onclick=()=>onSelect(i);tabs.append(button);});
-    nav.append(tabs);heading.append(nav);updatePageProgress();
+  const channelStep = id => ({services:20000,weather:30000,network:45000,power:120000})[id];
+  function channelPages(id){return id==='weather'?weatherPages:id==='network'?networkPages:id==='services'?Array.from({length:pageCount()},(_,i)=>`Service page ${i+1}`):['Local outages'];}
+  function buildChannelProgress(){
+    document.querySelectorAll('[data-tv-channel]').forEach(channel=>{
+      const id=channel.dataset.tvChannel,scene=SCENES.find(s=>s.id===id),pages=channelPages(id);
+      channel.replaceChildren(node('span','tv-channel-name',id[0].toUpperCase()+id.slice(1)));
+      const track=node('div','tv-channel-progress');track.setAttribute('aria-label',`${id} channel timeline`);
+      track.dataset.duration=String(scene.ms);
+      for(let i=0;i<Math.ceil(scene.ms/channelStep(id));i++){
+        const segment=node('button','tv-channel-segment');segment.type='button';segment.disabled=id!==sceneId;
+        segment.setAttribute('aria-label',`${String(i+1).padStart(2,'0')} ${pages[i%pages.length]}`);
+        segment.title=pages[i%pages.length];segment.append(node('span',''));
+        segment.onclick=()=>{
+          const now=Date.now(),step=channelStep(id);deadline=now+scene.ms-i*step;
+          clearTimeout(timer);timer=setTimeout(next,deadline-now);
+          if(id==='weather'){weatherPage=i%pages.length;weatherDeadline=now+step;changePage(weather);}
+          if(id==='network'){rememberNextReport();networkPage=i%pages.length;networkDeadline=now+step;reportDeadline=now+15000;changePage(connection);}
+          if(id==='services'){servicePage=i%pages.length;pageDeadline=now+step;changePage(services);}
+          updatePageProgress();
+        };
+        track.append(segment);
+      }
+      channel.append(track);
+    });
   }
   function updatePageProgress(){
-    const nav=content.querySelector('.tv-page-navigation');if(!nav)return;
-    const isWeather=sceneId==='weather',pages=isWeather?weatherPages:networkPages,index=isWeather?weatherPage:networkPage,end=isWeather?weatherDeadline:networkDeadline,duration=isWeather?30000:45000;
-    const channelNext=deadline>0&&deadline<=end,until=channelNext?deadline:end,seconds=Math.max(0,Math.ceil((until-Date.now())/1000));
-    const scenes=available(),sceneIndex=scenes.findIndex(s=>s.id===sceneId),nextChannel=scenes[(sceneIndex+1)%scenes.length]?.id;
-    nav.querySelector('.tv-page-next').textContent=`NEXT · ${channelNext?`${nextChannel} channel`:pages[(index+1)%pages.length]} · ${seconds}s`;
-    nav.style.setProperty('--page-progress',`${Math.max(0,Math.min(100,(1-(end-Date.now())/duration)*100))}%`);
+    const now=Date.now();
+    document.querySelectorAll('[data-tv-channel]').forEach(channel=>{
+      const id=channel.dataset.tvChannel,scene=SCENES.find(s=>s.id===id),elapsed=id===sceneId?Math.max(0,scene.ms-(deadline-now)):0,step=channelStep(id);
+      channel.querySelectorAll('.tv-channel-segment').forEach((segment,i)=>{
+        const fill=Math.max(0,Math.min(1,(elapsed-i*step)/step));
+        segment.firstChild.style.transform=`scaleX(${fill})`;
+        if(id===sceneId&&elapsed>=i*step&&elapsed<(i+1)*step)segment.setAttribute('aria-current','step');else segment.removeAttribute('aria-current');
+      });
+      channel.title=id===sceneId?`${Math.max(0,Math.ceil((deadline-now)/1000))} seconds remaining`:id;
+    });
   }
   const localTime = stamp => new Date(stamp * 1000).toLocaleTimeString([], { hour: 'numeric', timeZone: WARREN.timezone });
   let outgoing = null, sceneAnimations = [];
@@ -140,7 +161,6 @@ export function initTV({ api }) {
     renderedWeatherHour = Math.floor(Date.now()/3600000);
     title(weatherPages[weatherPage], WARREN.label);
     screen.dataset.weatherPage = String(weatherPage);
-    pageNavigation(weatherPages,weatherPage,'Weather pages',i=>{weatherPage=i;weatherDeadline=Date.now()+30000;changePage(weather);});
     [weatherCurrent, weatherHourly, weatherModels, weatherDays][weatherPage]();
     const alerts = forecast?.alerts?.items || [];
     if (alerts.length) content.append(node('p', 'tv-weather-alert', `WEATHER ALERT · ${alerts.slice(0,2).map(a => a.event).join(' · ')}`));
@@ -250,7 +270,6 @@ export function initTV({ api }) {
     screen.dataset.networkPage=String(networkPage);
     if(networkPage===0)connectionDetails();
     else {title(networkPages[networkPage],networkPage===3?'RADAR REPORTS · Last 7 days':'RIPE RIS + RADAR · 3 watched networks');renderNetworkWatch(content,watchReport,networkPage,{index:reportPages[networkPage]||0,size:reportSize(),onTurn:turnReport});}
-    pageNavigation(networkPages,networkPage,'Network pages',i=>{rememberNextReport();networkPage=i;networkDeadline=Date.now()+45000;reportDeadline=Date.now()+15000;changePage(connection);});
     void loadVisibleNames();
   }
   async function loadVisibleNames(){
@@ -291,9 +310,8 @@ export function initTV({ api }) {
     screen.dataset.scene = scene.id;
     document.querySelectorAll('[data-tv-channel]').forEach(el => { el.classList.toggle('selected',el.dataset.tvChannel===scene.id); el.hidden=el.dataset.tvChannel==='power'&&!powerTest&&!power?.active; });
     servicePage = 0; pageDeadline = Date.now() + 20_000; ribbon();
-    $('tv-progress').style.animationDuration = `${scene.ms}ms`;
-    $('tv-progress').classList.remove('tv-running'); void $('tv-progress').offsetWidth; $('tv-progress').classList.add('tv-running');
     deadline = Date.now() + scene.ms;
+    buildChannelProgress();
     changePage(({ services, weather, power: outage, network: connection })[scene.id]); if (scene.id === 'network') void connectionCheck();
     deadline = Date.now() + scene.ms;
     clearTimeout(timer); timer = setTimeout(next, scene.ms);
