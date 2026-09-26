@@ -69,7 +69,7 @@ function receive(snapshot) {
   if (!Array.isArray(snapshot.services)) return;
   if (snapshot.demo) notify('DESIGN PREVIEW · Synthetic service and weather data. Run with Cloudflare for live data.');
   state.rawSnapshot = snapshot; snapshot = enhancements.processSnapshot(snapshot); state.services = snapshot.services; state.history = snapshot.history || []; state.updatedAt = snapshot.updatedAt;
-  tv?.update({ snapshot });
+  tv?.update({ snapshot: { ...state.rawSnapshot, services: state.rawSnapshot.services.map(service => snapshot.services.find(scoped => scoped.id === service.id) || service) } });
   renderSummary(); renderServices(); renderActivity(); $('last-updated').textContent = snapshot.updatedAt ? `Checked ${age(snapshot.updatedAt)}` : 'First collection in progress';
 }
 async function loadStatus() { try { receive(await api('/api/status')); } catch { $('connection-detail').textContent = 'Status feed unavailable'; } }
