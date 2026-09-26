@@ -1,8 +1,8 @@
 // Keep the listener's volume independent from temporary transition gain.
 export function createAudioFades(audio,getPlayer){
- let target=audio.volume,radioGain=1,youtubeGain=1,levelGain=1,expected=audio.volume;
+ let target=audio.volume,radioGain=1,youtubeGain=1,expected=audio.volume;
  const timers=new Map();
- function apply(){expected=Math.max(0,Math.min(1,target*radioGain));if(audio.volume!==expected)audio.volume=expected;getPlayer()?.setVolume?.(Math.round(target*youtubeGain*levelGain*100));}
+ function apply(){expected=Math.max(0,Math.min(1,target*radioGain));if(audio.volume!==expected)audio.volume=expected;getPlayer()?.setVolume?.(Math.round(target*youtubeGain*100));}
  function cancel(kind){clearTimeout(timers.get(kind));timers.delete(kind);}
  function set(kind,value){cancel(kind);if(kind==='radio')radioGain=value;else youtubeGain=value;apply();}
  function fade(kind,to,ms,done=()=>{}){
@@ -11,5 +11,5 @@ export function createAudioFades(audio,getPlayer){
   tick();
  }
  audio.addEventListener('volumechange',()=>{if(audio.volume===expected)return;target=audio.volume;apply();});
- return {get volume(){return target;},get youtubeGain(){return youtubeGain;},levelTo(value){levelGain=Math.max(.2,Math.min(1,value));apply();},volumeTo(value){target=value;apply();},set,fade,reset(){cancel('radio');cancel('youtube');radioGain=youtubeGain=1;apply();}};
+ return {get volume(){return target;},get youtubeGain(){return youtubeGain;},volumeTo(value){target=value;apply();},set,fade,reset(){cancel('radio');cancel('youtube');radioGain=youtubeGain=1;apply();}};
 }
