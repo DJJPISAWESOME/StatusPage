@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {youtubeId,RequestQueue,searchYoutube,videoDetails,parseYoutubeSearch} from '../src/requests.js';
+import {youtubeId,RequestQueue,searchYoutube,videoDetails,parseYoutubeSearch,requestRoute,requesterCookie} from '../src/requests.js';
 import worker from '../src/worker.js';
 const videoId='dQw4w9WgXcQ';
 class Storage{
@@ -17,8 +17,8 @@ test('YouTube, Music, shorts and short links normalize; unrelated hosts and play
 });
 test('queue persists, deduplicates retries and limits public requests',async()=>{
  const storage=new Storage(),q=new RequestQueue(storage),body=add();assert.equal((await call(q,body)).items.length,1);assert.equal((await call(q,body)).items.length,1);assert.equal((await call(q,add())).status,409);
- await call(q,add('aaaaaaaaaaa'));await call(q,add('bbbbbbbbbbb'));assert.equal((await call(q,add('ccccccccccc'))).status,429);
- assert.equal((await call(new RequestQueue(storage))).items.length,3);
+ await call(q,add('aaaaaaaaaaa'));assert.equal((await call(q,add('bbbbbbbbbbb'))).status,429);assert.equal((await call(q,add('ccccccccccc'))).status,429);
+ assert.equal((await call(new RequestQueue(storage))).items.length,2);
  const view=await call(q);assert.equal('owner' in view,false);assert.equal('recent' in view,false);
 });
 test('only one Board owns playback and duplicate advancement never skips two tracks',async()=>{
@@ -34,7 +34,7 @@ test('expired leases can be claimed by another Board without consuming the curre
  assert.equal((await call(q,{action:'next',session,id:before.current.id})).status,409);assert.equal((await call(q,{action:'claim',session:'replacement-board-123'})).current.id,before.current.id);
 });
 test('queue capacity is bounded even with distinct clients',async()=>{
- const q=new RequestQueue(new Storage());for(let i=0;i<50;i++)assert.equal((await call(q,add(String(i).padStart(11,'0'),String(i)))).status,200);assert.equal((await call(q,add('zzzzzzzzzzz','new'))).status,409);
+ const q=new RequestQueue(new Storage());for(let i=0;i<30;i++)assert.equal((await call(q,add(String(i).padStart(11,'0'),String(i)))).status,200);assert.equal((await call(q,add('zzzzzzzzzzz','new'))).status,409);
 });
 const searchHTML=contents=>`<script>var ytInitialData = ${JSON.stringify({contents:{twoColumnSearchResultsRenderer:{primaryContents:{sectionListRenderer:{contents}}}}})};</script>`;
 test('key-free search parses public results in order, ignores playlists and does not execute scripts',async()=>{
@@ -75,4 +75,39 @@ test('explicit Board takeover preserves the song and revokes old player commands
  const after=await call(q,{action:'takeover',session:replacement});assert.equal(after.current.id,before.current.id);assert.equal(after.items.length,1);
  for(const action of ['heartbeat','next','release'])assert.equal((await call(q,{action,session,id:before.current.id})).status,409);
  assert.equal((await call(q,{action:'heartbeat',session:replacement})).status,200);
+});
+
+test('hourly limits persist after playback and free one slot at its rolling expiry',async()=>{
+ const storage=new Storage(),q=new RequestQueue(storage);
+ for(let i=0;i<5;i++){
+  assert.equal((await call(q,add(String(i).padStart(11,'0'),'alice'))).status,200);
+  assert.equal((await call(q,add(String(i+10).padStart(11,'0'),`other-${i}`))).status,200);
+ }
+ const blocked=await call(q,add('zzzzzzzzzzz','alice'));assert.equal(blocked.status,429);assert.match(blocked.error,/all 5/);
+ const state=await storage.get('music');state.items=[];state.current=null;await storage.put('music',state);
+ assert.equal((await call(new RequestQueue(storage),add('zzzzzzzzzzz','alice'))).status,429);
+ state.recent.find(r=>r.client==='alice').at=Date.now()-3600001;await storage.put('music',state);
+ const accepted=await call(q,add('zzzzzzzzzzz','alice'));assert.equal(accepted.status,200);assert.equal(accepted.requester.used,5);assert.equal(accepted.requester.remaining,0);assert.ok(accepted.requester.nextResetAt>Date.now());
+ assert.equal('requester' in accepted.items[0],false);
+});
+test('concurrent submissions cannot exceed two consecutive songs, including the playing song',async()=>{
+ const q=new RequestQueue(new Storage());
+ const results=await Promise.all(['aaaaaaaaaaa','bbbbbbbbbbb','ccccccccccc'].map(id=>call(q,add(id))));
+ assert.deepEqual(results.map(r=>r.status),[200,200,429]);
+ const first=await call(q,{action:'claim',session});assert.equal((await call(q,add('ddddddddddd'))).status,429);
+ const next=await call(q,{action:'next',session,id:first.current.id});assert.equal((await call(q,add('ddddddddddd'))).status,200);
+ assert.equal((await call(q,add('eeeeeeeeeee','another'))).status,200);
+ assert.equal((await call(q,add('fffffffffff'))).status,200);
+ assert.equal('requester' in next.current,false);
+});
+test('anonymous cookie is private, reused across visits and independent for browsers sharing an IP',async()=>{
+ const clients=[];const q=new RequestQueue(new Storage());
+ const env={STATUS_HUB:{idFromName:x=>x,get:()=>({fetch:url=>{clients.push(new URL(url).searchParams.get('client'));return q.handle(new Request(url));}})}};
+ const get=cookie=>requestRoute(new Request('https://signal.test/api/requests',{headers:{'CF-Connecting-IP':'1.2.3.4',...(cookie?{Cookie:cookie}:{})}}),env);
+ const first=await get(),set=first.headers.get('Set-Cookie');assert.match(set,/HttpOnly; Secure; SameSite=Lax/);
+ const cookie=set.split(';')[0];assert.equal((await first.json()).requester.remaining,5);
+ assert.equal((await get(cookie)).headers.has('Set-Cookie'),false);await get();
+ assert.equal(clients[0],clients[1]);assert.notEqual(clients[0],clients[2]);
+ assert.equal(requesterCookie(new Request('https://signal.test',{headers:{Cookie:'__Host-signal-requester=bad'}})),null);
+ await assert.rejects(()=>requestRoute(new Request('https://signal.test/api/requests',{method:'POST',headers:{Origin:'https://signal.test','Content-Type':'application/json'},body:JSON.stringify({url:videoId,requestId:crypto.randomUUID()})}),env),e=>e.status===428);
 });

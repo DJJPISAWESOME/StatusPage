@@ -52,3 +52,5 @@
  .request-now .now-art{width:140px;margin-bottom:16px}
  .request-now{padding:18px}.request-now h2{font-size:19px}
 }
+
+.request-limits{margin-top:18px;padding:14px 16px;border:1px solid #456276;border-radius:10px;background:#0b2232;color:var(--muted);font-size:11px;line-height:1.6}.request-limits p{margin:0}.request-limits>div{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:4px 14px;margin-top:8px}.request-limits strong{color:var(--gold);font-size:12px;font-weight:600}#request-streak:not(:empty){margin-top:6px}#request-reset{font-variant-numeric:tabular-nums}@media(max-width:650px){.request-limits{padding:12px;font-size:11px}.request-limits>div{display:grid;gap:4px}}
