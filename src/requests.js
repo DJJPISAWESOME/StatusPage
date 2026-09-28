@@ -57,9 +57,9 @@ export function requesterCookie(request){
 }
 function requesterQuota(state,client,now=Date.now()){
   const recent=state.recent.filter(r=>r.client===client&&!r.refunded&&now-r.at<HOUR);
-  const tail=[state.current,...state.items].filter(Boolean).slice(-2);
+  const tail=[state.current,...state.items].filter(Boolean).slice(-3);
   let consecutive=0;for(const item of tail.reverse()){if(item.requester!==client)break;consecutive++;}
-  return {used:recent.length,remaining:Math.max(0,5-recent.length),limit:5,consecutive,consecutiveLimit:2,nextResetAt:recent.length?Math.min(...recent.map(r=>r.at))+HOUR:null,serverTime:now};
+  return {used:recent.length,remaining:Math.max(0,6-recent.length),limit:6,consecutive,consecutiveLimit:3,nextResetAt:recent.length?Math.min(...recent.map(r=>r.at))+HOUR:null,serverTime:now};
 }
 export async function requestRoute(request,env){
   const url=new URL(request.url),path=url.pathname;
@@ -105,10 +105,10 @@ export class RequestQueue{
         if(!/^[\w-]{16,80}$/.test(body.requestId||''))throw new HttpError(400,'Invalid request ID');
         if(state.recent.some(r=>r.id===body.requestId&&r.client===body.client))return json(this.public(state,body.client));
         if(state.items.some(v=>v.videoId===body.video.videoId)||state.current?.videoId===body.video.videoId)throw new HttpError(409,'That video is already playing or queued.');
-        if(state.items.length>=30)throw new HttpError(409,'The queue has reached 30 songs. Please try again after a song plays.');
+        if(state.items.length>=36)throw new HttpError(409,'The queue has reached 36 songs. Please try again after a song plays.');
         const quota=requesterQuota(state,body.client,now);
-        if(quota.remaining===0)throw new HttpError(429,`You have used all 5 requests this hour. Your next slot opens in ${Math.max(1,Math.ceil((quota.nextResetAt-now)/60000))} minute(s).`);
-        if(quota.consecutive>=2)throw Object.assign(new HttpError(429,'You already have 2 songs in a row. Let someone else request a song, wait for your songs to play, or remove one of your queued songs.'),{code:'consecutive_limit'});
+        if(quota.remaining===0)throw new HttpError(429,`You have used all 6 requests this hour. Your next slot opens in ${Math.max(1,Math.ceil((quota.nextResetAt-now)/60000))} minute(s).`);
+        if(quota.consecutive>=3)throw Object.assign(new HttpError(429,'You already have 3 songs in a row. Let someone else request a song, wait for your songs to play, or remove one of your queued songs.'),{code:'consecutive_limit'});
         const itemId=crypto.randomUUID();state.items.push({...body.video,id:itemId,addedAt:now,requester:body.client});state.recent.push({id:body.requestId,itemId,client:body.client,at:now});
       }else if(body.action==='remove'){
         if(typeof body.id!=='string'||!body.id)throw new HttpError(400,'Choose a queued song to remove.');
@@ -156,5 +156,5 @@ export class RequestQueue{
     });}catch(error){if(error instanceof HttpError)return json({error:error.message,...(error.code?{code:error.code}:{})},error.status);throw error;}
   }
   empty(){return {items:[],current:null,owner:null,leaseUntil:0,recent:[]};}
-  public(state,client){const visible=item=>{if(!item)return null;const {requester,...song}=item;return {...song,canRemove:!!client&&requester===client&&item!==state.current};};return {queueLimit:30,...(client?{requester:requesterQuota(state,client)}:{}),current:visible(state.current),items:state.items.map(visible),playerOnline:state.leaseUntil>Date.now(),remoteVolume:state.remoteVolume||null,transport:state.transport||null,playback:state.playback||null};}
+  public(state,client){const visible=item=>{if(!item)return null;const {requester,...song}=item;return {...song,canRemove:!!client&&requester===client&&item!==state.current};};return {queueLimit:36,...(client?{requester:requesterQuota(state,client)}:{}),current:visible(state.current),items:state.items.map(visible),playerOnline:state.leaseUntil>Date.now(),remoteVolume:state.remoteVolume||null,transport:state.transport||null,playback:state.playback||null};}
 }
