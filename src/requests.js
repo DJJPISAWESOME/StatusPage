@@ -56,14 +56,14 @@ export function requesterCookie(request){
   return request.headers.get('Cookie')?.split(';').map(part=>part.trim()).find(part=>part.startsWith(`${REQUESTER_COOKIE}=`))?.slice(REQUESTER_COOKIE.length+1).match(/^[a-f0-9-]{36}$/i)?.[0] || null;
 }
 function requesterQuota(state,client,now=Date.now()){
-  const recent=state.recent.filter(r=>r.client===client&&now-r.at<HOUR);
+  const recent=state.recent.filter(r=>r.client===client&&!r.refunded&&now-r.at<HOUR);
   const tail=[state.current,...state.items].filter(Boolean).slice(-2);
   let consecutive=0;for(const item of tail.reverse()){if(item.requester!==client)break;consecutive++;}
   return {used:recent.length,remaining:Math.max(0,5-recent.length),limit:5,consecutive,consecutiveLimit:2,nextResetAt:recent.length?Math.min(...recent.map(r=>r.at))+HOUR:null,serverTime:now};
 }
 export async function requestRoute(request,env){
   const url=new URL(request.url),path=url.pathname;
-  if(!['/api/requests','/api/requests/search','/api/requests/control','/api/requests/remote'].includes(path))throw new HttpError(404,'Not found');
+  if(!['/api/requests','/api/requests/search','/api/requests/control','/api/requests/remote','/api/requests/remove'].includes(path))throw new HttpError(404,'Not found');
   if(request.method==='GET'&&path==='/api/requests/search')return json(await searchYoutube(url.searchParams.get('q')));
   const hub=env.STATUS_HUB.get(env.STATUS_HUB.idFromName('request-radio-v1'));
   if(request.method==='GET'&&path==='/api/requests'){
@@ -75,8 +75,12 @@ export async function requestRoute(request,env){
   if(!request.headers.get('Content-Type')?.startsWith('application/json'))throw new HttpError(415,'JSON required');
   let body;try{body=JSON.parse(await readLimited(request,4096));}catch(error){if(error instanceof HttpError)throw error;throw new HttpError(400,'Invalid JSON');}
   if(!body||typeof body!=='object'||Array.isArray(body))throw new HttpError(400,'Invalid request');
+  if(path==='/api/requests/remove'){
+    const client=requesterCookie(request);if(!client)throw new HttpError(428,'Reload the request page and allow cookies to manage your songs.');
+    return hub.fetch('https://hub/requests',{method:'POST',body:JSON.stringify({action:'remove',client,id:body.id})});
+  }
   if(path==='/api/requests/remote'){
-    return hub.fetch('https://hub/requests',{method:'POST',body:JSON.stringify({action:'remote',command:body.command,id:body.id,volume:body.volume})});
+    return hub.fetch('https://hub/requests',{method:'POST',body:JSON.stringify({action:'remote',client:requesterCookie(request),command:body.command,id:body.id,volume:body.volume})});
   }
   if(path==='/api/requests/control'){
     return hub.fetch('https://hub/requests',{method:'POST',body:JSON.stringify({action:body.action,session:body.session,id:body.id,playback:body.playback})});
@@ -105,7 +109,18 @@ export class RequestQueue{
         const quota=requesterQuota(state,body.client,now);
         if(quota.remaining===0)throw new HttpError(429,`You have used all 5 requests this hour. Your next slot opens in ${Math.max(1,Math.ceil((quota.nextResetAt-now)/60000))} minute(s).`);
         if(quota.consecutive>=2)throw new HttpError(429,'You already have 2 songs in a row. Let someone else request a song, or wait for your songs to play.');
-        state.items.push({...body.video,id:crypto.randomUUID(),addedAt:now,requester:body.client});state.recent.push({id:body.requestId,client:body.client,at:now});
+        const itemId=crypto.randomUUID();state.items.push({...body.video,id:itemId,addedAt:now,requester:body.client});state.recent.push({id:body.requestId,itemId,client:body.client,at:now});
+      }else if(body.action==='remove'){
+        if(typeof body.id!=='string'||!body.id)throw new HttpError(400,'Choose a queued song to remove.');
+        const index=state.items.findIndex(item=>item.id===body.id);
+        if(index<0)throw new HttpError(409,'That song has already started playing or is no longer queued.');
+        const item=state.items[index];
+        if(!body.client||item.requester!==body.client)throw new HttpError(403,'You can only remove songs requested from this browser.');
+        state.items.splice(index,1);
+        // Keep the receipt so retrying the original add cannot resurrect a removed song.
+        // Timestamp matching supports songs queued before item IDs were added to receipts.
+        const receipt=state.recent.find(r=>!r.refunded&&r.client===body.client&&(r.itemId===item.id||(!r.itemId&&r.at===item.addedAt)));
+        if(receipt)receipt.refunded=true;
       }else if(body.action==='remote'){
         if(!['pause','resume','rewind','skip','volume'].includes(body.command))throw new HttpError(400,'Invalid playback command');
         if(state.leaseUntil<=now||(!state.current&&body.command!=='volume'))throw new HttpError(409,'Board playback is offline or idle.');
@@ -141,5 +156,5 @@ export class RequestQueue{
     });}catch(error){if(error instanceof HttpError)return json({error:error.message},error.status);throw error;}
   }
   empty(){return {items:[],current:null,owner:null,leaseUntil:0,recent:[]};}
-  public(state,client){const visible=item=>{if(!item)return null;const {requester,...song}=item;return song;};return {queueLimit:30,...(client?{requester:requesterQuota(state,client)}:{}),current:visible(state.current),items:state.items.map(visible),playerOnline:state.leaseUntil>Date.now(),remoteVolume:state.remoteVolume||null,transport:state.transport||null,playback:state.playback||null};}
+  public(state,client){const visible=item=>{if(!item)return null;const {requester,...song}=item;return {...song,canRemove:!!client&&requester===client&&item!==state.current};};return {queueLimit:30,...(client?{requester:requesterQuota(state,client)}:{}),current:visible(state.current),items:state.items.map(visible),playerOnline:state.leaseUntil>Date.now(),remoteVolume:state.remoteVolume||null,transport:state.transport||null,playback:state.playback||null};}
 }
