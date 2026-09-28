@@ -3,11 +3,13 @@ const $=id=>document.getElementById(id),make=(tag,text)=>{const el=document.crea
 let quota=null,quotaClockOffset=0,queueRevision=0,refreshSequence=0;
 function renderQuota(){
  if(!quota)return;
+ const consecutiveLimit=quota.consecutiveLimit||3;
+ $('request-streak-meter').max=consecutiveLimit;
  $('quota-meters').hidden=false;$('request-streak-meter').value=quota.consecutive;$('request-quota-meter').hidden=false;$('request-quota-meter').max=quota.limit;$('request-quota-meter').value=quota.used;
  $('request-quota').textContent=`${quota.used} / ${quota.limit} used · ${quota.remaining} remaining`;
  const left=quota.nextResetAt?Math.max(0,Math.ceil((quota.nextResetAt-Date.now()-quotaClockOffset)/1000)):0;
- $('request-reset').textContent=quota.nextResetAt?(left?`Next slot in ${Math.floor(left/60)}:${String(left%60).padStart(2,'0')} · ${new Date(quota.nextResetAt).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})}`:'Refreshing allowance…'):'All 5 requests available';
- $('request-streak').textContent=quota.consecutive>=2?'2 in a row · limit reached':`${quota.consecutive} / 2 consecutive songs`;
+ $('request-reset').textContent=quota.nextResetAt?(left?`Next slot in ${Math.floor(left/60)}:${String(left%60).padStart(2,'0')} · ${new Date(quota.nextResetAt).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})}`:'Refreshing allowance…'):`All ${quota.limit} requests available`;
+ $('request-streak').textContent=quota.consecutive>=consecutiveLimit?`${consecutiveLimit} in a row · limit reached`:`${quota.consecutive} / ${consecutiveLimit} consecutive songs`;
 }
 let searching=false,adding=false,latest=null,controlling=false,draggingVolume=false;
 const clock=value=>{const seconds=Math.max(0,Math.floor(value||0));return `${Math.floor(seconds/60)}:${String(seconds%60).padStart(2,'0')}`;};
@@ -51,7 +53,7 @@ function render(data,expectQuota=false){
  $('request-pause').textContent=(data.transport?.paused??data.playback?.paused)?'Resume':'Pause';progress();
  $('request-current').textContent=data.current?.title||'The next song could be yours';
  $('request-online').textContent=data.playerOnline?(data.current?'Request mode is connected · songs play in queue order':'Queue is empty · Board is using radio fallback'):'Board playback is offline · requests will wait in the queue';
- $('request-count').textContent=`${data.items.length} / ${data.queueLimit||30} songs`;
+ $('request-count').textContent=`${data.items.length} / ${data.queueLimit||36} songs`;
  const key=JSON.stringify([data.items,removing]);
  if(key!==queueKey){queueKey=key;$('request-queue').replaceChildren(...data.items.map(item=>{const li=make('li',''),copy=make('div','');copy.className='track-copy';copy.append(make('strong',item.title),make('span',item.artist));li.append(artwork(item),copy);if(item.canRemove){const button=make('button','Remove');button.type='button';button.className='queue-remove';button.disabled=removing;button.setAttribute('aria-label',`Remove ${item.title} from queue`);button.onclick=()=>removeSong(item);li.append(button);}return li;}));}
  $('request-query').placeholder=data.searchEnabled?'Search a song or paste a YouTube link':'Paste a YouTube or YouTube Music video link';
@@ -75,7 +77,7 @@ async function removeSong(item){
 async function add(url){
  if(adding)return;adding=true;queueRevision++;const buttons=[...document.querySelectorAll('.request-compose button')];buttons.forEach(b=>b.disabled=true);
  try{render(await requestAPI('',{url,requestId:crypto.randomUUID()}),true);$('request-feedback').textContent='Added to the queue. Thanks for the request!';$('request-query').value='';$('request-submit').textContent='Search';$('request-results').replaceChildren();}
- catch(error){$('request-feedback').textContent=error.message;if(error.code==='consecutive_limit'||/2 songs in a row/.test(error.message))showLimitWarning(error.message);adding=false;await refresh();}finally{adding=false;buttons.forEach(b=>b.disabled=false);}
+ catch(error){$('request-feedback').textContent=error.message;if(error.code==='consecutive_limit'||/3 songs in a row/.test(error.message))showLimitWarning(error.message);adding=false;await refresh();}finally{adding=false;buttons.forEach(b=>b.disabled=false);}
 }
 $('request-form').addEventListener('submit',async event=>{
  event.preventDefault();if(searching||adding)return;const query=$('request-query').value.trim();$('request-youtube-search').href=`https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`;
