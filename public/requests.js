@@ -24,8 +24,13 @@ function artwork(item){
  return art;
 }
 let artworkId=null,queueKey='';
-function render(data){
- if(data.requester){quota=data.requester;quotaClockOffset=quota.serverTime-Date.now();renderQuota();}
+function quotaUnavailable(message){
+ quota=null;$('request-quota').textContent='Allowance temporarily unavailable';$('request-reset').textContent=message;$('request-streak').textContent='';
+}
+function render(data,expectQuota=false){
+ const validQuota=data.requester&&['used','limit','remaining','consecutive','serverTime'].every(key=>Number.isFinite(data.requester[key]));
+ if(expectQuota&&!validQuota)quotaUnavailable('Retrying automatically…');
+ if(validQuota){quota=data.requester;quotaClockOffset=quota.serverTime-Date.now();renderQuota();}
  latest=data;
  document.querySelector('.request-now').dataset.online=String(data.playerOnline);
  $('player-badge').textContent=data.playerOnline?(data.current?'CONNECTED':'RADIO'):'OFFLINE';
@@ -38,7 +43,7 @@ function render(data){
  $('mini-pause').disabled=controlling||!data.playerOnline||!data.current;$('mini-pause').textContent=paused?'▶':'Ⅱ';$('mini-pause').setAttribute('aria-label',paused?'Resume Board playback':'Pause Board playback');
  $('mobile-queue-count').textContent=String(data.items.length);
  if($('mini-art').dataset.video!==videoId){$('mini-art').dataset.video=videoId;$('mini-art').replaceChildren(...artwork(data.current).childNodes);}
- $('queue-nav-count').textContent=String(data.items.length);$('queue-empty').hidden=data.items.length>0;
+ $('queue-empty').hidden=data.items.length>0;
  $('request-volume').disabled=controlling||!data.playerOnline;
  if(!draggingVolume){const volume=data.remoteVolume?.value??data.playback?.volume??0.4;$('request-volume').value=volume;$('request-volume-value').textContent=`${Math.round(volume*100)}%`;}
  for(const id of ['request-rewind','request-pause','request-skip'])$(id).disabled=controlling||!data.playerOnline||!data.current;
@@ -50,10 +55,10 @@ function render(data){
  if(key!==queueKey){queueKey=key;$('request-queue').replaceChildren(...data.items.map(item=>{const li=make('li',''),copy=make('div','');copy.className='track-copy';copy.append(make('strong',item.title),make('span',item.artist));li.append(artwork(item),copy);return li;}));}
  $('request-query').placeholder=data.searchEnabled?'Search a song or paste a YouTube link':'Paste a YouTube or YouTube Music video link';
 }
-async function refresh(){try{render(await requestAPI());}catch(error){$('request-online').textContent=`Queue unavailable: ${error.message}`;$('mini-subtitle').textContent='Connection interrupted · retrying';}}
+async function refresh(){try{render(await requestAPI(),true);}catch(error){quotaUnavailable('Connection interrupted · retrying automatically…');$('request-online').textContent=`Queue unavailable: ${error.message}`;$('mini-subtitle').textContent='Connection interrupted · retrying';}}
 async function add(url){
  if(adding)return;adding=true;const buttons=[...document.querySelectorAll('.request-compose button')];buttons.forEach(b=>b.disabled=true);
- try{render(await requestAPI('',{url,requestId:crypto.randomUUID()}));$('request-feedback').textContent='Added to the queue. Thanks for the request!';$('request-query').value='';$('request-submit').textContent='Search';$('request-results').replaceChildren();}
+ try{render(await requestAPI('',{url,requestId:crypto.randomUUID()}),true);$('request-feedback').textContent='Added to the queue. Thanks for the request!';$('request-query').value='';$('request-submit').textContent='Search';$('request-results').replaceChildren();}
  catch(error){$('request-feedback').textContent=error.message;await refresh();}finally{adding=false;buttons.forEach(b=>b.disabled=false);}
 }
 $('request-form').addEventListener('submit',async event=>{
