@@ -54,3 +54,11 @@
 }
 
 .request-limits{margin-top:18px;padding:14px 16px;border:1px solid #456276;border-radius:10px;background:#0b2232;color:var(--muted);font-size:11px;line-height:1.6}.request-limits p{margin:0}.request-limits>div{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:4px 14px;margin-top:8px}.request-limits strong{color:var(--gold);font-size:12px;font-weight:600}#request-streak:not(:empty){margin-top:6px}#request-reset{font-variant-numeric:tabular-nums}@media(max-width:650px){.request-limits{padding:12px;font-size:11px}.request-limits>div{display:grid;gap:4px}}
+
+/* One-page portal: brand header instead of a separate navigation column. */
+.music-shell{display:block}
+.music-masthead{max-width:1500px;margin:0 auto;padding:26px clamp(24px,3vw,48px);display:flex;align-items:center;justify-content:space-between;gap:24px;border-bottom:1px solid var(--line)}
+.masthead-copy{display:grid;gap:5px;text-align:right}.masthead-copy strong{font-size:20px;letter-spacing:-.4px}.masthead-copy>span{font-size:12px;color:var(--muted)}
+@media(min-width:851px){.request-heading{display:none}.request-portal{padding-top:28px}.music-masthead .request-brand{font-size:30px}.music-layout{grid-template-columns:minmax(0,1fr) 300px;gap:32px}.request-portal>footer{max-width:calc(100% - 332px)}}
+@media(max-width:850px){.music-masthead{padding:20px 24px}.music-masthead .request-brand{font-size:25px}}
+@media(max-width:650px){.music-masthead{position:sticky;top:0;z-index:5;padding:calc(15px + env(safe-area-inset-top)) 20px 15px;background:#091b29ed;backdrop-filter:blur(18px)}.masthead-copy strong{font-size:11px;letter-spacing:1px;text-transform:uppercase}.masthead-copy>span{display:none}}
