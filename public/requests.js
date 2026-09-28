@@ -3,6 +3,7 @@ const $=id=>document.getElementById(id),make=(tag,text)=>{const el=document.crea
 let quota=null,quotaClockOffset=0,queueRevision=0,refreshSequence=0;
 function renderQuota(){
  if(!quota)return;
+ renderLimitAvailability();
  const consecutiveLimit=quota.consecutiveLimit||3;
  $('request-streak-meter').max=consecutiveLimit;
  $('quota-meters').hidden=false;$('request-streak-meter').value=quota.consecutive;$('request-quota-meter').hidden=false;$('request-quota-meter').max=quota.limit;$('request-quota-meter').value=quota.used;
@@ -65,7 +66,23 @@ async function refresh(){
  catch(error){if(revision!==queueRevision||sequence!==refreshSequence)return;quotaUnavailable('Connection interrupted · retrying automatically…');$('request-online').textContent=`Queue unavailable: ${error.message}`;$('mini-subtitle').textContent='Connection interrupted · retrying';}
 }
 const limitDialog=$('request-limit-dialog');
-function showLimitWarning(message){$('request-limit-message').textContent=message;if(!limitDialog.open)limitDialog.showModal();}
+let limitKind=null;
+function renderLimitAvailability(){
+ if(!limitDialog.open)return;
+ const reset=quota?.nextResetAt;
+ if(limitKind==='hourly'&&reset){
+  const seconds=Math.max(0,Math.ceil((reset-Date.now()-quotaClockOffset)/1000));
+  $('request-limit-availability').textContent=seconds?`Next hourly slot in ${Math.floor(seconds/60)}:${String(seconds%60).padStart(2,'0')} · ${new Date(reset).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})}. Back-to-back limits still apply.`:'An hourly slot is due now. Try your request again.';
+ }else $('request-limit-availability').textContent=limitKind==='consecutive'?'You can request again when someone else adds a song, your run of songs advances through playback, or you remove one of your queued songs. There is no fixed reset time for this limit.':'';
+}
+function showLimitWarning(error){
+ const message=error.message;
+ limitKind=error.code==='consecutive_limit'||/\d+ songs in a row/i.test(message)?'consecutive':'hourly';
+ $('request-limit-title').textContent=limitKind==='consecutive'?"You've hit your back-to-back limit":"You've hit your hourly limit";
+ $('request-limit-message').textContent=message;
+ if(!limitDialog.open)limitDialog.showModal();
+ renderLimitAvailability();
+}
 $('request-limit-close').onclick=()=>limitDialog.close();
 $('request-limit-queue').onclick=()=>{limitDialog.close();mobileTab('queue');$('queue-title').scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth',block:'start'});};
 async function removeSong(item){
@@ -77,7 +94,7 @@ async function removeSong(item){
 async function add(url){
  if(adding)return;adding=true;queueRevision++;const buttons=[...document.querySelectorAll('.request-compose button')];buttons.forEach(b=>b.disabled=true);
  try{render(await requestAPI('',{url,requestId:crypto.randomUUID()}),true);$('request-feedback').textContent='Added to the queue. Thanks for the request!';$('request-query').value='';$('request-submit').textContent='Search';$('request-results').replaceChildren();}
- catch(error){$('request-feedback').textContent=error.message;if(error.code==='consecutive_limit'||/3 songs in a row/.test(error.message))showLimitWarning(error.message);adding=false;await refresh();}finally{adding=false;buttons.forEach(b=>b.disabled=false);}
+ catch(error){$('request-feedback').textContent=error.message;if(['consecutive_limit','hourly_limit'].includes(error.code)||/\d+ songs in a row|used all \d+ requests this hour/i.test(error.message))showLimitWarning(error);adding=false;await refresh();}finally{adding=false;buttons.forEach(b=>b.disabled=false);}
 }
 $('request-form').addEventListener('submit',async event=>{
  event.preventDefault();if(searching||adding)return;const query=$('request-query').value.trim();$('request-youtube-search').href=`https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`;
