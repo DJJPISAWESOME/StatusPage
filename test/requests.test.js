@@ -93,7 +93,7 @@ test('hourly limits persist after playback and free one slot at its rolling expi
 test('concurrent submissions cannot exceed two consecutive songs, including the playing song',async()=>{
  const q=new RequestQueue(new Storage());
  const results=await Promise.all(['aaaaaaaaaaa','bbbbbbbbbbb','ccccccccccc'].map(id=>call(q,add(id))));
- assert.deepEqual(results.map(r=>r.status),[200,200,429]);
+ assert.deepEqual(results.map(r=>r.status),[200,200,429]);assert.equal(results[2].code,'consecutive_limit');
  const first=await call(q,{action:'claim',session});assert.equal((await call(q,add('ddddddddddd'))).status,429);
  const next=await call(q,{action:'next',session,id:first.current.id});assert.equal((await call(q,add('ddddddddddd'))).status,200);
  assert.equal((await call(q,add('eeeeeeeeeee','another'))).status,200);

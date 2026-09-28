@@ -1,13 +1,13 @@
 import {requestAPI,youtubeLink} from './request-api.js';
 const $=id=>document.getElementById(id),make=(tag,text)=>{const el=document.createElement(tag);el.textContent=text;return el;};
-let quota=null,quotaClockOffset=0;
+let quota=null,quotaClockOffset=0,queueRevision=0,refreshSequence=0;
 function renderQuota(){
  if(!quota)return;
- $('request-quota-meter').hidden=false;$('request-quota-meter').max=quota.limit;$('request-quota-meter').value=quota.used;
+ $('quota-meters').hidden=false;$('request-streak-meter').value=quota.consecutive;$('request-quota-meter').hidden=false;$('request-quota-meter').max=quota.limit;$('request-quota-meter').value=quota.used;
  $('request-quota').textContent=`${quota.used} / ${quota.limit} used · ${quota.remaining} remaining`;
  const left=quota.nextResetAt?Math.max(0,Math.ceil((quota.nextResetAt-Date.now()-quotaClockOffset)/1000)):0;
  $('request-reset').textContent=quota.nextResetAt?(left?`Next slot in ${Math.floor(left/60)}:${String(left%60).padStart(2,'0')} · ${new Date(quota.nextResetAt).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})}`:'Refreshing allowance…'):'All 5 requests available';
- $('request-streak').textContent=quota.consecutive>=2?'2 in a row: wait for another requester or for your songs to play.':`${quota.consecutive} / 2 consecutive songs`;
+ $('request-streak').textContent=quota.consecutive>=2?'2 in a row · limit reached':`${quota.consecutive} / 2 consecutive songs`;
 }
 let searching=false,adding=false,latest=null,controlling=false,draggingVolume=false;
 const clock=value=>{const seconds=Math.max(0,Math.floor(value||0));return `${Math.floor(seconds/60)}:${String(seconds%60).padStart(2,'0')}`;};
@@ -26,7 +26,7 @@ function artwork(item){
 }
 let artworkId=null,queueKey='',removing=false;
 function quotaUnavailable(message){
- quota=null;$('request-quota-meter').hidden=true;$('request-quota').textContent='Allowance temporarily unavailable';$('request-reset').textContent=message;$('request-streak').textContent='';
+ quota=null;$('quota-meters').hidden=true;$('request-quota-meter').hidden=true;$('request-quota').textContent='Allowance temporarily unavailable';$('request-reset').textContent=message;$('request-streak').textContent='';
 }
 function render(data,expectQuota=false){
  const validQuota=data.requester&&['used','limit','remaining','consecutive','serverTime'].every(key=>Number.isFinite(data.requester[key]));
@@ -56,17 +56,26 @@ function render(data,expectQuota=false){
  if(key!==queueKey){queueKey=key;$('request-queue').replaceChildren(...data.items.map(item=>{const li=make('li',''),copy=make('div','');copy.className='track-copy';copy.append(make('strong',item.title),make('span',item.artist));li.append(artwork(item),copy);if(item.canRemove){const button=make('button','Remove');button.type='button';button.className='queue-remove';button.disabled=removing;button.setAttribute('aria-label',`Remove ${item.title} from queue`);button.onclick=()=>removeSong(item);li.append(button);}return li;}));}
  $('request-query').placeholder=data.searchEnabled?'Search a song or paste a YouTube link':'Paste a YouTube or YouTube Music video link';
 }
-async function refresh(){try{render(await requestAPI(),true);}catch(error){quotaUnavailable('Connection interrupted · retrying automatically…');$('request-online').textContent=`Queue unavailable: ${error.message}`;$('mini-subtitle').textContent='Connection interrupted · retrying';}}
+async function refresh(){
+ if(adding||removing||controlling)return;
+ const revision=queueRevision,sequence=++refreshSequence;
+ try{const data=await requestAPI();if(revision!==queueRevision||sequence!==refreshSequence)return;render(data,true);}
+ catch(error){if(revision!==queueRevision||sequence!==refreshSequence)return;quotaUnavailable('Connection interrupted · retrying automatically…');$('request-online').textContent=`Queue unavailable: ${error.message}`;$('mini-subtitle').textContent='Connection interrupted · retrying';}
+}
+const limitDialog=$('request-limit-dialog');
+function showLimitWarning(message){$('request-limit-message').textContent=message;if(!limitDialog.open)limitDialog.showModal();}
+$('request-limit-close').onclick=()=>limitDialog.close();
+$('request-limit-queue').onclick=()=>{limitDialog.close();mobileTab('queue');$('queue-title').scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth',block:'start'});};
 async function removeSong(item){
- if(removing)return;removing=true;render(latest);$('queue-feedback').textContent='Removing song…';
+ if(removing)return;removing=true;queueRevision++;render(latest);$('queue-feedback').textContent='Removing song…';
  try{render(await requestAPI('/remove',{id:item.id}),true);$('queue-feedback').textContent='Song removed. Your request allowance has been updated.';}
- catch(error){$('queue-feedback').textContent=error.message;await refresh();}
+ catch(error){$('queue-feedback').textContent=error.message;removing=false;await refresh();}
  finally{removing=false;document.querySelectorAll('.queue-remove').forEach(button=>button.disabled=false);queueKey='';}
 }
 async function add(url){
- if(adding)return;adding=true;const buttons=[...document.querySelectorAll('.request-compose button')];buttons.forEach(b=>b.disabled=true);
+ if(adding)return;adding=true;queueRevision++;const buttons=[...document.querySelectorAll('.request-compose button')];buttons.forEach(b=>b.disabled=true);
  try{render(await requestAPI('',{url,requestId:crypto.randomUUID()}),true);$('request-feedback').textContent='Added to the queue. Thanks for the request!';$('request-query').value='';$('request-submit').textContent='Search';$('request-results').replaceChildren();}
- catch(error){$('request-feedback').textContent=error.message;await refresh();}finally{adding=false;buttons.forEach(b=>b.disabled=false);}
+ catch(error){$('request-feedback').textContent=error.message;if(error.code==='consecutive_limit'||/2 songs in a row/.test(error.message))showLimitWarning(error.message);adding=false;await refresh();}finally{adding=false;buttons.forEach(b=>b.disabled=false);}
 }
 $('request-form').addEventListener('submit',async event=>{
  event.preventDefault();if(searching||adding)return;const query=$('request-query').value.trim();$('request-youtube-search').href=`https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`;
@@ -77,7 +86,7 @@ $('request-form').addEventListener('submit',async event=>{
  catch(error){$('request-feedback').textContent=error.message;}finally{searching=false;$('request-submit').disabled=false;}
 });
 async function command(action,volume){
- if(controlling||!latest?.playerOnline||(!latest.current&&action!=='volume'))return;controlling=true;render(latest);
+ if(controlling||!latest?.playerOnline||(!latest.current&&action!=='volume'))return;controlling=true;queueRevision++;render(latest);
  try{const data=await requestAPI('/remote',{command:action,id:latest.current?.id||null,volume});render(data);$('request-control-status').textContent='Sent to Board · updates within 5 seconds.';}
  catch(error){$('request-control-status').textContent=error.message;}
  finally{controlling=false;if(latest)render(latest);}
@@ -89,7 +98,7 @@ setInterval(progress,1000);
 void refresh();setInterval(()=>{if(!document.hidden)void refresh();},5000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)void refresh();});
 
 const mobileLayout=matchMedia('(max-width:650px)'),sheet=$('mobile-player-sheet'),fullPlayer=document.querySelector('.request-now'),playerHome=fullPlayer.parentElement;
-function mobileTab(tab){document.body.dataset.mobileTab=tab;document.querySelectorAll('[data-music-tab]').forEach(button=>{if(button.dataset.musicTab===tab)button.setAttribute('aria-current','page');else button.removeAttribute('aria-current');});if(mobileLayout.matches)window.scrollTo({top:0,behavior:'instant'});}
+function mobileTab(tab){document.body.dataset.mobileTab=tab;if(tab==='queue')void refresh();document.querySelectorAll('[data-music-tab]').forEach(button=>{if(button.dataset.musicTab===tab)button.setAttribute('aria-current','page');else button.removeAttribute('aria-current');});if(mobileLayout.matches)window.scrollTo({top:0,behavior:'instant'});}
 function openPlayer(){if(!mobileLayout.matches)return;$('player-sheet-content').append(fullPlayer);sheet.showModal();document.body.classList.add('player-sheet-open');}
 function closePlayer(){sheet.close();}
 sheet.addEventListener('close',()=>{playerHome.append(fullPlayer);document.body.classList.remove('player-sheet-open');});

@@ -108,7 +108,7 @@ export class RequestQueue{
         if(state.items.length>=30)throw new HttpError(409,'The queue has reached 30 songs. Please try again after a song plays.');
         const quota=requesterQuota(state,body.client,now);
         if(quota.remaining===0)throw new HttpError(429,`You have used all 5 requests this hour. Your next slot opens in ${Math.max(1,Math.ceil((quota.nextResetAt-now)/60000))} minute(s).`);
-        if(quota.consecutive>=2)throw new HttpError(429,'You already have 2 songs in a row. Let someone else request a song, or wait for your songs to play.');
+        if(quota.consecutive>=2)throw Object.assign(new HttpError(429,'You already have 2 songs in a row. Let someone else request a song, wait for your songs to play, or remove one of your queued songs.'),{code:'consecutive_limit'});
         const itemId=crypto.randomUUID();state.items.push({...body.video,id:itemId,addedAt:now,requester:body.client});state.recent.push({id:body.requestId,itemId,client:body.client,at:now});
       }else if(body.action==='remove'){
         if(typeof body.id!=='string'||!body.id)throw new HttpError(400,'Choose a queued song to remove.');
@@ -153,7 +153,7 @@ export class RequestQueue{
         if(body.action==='release'){state.owner=null;state.leaseUntil=0;}else state.leaseUntil=now+45000;
       }
       await tx.put('music',state);return json(this.public(state,body.client));
-    });}catch(error){if(error instanceof HttpError)return json({error:error.message},error.status);throw error;}
+    });}catch(error){if(error instanceof HttpError)return json({error:error.message,...(error.code?{code:error.code}:{})},error.status);throw error;}
   }
   empty(){return {items:[],current:null,owner:null,leaseUntil:0,recent:[]};}
   public(state,client){const visible=item=>{if(!item)return null;const {requester,...song}=item;return {...song,canRemove:!!client&&requester===client&&item!==state.current};};return {queueLimit:30,...(client?{requester:requesterQuota(state,client)}:{}),current:visible(state.current),items:state.items.map(visible),playerOnline:state.leaseUntil>Date.now(),remoteVolume:state.remoteVolume||null,transport:state.transport||null,playback:state.playback||null};}
