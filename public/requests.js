@@ -1,8 +1,17 @@
 import {requestAPI,youtubeLink} from './request-api.js';
 const $=id=>document.getElementById(id),make=(tag,text)=>{const el=document.createElement(tag);el.textContent=text;return el;};
+let quota=null,quotaClockOffset=0;
+function renderQuota(){
+ if(!quota)return;
+ $('request-quota').textContent=`${quota.used} / ${quota.limit} used · ${quota.remaining} remaining`;
+ const left=quota.nextResetAt?Math.max(0,Math.ceil((quota.nextResetAt-Date.now()-quotaClockOffset)/1000)):0;
+ $('request-reset').textContent=quota.nextResetAt?(left?`Next slot in ${Math.floor(left/60)}:${String(left%60).padStart(2,'0')} · ${new Date(quota.nextResetAt).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})}`:'Refreshing allowance…'):'All 5 requests available';
+ $('request-streak').textContent=quota.consecutive>=2?'2 in a row: wait for another requester or for your songs to play.':`${quota.consecutive} / 2 consecutive songs`;
+}
 let searching=false,adding=false,latest=null,controlling=false,draggingVolume=false;
 const clock=value=>{const seconds=Math.max(0,Math.floor(value||0));return `${Math.floor(seconds/60)}:${String(seconds%60).padStart(2,'0')}`;};
 function progress(){
+ renderQuota();
  const p=latest?.playback,duration=p?.duration||0;
  const extra=latest?.playerOnline&&!p?.paused?Math.min(5,Math.max(0,(Date.now()-(p?.at||Date.now()))/1000)):0;
  const position=Math.min(duration,(p?.position||0)+extra);
@@ -16,6 +25,7 @@ function artwork(item){
 }
 let artworkId=null,queueKey='';
 function render(data){
+ if(data.requester){quota=data.requester;quotaClockOffset=quota.serverTime-Date.now();renderQuota();}
  latest=data;
  document.querySelector('.request-now').dataset.online=String(data.playerOnline);
  $('player-badge').textContent=data.playerOnline?(data.current?'CONNECTED':'RADIO'):'OFFLINE';
@@ -35,7 +45,7 @@ function render(data){
  $('request-pause').textContent=(data.transport?.paused??data.playback?.paused)?'Resume':'Pause';progress();
  $('request-current').textContent=data.current?.title||'The next song could be yours';
  $('request-online').textContent=data.playerOnline?(data.current?'Request mode is connected · songs play in queue order':'Queue is empty · Board is using radio fallback'):'Board playback is offline · requests will wait in the queue';
- $('request-count').textContent=`${data.items.length} / 50 songs`;
+ $('request-count').textContent=`${data.items.length} / ${data.queueLimit||30} songs`;
  const key=JSON.stringify(data.items);
  if(key!==queueKey){queueKey=key;$('request-queue').replaceChildren(...data.items.map(item=>{const li=make('li',''),copy=make('div','');copy.className='track-copy';copy.append(make('strong',item.title),make('span',item.artist));li.append(artwork(item),copy);return li;}));}
  $('request-query').placeholder=data.searchEnabled?'Search a song or paste a YouTube link':'Paste a YouTube or YouTube Music video link';
@@ -44,7 +54,7 @@ async function refresh(){try{render(await requestAPI());}catch(error){$('request
 async function add(url){
  if(adding)return;adding=true;const buttons=[...document.querySelectorAll('.request-compose button')];buttons.forEach(b=>b.disabled=true);
  try{render(await requestAPI('',{url,requestId:crypto.randomUUID()}));$('request-feedback').textContent='Added to the queue. Thanks for the request!';$('request-query').value='';$('request-submit').textContent='Search';$('request-results').replaceChildren();}
- catch(error){$('request-feedback').textContent=error.message;}finally{adding=false;buttons.forEach(b=>b.disabled=false);}
+ catch(error){$('request-feedback').textContent=error.message;await refresh();}finally{adding=false;buttons.forEach(b=>b.disabled=false);}
 }
 $('request-form').addEventListener('submit',async event=>{
  event.preventDefault();if(searching||adding)return;const query=$('request-query').value.trim();$('request-youtube-search').href=`https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`;

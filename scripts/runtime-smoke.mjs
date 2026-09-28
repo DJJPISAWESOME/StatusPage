@@ -18,7 +18,8 @@ try{
  const path='/api/webhooks/signed/cloudflare',body='{}',stamp=String(Math.floor(Date.now()/1000)),id='runtime-event-123';const signature=createHmac('sha256',secret).update(`${stamp}.${id}.${path}.${body}`).digest('hex');
  const post=()=>mf.dispatchFetch('https://signal.test'+path,{method:'POST',body,headers:{'X-Signal-Timestamp':stamp,'X-Signal-Id':id,'X-Signal-Signature':'sha256='+signature}});
  assert.equal((await (await post()).json()).duplicate,false);
- const requestSong=await mf.dispatchFetch('https://signal.test/api/requests',{method:'POST',headers:{Origin:'https://signal.test','Content-Type':'application/json'},body:JSON.stringify({url:'https://music.youtube.com/watch?v=dQw4w9WgXcQ',requestId:'runtime-request-123456'})});assert.equal(requestSong.status,200);assert.equal((await requestSong.json()).items.length,1);
+ const requesterResponse=await mf.dispatchFetch('https://signal.test/api/requests');const requesterCookie=requesterResponse.headers.get('Set-Cookie').split(';')[0];
+ const requestSong=await mf.dispatchFetch('https://signal.test/api/requests',{method:'POST',headers:{Cookie:requesterCookie,Origin:'https://signal.test','Content-Type':'application/json'},body:JSON.stringify({url:'https://music.youtube.com/watch?v=dQw4w9WgXcQ',requestId:'runtime-request-123456'})});assert.equal(requestSong.status,200);assert.equal((await requestSong.json()).items.length,1);
  const claim=await mf.dispatchFetch('https://signal.test/api/requests/control',{method:'POST',headers:{Origin:'https://signal.test','Content-Type':'application/json'},body:JSON.stringify({action:'claim',session:'runtime-player-12345'})});assert.equal(claim.status,200);assert.equal((await claim.json()).current.title,'Runtime request');
  await mf.dispose();mf=new Miniflare(options);
  const songs=await (await mf.dispatchFetch('https://signal.test/api/requests')).json();assert.equal(songs.current.videoId,'dQw4w9WgXcQ');assert.equal(songs.playerEnabled,true);

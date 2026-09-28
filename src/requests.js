@@ -50,13 +50,25 @@ export async function searchYoutube(query,fetcher=fetch,cache=globalThis.caches?
     catch{throw new HttpError(503,'YouTube search is temporarily unavailable. Open Search on YouTube, then paste a video link here.');}
   },cache);
 }
+const REQUESTER_COOKIE = '__Host-signal-requester';
+const HOUR = 60 * 60 * 1000;
+export function requesterCookie(request){
+  return request.headers.get('Cookie')?.split(';').map(part=>part.trim()).find(part=>part.startsWith(`${REQUESTER_COOKIE}=`))?.slice(REQUESTER_COOKIE.length+1).match(/^[a-f0-9-]{36}$/i)?.[0] || null;
+}
+function requesterQuota(state,client,now=Date.now()){
+  const recent=state.recent.filter(r=>r.client===client&&now-r.at<HOUR);
+  const tail=[state.current,...state.items].filter(Boolean).slice(-2);
+  let consecutive=0;for(const item of tail.reverse()){if(item.requester!==client)break;consecutive++;}
+  return {used:recent.length,remaining:Math.max(0,5-recent.length),limit:5,consecutive,consecutiveLimit:2,nextResetAt:recent.length?Math.min(...recent.map(r=>r.at))+HOUR:null,serverTime:now};
+}
 export async function requestRoute(request,env){
   const url=new URL(request.url),path=url.pathname;
   if(!['/api/requests','/api/requests/search','/api/requests/control','/api/requests/remote'].includes(path))throw new HttpError(404,'Not found');
   if(request.method==='GET'&&path==='/api/requests/search')return json(await searchYoutube(url.searchParams.get('q')));
   const hub=env.STATUS_HUB.get(env.STATUS_HUB.idFromName('request-radio-v1'));
   if(request.method==='GET'&&path==='/api/requests'){
-    const response=await hub.fetch('https://hub/requests');const data=await response.json();return json({...data,searchEnabled:true,playerEnabled:true});
+    const existing=requesterCookie(request),client=existing||crypto.randomUUID();
+    const response=await hub.fetch(`https://hub/requests?client=${encodeURIComponent(client)}`);const data=await response.json();return json({...data,searchEnabled:true,playerEnabled:true},response.status,existing?{}:{'Set-Cookie':`${REQUESTER_COOKIE}=${client}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=31536000`});
   }
   if(request.method!=='POST')throw new HttpError(405,'Method not allowed');
   if(request.headers.get('Origin')!==url.origin)throw new HttpError(403,'Same-origin request required');
@@ -70,10 +82,9 @@ export async function requestRoute(request,env){
     return hub.fetch('https://hub/requests',{method:'POST',body:JSON.stringify({action:body.action,session:body.session,id:body.id,playback:body.playback})});
   }
   if(path!=='/api/requests')throw new HttpError(405,'Method not allowed');
+  const client=requesterCookie(request);
+  if(!client)throw new HttpError(428,'Reload the request page and allow cookies to submit songs.');
   const video=await videoDetails(youtubeId(body.url));
-  const ip=request.headers.get('CF-Connecting-IP')||'local';
-  const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(ip));
-  const client=Array.from(new Uint8Array(digest),x=>x.toString(16).padStart(2,'0')).join('');
   return hub.fetch('https://hub/requests',{method:'POST',body:JSON.stringify({action:'add',video,client,requestId:body.requestId})});
 }
 
@@ -81,18 +92,20 @@ export async function requestRoute(request,env){
 export class RequestQueue{
   constructor(storage){this.storage=storage;}
   async handle(request){
-    if(request.method==='GET')return json(this.public(await this.storage.get('music')||this.empty()));
+    if(request.method==='GET')return json(this.public(await this.storage.get('music')||this.empty(),new URL(request.url).searchParams.get('client')));
     const body=await request.json();
     try{return await this.storage.transaction(async tx=>{
       const state=await tx.get('music')||this.empty(),now=Date.now();
       state.recent=state.recent.filter(r=>now-r.at<3600000);
       if(body.action==='add'){
         if(!/^[\w-]{16,80}$/.test(body.requestId||''))throw new HttpError(400,'Invalid request ID');
-        if(state.recent.some(r=>r.id===body.requestId&&r.client===body.client))return json(this.public(state));
+        if(state.recent.some(r=>r.id===body.requestId&&r.client===body.client))return json(this.public(state,body.client));
         if(state.items.some(v=>v.videoId===body.video.videoId)||state.current?.videoId===body.video.videoId)throw new HttpError(409,'That video is already playing or queued.');
-        if(state.items.length>=50)throw new HttpError(409,'The queue is full. Please try again after a song plays.');
-        if(state.recent.filter(r=>r.client===body.client&&now-r.at<60000).length>=3)throw new HttpError(429,'Please wait a minute before adding more songs.');
-        state.items.push({...body.video,id:crypto.randomUUID(),addedAt:now});state.recent.push({id:body.requestId,client:body.client,at:now});state.recent=state.recent.slice(-1000);
+        if(state.items.length>=30)throw new HttpError(409,'The queue has reached 30 songs. Please try again after a song plays.');
+        const quota=requesterQuota(state,body.client,now);
+        if(quota.remaining===0)throw new HttpError(429,`You have used all 5 requests this hour. Your next slot opens in ${Math.max(1,Math.ceil((quota.nextResetAt-now)/60000))} minute(s).`);
+        if(quota.consecutive>=2)throw new HttpError(429,'You already have 2 songs in a row. Let someone else request a song, or wait for your songs to play.');
+        state.items.push({...body.video,id:crypto.randomUUID(),addedAt:now,requester:body.client});state.recent.push({id:body.requestId,client:body.client,at:now});
       }else if(body.action==='remote'){
         if(!['pause','resume','rewind','skip','volume'].includes(body.command))throw new HttpError(400,'Invalid playback command');
         if(state.leaseUntil<=now||(!state.current&&body.command!=='volume'))throw new HttpError(409,'Board playback is offline or idle.');
@@ -124,9 +137,9 @@ export class RequestQueue{
         }
         if(body.action==='release'){state.owner=null;state.leaseUntil=0;}else state.leaseUntil=now+45000;
       }
-      await tx.put('music',state);return json(this.public(state));
+      await tx.put('music',state);return json(this.public(state,body.client));
     });}catch(error){if(error instanceof HttpError)return json({error:error.message},error.status);throw error;}
   }
   empty(){return {items:[],current:null,owner:null,leaseUntil:0,recent:[]};}
-  public(state){return {current:state.current,items:state.items,playerOnline:state.leaseUntil>Date.now(),remoteVolume:state.remoteVolume||null,transport:state.transport||null,playback:state.playback||null};}
+  public(state,client){const visible=item=>{if(!item)return null;const {requester,...song}=item;return song;};return {queueLimit:30,...(client?{requester:requesterQuota(state,client)}:{}),current:visible(state.current),items:state.items.map(visible),playerOnline:state.leaseUntil>Date.now(),remoteVolume:state.remoteVolume||null,transport:state.transport||null,playback:state.playback||null};}
 }
