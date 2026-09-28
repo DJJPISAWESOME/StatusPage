@@ -3,6 +3,7 @@ const $=id=>document.getElementById(id),make=(tag,text)=>{const el=document.crea
 let quota=null,quotaClockOffset=0;
 function renderQuota(){
  if(!quota)return;
+ $('request-quota-meter').hidden=false;$('request-quota-meter').max=quota.limit;$('request-quota-meter').value=quota.used;
  $('request-quota').textContent=`${quota.used} / ${quota.limit} used · ${quota.remaining} remaining`;
  const left=quota.nextResetAt?Math.max(0,Math.ceil((quota.nextResetAt-Date.now()-quotaClockOffset)/1000)):0;
  $('request-reset').textContent=quota.nextResetAt?(left?`Next slot in ${Math.floor(left/60)}:${String(left%60).padStart(2,'0')} · ${new Date(quota.nextResetAt).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})}`:'Refreshing allowance…'):'All 5 requests available';
@@ -25,7 +26,7 @@ function artwork(item){
 }
 let artworkId=null,queueKey='';
 function quotaUnavailable(message){
- quota=null;$('request-quota').textContent='Allowance temporarily unavailable';$('request-reset').textContent=message;$('request-streak').textContent='';
+ quota=null;$('request-quota-meter').hidden=true;$('request-quota').textContent='Allowance temporarily unavailable';$('request-reset').textContent=message;$('request-streak').textContent='';
 }
 function render(data,expectQuota=false){
  const validQuota=data.requester&&['used','limit','remaining','consecutive','serverTime'].every(key=>Number.isFinite(data.requester[key]));
