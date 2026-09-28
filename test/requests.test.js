@@ -111,3 +111,32 @@ test('anonymous cookie is private, reused across visits and independent for brow
  assert.equal(requesterCookie(new Request('https://signal.test',{headers:{Cookie:'__Host-signal-requester=bad'}})),null);
  await assert.rejects(()=>requestRoute(new Request('https://signal.test/api/requests',{method:'POST',headers:{Origin:'https://signal.test','Content-Type':'application/json'},body:JSON.stringify({url:videoId,requestId:crypto.randomUUID()})}),env),e=>e.status===428);
 });
+
+test('only the requesting browser can remove a waiting song and recover its hourly slot',async()=>{
+ const storage=new Storage(),q=new RequestQueue(storage),body=add();
+ const before=await call(q,body),id=before.items[0].id;
+ assert.equal(before.items[0].canRemove,true);assert.equal(before.requester.remaining,4);
+ assert.equal((await call(q,{action:'remove',client:'someone-else',id})).status,403);
+ assert.equal((await call(q,{action:'remove',id})).status,403);
+ assert.equal((await call(q)).items[0].canRemove,false);
+ const removed=await call(q,{action:'remove',client:'one',id});
+ assert.equal(removed.items.length,0);assert.equal(removed.requester.used,0);assert.equal(removed.requester.remaining,5);assert.equal(removed.requester.nextResetAt,null);
+ assert.equal((await call(q,{action:'remove',client:'one',id})).status,409);
+ const retried=await call(q,body);assert.equal(retried.items.length,0);assert.equal(retried.requester.remaining,5);
+ assert.equal((await call(q,add())).status,200);
+});
+test('removal cannot refund a playing song and old receipt migration refunds exactly once',async()=>{
+ const storage=new Storage(),q=new RequestQueue(storage);
+ const added=await call(q,add());const playing=await call(q,{action:'claim',session});
+ assert.equal((await call(q,{action:'remove',client:'one',id:playing.current.id})).status,409);
+ assert.equal(playing.current.canRemove,false);
+ const second=await call(q,add('aaaaaaaaaaa'));const id=second.items[0].id;
+ const state=await storage.get('music');for(const receipt of state.recent)delete receipt.itemId;await storage.put('music',state);
+ const removed=await call(q,{action:'remove',client:'one',id});assert.equal(removed.requester.used,1);assert.equal(removed.current.id,added.items[0].id);
+});
+test('removing after expiry grants no extra quota, and concurrent removal never double refunds',async()=>{
+ const storage=new Storage(),q=new RequestQueue(storage);const added=await call(q,add());
+ const state=await storage.get('music');state.recent[0].at=Date.now()-3600001;await storage.put('music',state);
+ const results=await Promise.all([1,2].map(()=>call(q,{action:'remove',client:'one',id:added.items[0].id})));
+ assert.deepEqual(results.map(r=>r.status),[200,409]);assert.equal(results[0].requester.remaining,5);
+});

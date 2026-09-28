@@ -24,7 +24,7 @@ function artwork(item){
  if(/^[A-Za-z0-9_-]{11}$/.test(item?.videoId||'')){const img=document.createElement('img');img.alt='';img.loading='lazy';img.src=`https://i.ytimg.com/vi/${item.videoId}/mqdefault.jpg`;img.onerror=()=>img.remove();art.append(img);}
  return art;
 }
-let artworkId=null,queueKey='';
+let artworkId=null,queueKey='',removing=false;
 function quotaUnavailable(message){
  quota=null;$('request-quota-meter').hidden=true;$('request-quota').textContent='Allowance temporarily unavailable';$('request-reset').textContent=message;$('request-streak').textContent='';
 }
@@ -52,11 +52,17 @@ function render(data,expectQuota=false){
  $('request-current').textContent=data.current?.title||'The next song could be yours';
  $('request-online').textContent=data.playerOnline?(data.current?'Request mode is connected · songs play in queue order':'Queue is empty · Board is using radio fallback'):'Board playback is offline · requests will wait in the queue';
  $('request-count').textContent=`${data.items.length} / ${data.queueLimit||30} songs`;
- const key=JSON.stringify(data.items);
- if(key!==queueKey){queueKey=key;$('request-queue').replaceChildren(...data.items.map(item=>{const li=make('li',''),copy=make('div','');copy.className='track-copy';copy.append(make('strong',item.title),make('span',item.artist));li.append(artwork(item),copy);return li;}));}
+ const key=JSON.stringify([data.items,removing]);
+ if(key!==queueKey){queueKey=key;$('request-queue').replaceChildren(...data.items.map(item=>{const li=make('li',''),copy=make('div','');copy.className='track-copy';copy.append(make('strong',item.title),make('span',item.artist));li.append(artwork(item),copy);if(item.canRemove){const button=make('button','Remove');button.type='button';button.className='queue-remove';button.disabled=removing;button.setAttribute('aria-label',`Remove ${item.title} from queue`);button.onclick=()=>removeSong(item);li.append(button);}return li;}));}
  $('request-query').placeholder=data.searchEnabled?'Search a song or paste a YouTube link':'Paste a YouTube or YouTube Music video link';
 }
 async function refresh(){try{render(await requestAPI(),true);}catch(error){quotaUnavailable('Connection interrupted · retrying automatically…');$('request-online').textContent=`Queue unavailable: ${error.message}`;$('mini-subtitle').textContent='Connection interrupted · retrying';}}
+async function removeSong(item){
+ if(removing)return;removing=true;render(latest);$('queue-feedback').textContent='Removing song…';
+ try{render(await requestAPI('/remove',{id:item.id}),true);$('queue-feedback').textContent='Song removed. Your request allowance has been updated.';}
+ catch(error){$('queue-feedback').textContent=error.message;await refresh();}
+ finally{removing=false;document.querySelectorAll('.queue-remove').forEach(button=>button.disabled=false);queueKey='';}
+}
 async function add(url){
  if(adding)return;adding=true;const buttons=[...document.querySelectorAll('.request-compose button')];buttons.forEach(b=>b.disabled=true);
  try{render(await requestAPI('',{url,requestId:crypto.randomUUID()}),true);$('request-feedback').textContent='Added to the queue. Thanks for the request!';$('request-query').value='';$('request-submit').textContent='Search';$('request-results').replaceChildren();}
