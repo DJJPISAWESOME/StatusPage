@@ -1,4 +1,5 @@
 import { HttpError, json, upstream, readLimited } from './security.js';
+import { STATIONS } from '../public/stations.js';
 import { cachedJSON } from './weather.js';
 
 export function youtubeId(input){
@@ -83,7 +84,7 @@ export async function requestRoute(request,env){
     return hub.fetch('https://hub/requests',{method:'POST',body:JSON.stringify({action:'remote',client:requesterCookie(request),command:body.command,id:body.id,volume:body.volume})});
   }
   if(path==='/api/requests/control'){
-    return hub.fetch('https://hub/requests',{method:'POST',body:JSON.stringify({action:body.action,session:body.session,id:body.id,playback:body.playback})});
+    return hub.fetch('https://hub/requests',{method:'POST',body:JSON.stringify({action:body.action,session:body.session,id:body.id,playback:body.playback,radio:body.radio})});
   }
   if(path!=='/api/requests')throw new HttpError(405,'Method not allowed');
   const client=requesterCookie(request);
@@ -144,6 +145,12 @@ export class RequestQueue{
           // Compare-and-swap protects against duplicate end/error callbacks and retries.
           if((state.current?.id||null)===(body.id||null)){state.current=state.items.shift()||null;state.transport=null;state.playback=null;}
         }else if(['claim','takeover'].includes(body.action)&&!state.current)state.current=state.items.shift()||null;
+        if(['claim','takeover','release'].includes(body.action))state.radio=null;
+        if(body.action==='heartbeat'){
+          const station=STATIONS.find(s=>s.id===body.radio?.station);
+          const clean=value=>typeof value==='string'?value.trim().slice(0,200):null;
+          state.radio=!state.current&&station?{station:station.id,name:station.name,title:clean(body.radio.title),artist:clean(body.radio.artist),song:clean(body.radio.song),playing:body.radio.playing===true,at:now}:null;
+        }
         if(body.action==='heartbeat'&&body.id===state.current?.id&&body.playback){
           const p=body.playback;
           if(Number.isFinite(p.position)&&Number.isFinite(p.duration)&&p.position>=0&&p.duration>=0&&p.duration<=604800){
@@ -156,5 +163,5 @@ export class RequestQueue{
     });}catch(error){if(error instanceof HttpError)return json({error:error.message,...(error.code?{code:error.code}:{})},error.status);throw error;}
   }
   empty(){return {items:[],current:null,owner:null,leaseUntil:0,recent:[]};}
-  public(state,client){const visible=item=>{if(!item)return null;const {requester,...song}=item;return {...song,canRemove:!!client&&requester===client&&item!==state.current};};return {queueLimit:36,...(client?{requester:requesterQuota(state,client)}:{}),current:visible(state.current),items:state.items.map(visible),playerOnline:state.leaseUntil>Date.now(),remoteVolume:state.remoteVolume||null,transport:state.transport||null,playback:state.playback||null};}
+  public(state,client){const visible=item=>{if(!item)return null;const {requester,...song}=item;return {...song,canRemove:!!client&&requester===client&&item!==state.current};};return {queueLimit:36,...(client?{requester:requesterQuota(state,client)}:{}),current:visible(state.current),items:state.items.map(visible),playerOnline:state.leaseUntil>Date.now(),radio:state.leaseUntil>Date.now()&&!state.current?state.radio||null:null,remoteVolume:state.remoteVolume||null,transport:state.transport||null,playback:state.playback||null};}
 }
