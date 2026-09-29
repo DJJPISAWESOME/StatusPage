@@ -36,13 +36,14 @@ function render(data,expectQuota=false){
  if(expectQuota&&!validQuota)quotaUnavailable('Retrying automatically…');
  if(validQuota){quota=data.requester;quotaClockOffset=quota.serverTime-Date.now();renderQuota();}
  latest=data;
+ const radio=data.playerOnline&&!data.current?data.radio:null;
  document.querySelector('.request-now').dataset.online=String(data.playerOnline);
  $('player-badge').textContent=data.playerOnline?(data.current?'CONNECTED':'RADIO'):'OFFLINE';
- $('request-artist').textContent=data.current?.artist||'';
+ $('request-artist').textContent=data.current?.artist||radio?.artist||radio?.name||'';
  const videoId=data.current?.videoId||'';
  if(videoId!==artworkId){artworkId=videoId;$('request-art').querySelector('img')?.remove();if(/^[A-Za-z0-9_-]{11}$/.test(videoId)){const img=document.createElement('img');img.alt='';img.src=`https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;img.onerror=()=>img.remove();$('request-art').append(img);}}
- $('mini-title').textContent=data.current?.title||(data.playerOnline?'Radio is on air':'Ready for your requests');
- $('mini-subtitle').textContent=data.playerOnline?(data.current?.artist||'Signal Local · live radio'):'Board offline · requests stay queued';
+ $('mini-title').textContent=data.current?.title||radio?.song||radio?.title||radio?.name||(data.playerOnline?'Radio is on air':'Ready for your requests');
+ $('mini-subtitle').textContent=data.playerOnline?(data.current?.artist||[radio?.artist,radio?.name].filter(Boolean).join(' · ')||'Signal Local · live radio'):'Board offline · requests stay queued';
  const paused=data.transport?.paused??data.playback?.paused;
  $('mini-pause').disabled=controlling||!data.playerOnline||!data.current;$('mini-pause').textContent=paused?'▶':'Ⅱ';$('mini-pause').setAttribute('aria-label',paused?'Resume Board playback':'Pause Board playback');
  $('mobile-queue-count').textContent=String(data.items.length);
@@ -52,8 +53,8 @@ function render(data,expectQuota=false){
  if(!draggingVolume){const volume=data.remoteVolume?.value??data.playback?.volume??0.4;$('request-volume').value=volume;$('request-volume-value').textContent=`${Math.round(volume*100)}%`;}
  for(const id of ['request-rewind','request-pause','request-skip'])$(id).disabled=controlling||!data.playerOnline||!data.current;
  $('request-pause').textContent=(data.transport?.paused??data.playback?.paused)?'Resume':'Pause';progress();
- $('request-current').textContent=data.current?.title||'The next song could be yours';
- $('request-online').textContent=data.playerOnline?(data.current?'Request mode is connected · songs play in queue order':'Queue is empty · Board is using radio fallback'):'Board playback is offline · requests will wait in the queue';
+ $('request-current').textContent=data.current?.title||radio?.song||radio?.title||radio?.name||'The next song could be yours';
+ $('request-online').textContent=data.playerOnline?(data.current?'Song Request · playing on the Board':radio?.playing?`Live radio · ${radio.name}${radio.title?'':' · track info unavailable'}`:'Radio is connecting · requests play automatically'):'Board playback is offline · requests will wait in the queue';
  $('request-count').textContent=`${data.items.length} / ${data.queueLimit||36} songs`;
  const key=JSON.stringify([data.items,removing]);
  if(key!==queueKey){queueKey=key;$('request-queue').replaceChildren(...data.items.map(item=>{const li=make('li',''),copy=make('div','');copy.className='track-copy';copy.append(make('strong',item.title),make('span',item.artist));li.append(artwork(item),copy);if(item.canRemove){const button=make('button','Remove');button.type='button';button.className='queue-remove';button.disabled=removing;button.setAttribute('aria-label',`Remove ${item.title} from queue`);button.onclick=()=>removeSong(item);li.append(button);}return li;}));}

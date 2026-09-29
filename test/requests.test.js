@@ -140,3 +140,15 @@ test('removing after expiry grants no extra quota, and concurrent removal never 
  const results=await Promise.all([1,2].map(()=>call(q,{action:'remove',client:'one',id:added.items[0].id})));
  assert.deepEqual(results.map(r=>r.status),[200,409]);assert.equal(results[0].requester.remaining,6);
 });
+
+test('only the active Board reports bounded radio metadata, hidden during requests and after release',async()=>{
+ const q=new RequestQueue(new Storage());await call(q,{action:'claim',session});
+ const radio={station:'river',title:'Artist — Song',artist:'Artist',song:'Song',playing:true};
+ assert.equal((await call(q,{action:'heartbeat',session:'other-board-session',radio})).status,409);
+ const live=await call(q,{action:'heartbeat',session,radio});assert.equal(live.radio.name,'92.5 The River');assert.equal(live.radio.song,'Song');
+ await call(q,add());const playing=await call(q,{action:'next',session,id:null});assert.equal(playing.radio,null);
+ await call(q,{action:'next',session,id:playing.current.id});
+ assert.equal((await call(q,{action:'heartbeat',session,radio:{...radio,title:'x'.repeat(500)}})).radio.title.length,200);
+ assert.equal((await call(q,{action:'heartbeat',session,radio:{station:'invalid'}})).radio,null);
+ await call(q,{action:'heartbeat',session,radio});assert.equal((await call(q,{action:'release',session})).radio,null);
+});

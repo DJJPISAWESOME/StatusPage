@@ -13,7 +13,7 @@ try {
  const context=await browser.newContext({viewport:{width:1440,height:1100},colorScheme:'dark'});const page=await context.newPage();page.setDefaultTimeout(15000);const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.goto('http://127.0.0.1:4173');await page.waitForSelector('.service-card');await page.waitForSelector('#forecast-chart svg');
  assert.equal(await page.locator('.service-card').count(),12);await page.locator('#services-more').click();assert.equal(await page.locator('.service-card').count(),32);await page.locator('#services-more').click();assert.match(await page.locator('#location-name').innerText(),/Providence/);
- assert.equal(await page.locator('#station option').count(),6);assert.equal(await page.locator('#station').inputValue(),'river');
+ assert.equal(await page.locator('#station option').count(),5);assert.equal(await page.locator('#station').inputValue(),'river');
  await page.locator('#settings-button').click();const settingsA11y=await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21aa']).analyze();assert.deepEqual(settingsA11y.violations.map(v=>v.id),[]);await page.getByLabel('Density',{exact:true}).selectOption('compact');await page.getByRole('button',{name:'Move Forecast up',exact:true}).click();
  
  await page.locator('#settings-body summary').filter({hasText:'OpenAI'}).click();await page.getByLabel('United States',{exact:true}).check();await page.keyboard.press('Escape');
