@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict';
 import AxeBuilder from '@axe-core/playwright';
 export async function verifyRequests(browser){
- const context=await browser.newContext({viewport:{width:1440,height:1100}}),errors=[];let blockNextAdd=false,quotaMode='valid',submitted=0,current=null,items=[],online=false,transport=null,playback=null,remoteVolume=null,radio=null;
+ const context=await browser.newContext({viewport:{width:1440,height:1100}}),errors=[];let blockNextAdd=false,quotaMode='valid',submitted=0,current=null,items=[],online=false,transport=null,playback=null,remoteVolume=null,radio=null,pollHandler=null,hourlyLimit=false;
  const song={videoId:'dQw4w9WgXcQ',title:'A requested song',artist:'Example artist'},second={videoId:'aaaaaaaaaaa',title:'Second request',artist:'Another artist'};
  await context.route('**/api/requests**',async route=>{
   const req=route.request(),url=new URL(req.url());let data;
+  if(pollHandler&&await pollHandler(route))return;
+  if(hourlyLimit&&req.method()==='POST'&&url.pathname==='/api/requests'){hourlyLimit=false;await route.fulfill({status:429,json:{error:'You have used all 6 requests this hour. Your next slot opens in 60 minute(s).'}});return;}
   if(url.pathname.endsWith('/search'))data={results:[song]};
   else if(req.method()==='POST'){
    const body=req.postDataJSON();
@@ -38,12 +40,12 @@ export async function verifyRequests(browser){
  const portal=await context.newPage();portal.on('pageerror',e=>errors.push(e.message));await portal.goto('http://127.0.0.1:4173/requests.html');await portal.locator('#request-query').fill('song');await portal.locator('#request-submit').click();await portal.getByRole('button',{name:'Add to queue',exact:true}).click();await portal.waitForFunction(()=>document.getElementById('request-count').textContent==='1 / 36 songs');
  assert.equal(await portal.locator('.queue-remove').count(),1);
  let releaseOld,oldStarted,oldFinished;const oldReady=new Promise(resolve=>oldStarted=resolve),oldDone=new Promise(resolve=>oldFinished=resolve),oldGate=new Promise(resolve=>releaseOld=resolve);let held=false;
- const stalePoll=async route=>{if(route.request().method()!=='GET'||held){await route.fallback();return;}held=true;const stale={items:structuredClone(items),current:null,playerOnline:false,searchEnabled:true,queueLimit:36,requester:{used:1,remaining:5,limit:6,consecutive:1,serverTime:Date.now(),nextResetAt:Date.now()+3600000}};oldStarted();await oldGate;await route.fulfill({json:stale});oldFinished();};
- await portal.route('**/api/requests',stalePoll);await portal.evaluate(()=>document.dispatchEvent(new Event('visibilitychange')));await oldReady;
+ const stalePoll=async route=>{if(route.request().method()!=='GET'||new URL(route.request().url()).pathname!=='/api/requests'||held)return false;held=true;const stale={items:structuredClone(items),current:null,playerOnline:false,searchEnabled:true,queueLimit:36,requester:{used:1,remaining:5,limit:6,consecutive:1,serverTime:Date.now(),nextResetAt:Date.now()+3600000}};oldStarted();await oldGate;await route.fulfill({json:stale});oldFinished();return true;};
+ pollHandler=stalePoll;await portal.evaluate(()=>document.dispatchEvent(new Event('visibilitychange')));await oldReady;
  await portal.locator('#request-query').fill('https://music.youtube.com/watch?v=aaaaaaaaaaa');await portal.locator('#request-submit').click();await portal.waitForFunction(()=>document.getElementById('request-count').textContent==='2 / 36 songs');
- await portal.clock.install();releaseOld();await oldDone;await portal.unroute('**/api/requests',stalePoll);await portal.clock.runFor(100);assert.equal(await portal.locator('.queue-remove').count(),2);assert.equal(await portal.locator('#request-queue li').count(),2);await portal.clock.resume();
- blockNextAdd=true;await portal.locator('#request-query').fill('https://youtu.be/bbbbbbbbbbb');await portal.locator('#request-submit').click();await portal.waitForFunction(()=>document.getElementById('request-limit-dialog').open);assert.match(await portal.locator('#request-limit-message').innerText(),/2 songs in a row/);await portal.screenshot({path:'artifacts/request-limit-popup.png'});await portal.keyboard.press('Escape');assert.equal(await portal.locator('#request-limit-dialog').evaluate(el=>el.open),false);
- await portal.route('**/api/requests',async route=>{if(route.request().method()!=='POST'){await route.fallback();return;}await route.fulfill({status:429,json:{error:'You have used all 6 requests this hour. Your next slot opens in 60 minute(s).'}});},{times:1});
+ await portal.clock.install();releaseOld();await oldDone;pollHandler=null;await portal.clock.runFor(100);assert.equal(await portal.locator('.queue-remove').count(),2);assert.equal(await portal.locator('#request-queue li').count(),2);await portal.clock.resume();
+ blockNextAdd=true;await portal.locator('#request-query').fill('https://youtu.be/bbbbbbbbbbb');await portal.locator('#request-submit').click();await portal.waitForFunction(()=>document.getElementById('request-limit-dialog').open);assert.match(await portal.locator('#request-limit-message').innerText(),/2 songs in a row/);await portal.screenshot({path:'artifacts/request-limit-popup.png',animations:'disabled'});await portal.keyboard.press('Escape');assert.equal(await portal.locator('#request-limit-dialog').evaluate(el=>el.open),false);
+ hourlyLimit=true;
  await portal.locator('#request-query').fill('https://youtu.be/bbbbbbbbbbb');await portal.locator('#request-submit').click();await portal.waitForFunction(()=>document.getElementById('request-limit-dialog').open);assert.match(await portal.locator('#request-limit-title').innerText(),/hourly limit/);assert.match(await portal.locator('#request-limit-availability').innerText(),/Next hourly slot in/);await portal.locator('#request-limit-close').click();
 
 
@@ -56,7 +58,13 @@ export async function verifyRequests(browser){
  await board.screenshot({path:'artifacts/board-request-mode.png',animations:'disabled'});
  await board.evaluate(()=>{const a=document.getElementById('audio');a.volume=.1;});await board.waitForFunction(()=>window.testYT.volume===10);
  assert.equal(await board.locator('.request-skip').count(),0);
- await board.clock.fastForward(5100);await portal.reload();await portal.waitForFunction(()=>document.getElementById('request-duration').textContent==='3:00');await portal.locator('#mini-open').click();await portal.getByRole('button',{name:'Pause',exact:true}).click();await portal.waitForFunction(()=>!document.getElementById('request-pause').disabled);await board.clock.fastForward(5100);await board.waitForFunction(()=>window.testYT.state===2);
+ await board.clock.fastForward(5100);await portal.reload();await portal.waitForFunction(()=>document.getElementById('request-duration').textContent==='3:00');await portal.locator('#mini-open').click();
+ quotaMode='error';await portal.evaluate(()=>document.dispatchEvent(new Event('visibilitychange')));await portal.waitForFunction(()=>document.getElementById('player-badge').textContent==='RECONNECTING');
+ for(const id of ['request-rewind','request-pause','request-skip','request-volume','mini-pause'])assert.equal(await portal.locator(`#${id}`).isDisabled(),true);
+ assert.equal(await portal.locator('.request-now').getAttribute('data-online'),'false');await portal.screenshot({path:'artifacts/request-reconnecting.png',animations:'disabled'});
+ quotaMode='valid';await portal.evaluate(()=>document.dispatchEvent(new Event('visibilitychange')));await portal.waitForFunction(()=>!document.getElementById('request-pause').disabled);assert.equal(await portal.locator('#request-control-status').innerText(),'');
+ await portal.emulateMedia({reducedMotion:'reduce'});assert.equal(await portal.locator('html').evaluate(el=>getComputedStyle(el).scrollBehavior),'auto');await portal.emulateMedia({reducedMotion:'no-preference'});
+ await portal.getByRole('button',{name:'Pause',exact:true}).click();await portal.waitForFunction(()=>!document.getElementById('request-pause').disabled);await board.clock.fastForward(5100);await board.waitForFunction(()=>window.testYT.state===2);
  await portal.getByRole('button',{name:'Resume',exact:true}).click();await portal.waitForFunction(()=>!document.getElementById('request-pause').disabled);await board.clock.fastForward(5100);await board.waitForFunction(()=>window.testYT.state===1);
  await portal.getByRole('button',{name:'Restart current song',exact:true}).click();await portal.waitForFunction(()=>!document.getElementById('request-pause').disabled);await board.clock.fastForward(5100);await board.waitForFunction(()=>window.testYT.position===0);
  await portal.locator('#request-volume').fill('0.25');await portal.locator('#request-volume').dispatchEvent('change');await portal.waitForFunction(()=>!document.getElementById('request-volume').disabled);await board.clock.fastForward(5100);await board.waitForFunction(()=>window.testYT.volume===25);

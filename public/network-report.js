@@ -9,8 +9,9 @@ export function downstreamMatches(events,networks){
 export function buildNetworkReport(networks,feeds,meta){
   const dedupe=events=>[...new Map(events.map(e=>[e.id,e])).values()].sort((a,b)=>(Date.parse(b.start)||0)-(Date.parse(a.start)||0));
   const globalFeeds=feeds.filter(f=>!f.asn),all=dedupe(globalFeeds.flatMap(f=>f.events));
-  const available=globalFeeds.every(f=>f.available),limited=globalFeeds.some(f=>f.nextPage),loadingMore=feeds.some(f=>f.nextPage&&!f.loadFailed);
-  const watched=networks.map(network=>{const direct=feeds.filter(f=>f.asn===network.asn);return {...network,events:dedupe(direct.flatMap(f=>f.events)),eventsAvailable:direct.every(f=>f.available),limited:direct.some(f=>f.nextPage)};});
+  const covered=scope=>['outages','leaks','hijacks'].every(kind=>scope.some(feed=>feed.kind===kind&&feed.available));
+  const available=covered(globalFeeds),limited=globalFeeds.some(f=>f.nextPage),loadingMore=feeds.some(f=>f.nextPage&&!f.loadFailed);
+  const watched=networks.map(network=>{const direct=feeds.filter(f=>f.asn===network.asn);return {...network,events:dedupe(direct.flatMap(f=>f.events)),eventsAvailable:covered(direct),limited:direct.some(f=>f.nextPage)};});
   const names={...meta.names};for(const feed of feeds)for(const event of feed.events)Object.assign(names,event.names);for(const network of networks)if(network.name&&network.name!==`AS${network.asn}`)names[network.asn]=network.name;
   return {...meta,names,networks:watched,feeds,loadingMore,loadFailed:feeds.some(f=>f.loadFailed),northAmerica:{available,limited,events:all.filter(inNorthAmerica)},downstream:{available:available&&networks.every(n=>n.neighboursAvailable),limited,events:downstreamMatches(all,networks)}};
 }
@@ -25,7 +26,7 @@ export function reportPage(events,index,size=6){
 
 export function asnLabel(report,asn){
   const raw=report?.names?.[asn]||report?.networks?.find(n=>n.asn===Number(asn))?.name;
-  const name=raw?.replace(/^[^-]+ - /,'');
+  const name=raw?.replace(/^.*? - /,'');
   return `AS${asn} · ${name&&name!==`AS${asn}`?name:'Name unavailable'}`;
 }
 export function visibleNetworkASNs(report,page,index=0,size=6){
@@ -35,4 +36,15 @@ export function visibleNetworkASNs(report,page,index=0,size=6){
   const section=page===2?report.downstream:report.northAmerica;
   if(page>=2)for(const event of reportPage(section?.events||[],index,size).events)ids.push(...event.asns);
   return [...new Set(ids)];
+}
+
+// Empty data and unavailable coverage are distinct, including during refresh recovery.
+export function networkReportState(report,section){
+  if(!report)return 'loading';
+  if(report.error)return 'error';
+  if(report.refreshFailed)return 'stale';
+  if(!report.radarConfigured)return 'disconnected';
+  if(!section?.available)return 'incomplete';
+  if(section.limited)return 'partial';
+  return section.events?.length?'ready':'empty';
 }

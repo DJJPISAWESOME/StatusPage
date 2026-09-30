@@ -1,38 +1,79 @@
-import { reportPage, asnLabel } from './network-report.js';
+import { reportPage, asnLabel, networkReportState } from './network-report.js';
 const node=(tag,cls,text)=>{const el=document.createElement(tag);el.className=cls;if(text!==undefined)el.textContent=text;return el;};
 const date=value=>value?new Date(value).toLocaleString([],{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):'Time unavailable';
 const link=(label,url)=>{const el=node('a','tv-map-link',label);el.href=url;el.target='_blank';el.rel='noopener noreferrer';return el;};
+const feedNames={outages:'Outage reports',leaks:'Route leaks',hijacks:'Potential hijacks'};
+function emptyReport(report,section,page){
+  const state=networkReportState(report,section),panel=node('article','tv-watch-empty');panel.dataset.state=state;
+  const scope=page===2?'OBSERVED NETWORK LINKS':'NORTH AMERICAN NETWORKS';
+  const messages={
+    loading:['Gathering network reports','The Board will update automatically when the sources respond.'],
+    error:['Network reports temporarily unavailable','The next refresh will retry automatically. Current network health is unknown.'],
+    disconnected:['Report feeds are not connected','Routing observations are separate from outage coverage. No incident assessment is available.'],
+    stale:['Waiting for a fresh report','The last refresh failed. Previous observations are retained; current coverage is unconfirmed.'],
+    incomplete:['Report coverage is incomplete','Some sources did not respond. No matching reports were returned by the available sources.'],
+    partial:['More reports are still loading','No matches in the reports loaded so far. The remaining seven-day history is still being checked.'],
+    empty:['No matching reports in the last 7 days',page===2?'No Radar reports matched the adjacent networks summarized above.':'No Radar reports matched networks in this region.']
+  };
+  const [heading,detail]=messages[state]||messages.incomplete;
+  panel.append(node('span','tv-watch-kicker',scope),node('h2','',heading),node('p','',detail),node('p','tv-watch-empty-note','Report coverage is not an uptime test.'));
+  return panel;
+}
+function coverage(report,asn=0){
+  const feeds=report.feeds?.filter(feed=>feed.asn===asn)||[];
+  if(!feeds.length)return null;
+  const grid=node('div','tv-watch-coverage');
+  for(const [kind,label] of Object.entries(feedNames)){
+    const feed=feeds.find(feed=>feed.kind===kind),item=node('div','');
+    item.append(node('span','',label),node('strong','',!report.radarConfigured?'Not connected':!feed?.available?'Unavailable':feed.nextPage?'Loading history':'Available'));
+    grid.append(item);
+  }
+  return grid;
+}
 export function renderNetworkWatch(content,report,page,{index=0,size=6,onTurn=()=>{}}={}){
-  if(!report){content.append(node('p','tv-empty','Network watch is loading…'));return;}
-  if(report.error){content.append(node('p','tv-empty','Network watch is unavailable. Please try again later.'));return;}
-  if(!report.radarConfigured)content.append(node('p','tv-watch-warning','Live outage and routing alerts are not connected yet. Routing observations below are independent of outage coverage.'));
+  if(!report||report.error){content.append(emptyReport(report,null,page));return;}
+  if(report.refreshFailed)content.append(node('p','tv-watch-warning','Refresh interrupted · showing the last report. Retrying automatically.'));
+  if(!report.radarConfigured)content.append(node('p','tv-watch-warning','Incident feeds are not connected. Routing observations remain available separately.'));
   if(page===1){
     const grid=node('div','tv-asn-grid');
-    for(const network of report.networks){
-      const card=node('article','tv-asn-card');card.append(node('h2','',asnLabel(report,network.asn)),node('strong','tv-asn-status',network.events.length?`${network.events.length} reported events in 7 days`:network.eventsAvailable?'No matching reports in 7 days':'Outage coverage unavailable'));
-      card.append(node('p','',network.routingAvailable?(network.announced?'Routes observed by RIPE RIS':'No routes observed by RIPE RIS'):'Routing observations unavailable'),node('small','tv-muted',`Routing observation: ${date(network.routingAt)}`));
-      card.append(node('p','',network.neighboursAvailable?`${network.upstream.length} upstream-side / ${network.downstream.length} downstream-side neighbours`:'Neighbour data unavailable'));
-      if(network.limited||!network.eventsAvailable&&network.events.length)card.append(node('p','tv-watch-warning','Partial event coverage'));
+    for(const network of report.networks||[]){
+      const events=network.events||[],card=node('article','tv-asn-card');
+      const label=events.length?`${events.length} reports collected in 7 days`:!network.eventsAvailable?'Report coverage incomplete':network.limited?'No matches loaded so far':'No matching reports in 7 days';
+      card.append(node('h2','',asnLabel(report,network.asn)),node('strong','tv-asn-status',label));
+      card.append(node('p','',network.routingAvailable?(network.announced?'Routes visible to RIPE observers':'No routes visible to RIPE observers'):'Route observations unavailable'),node('small','tv-muted',`Observed ${date(network.routingAt)}`));
+      card.append(node('p','',network.neighboursAvailable?`${network.upstream?.length||0} upstream-side · ${network.downstream?.length||0} downstream-side links`:'Adjacent network observations unavailable'));
+      const feeds=coverage(report,network.asn);if(feeds)card.append(feeds);
+      if(network.limited)card.append(node('p','tv-watch-warning','Seven-day history is still loading.'));
       card.append(link('View ASN on Radar ↗',`https://radar.cloudflare.com/as${network.asn}`));grid.append(card);
-    }content.append(grid,node('p','tv-muted','Route visibility is not an uptime test. Event counts include ended reports; Radar does not cover every ISP incident.'));
+    }
+    content.append(grid,node('p','tv-muted','Route visibility does not establish uptime. These reports include ended events and do not cover every ISP incident.'));
   }else{
-    const section=page===2?report.downstream:report.northAmerica;
+    const section=(page===2?report.downstream:report.northAmerica)||{available:false,events:[]};
     if(page===2){
       const paths=node('div','tv-watch-paths');
-      for(const n of report.networks)paths.append(node('p','',`${asnLabel(report,n.asn)} → ${n.neighboursAvailable?(n.downstream.length?n.downstream.slice(0,8).map(a=>asnLabel(report,a)).join(', ')+(n.downstream.length>8?` · +${n.downstream.length-8} more`:''):'No downstream-side neighbours observed'):'Neighbour data unavailable'}`));
-      content.append(paths,node('p','tv-muted','Matches use adjacent, origin-side AS paths observed by RIPE RIS. They do not prove customer relationships or that your connection is affected.'));
+      for(const network of report.networks||[]){
+        const card=node('article','tv-watch-path'),ids=network.downstream||[];
+        card.append(node('h2','',asnLabel(report,network.asn)),node('strong','',network.neighboursAvailable?`${ids.length} observed network ${ids.length===1?'link':'links'}`:'Network links unavailable'));
+        if(!network.neighboursAvailable)card.append(node('p','', 'RIPE observations could not be retrieved.'));
+        else if(!ids.length)card.append(node('p','', 'No adjacent networks on the origin side of the observed paths.'));
+        else{card.append(node('p','',ids.slice(0,2).map(asn=>asnLabel(report,asn)).join(' · ')));if(ids.length>2)card.append(node('span','tv-muted',`+ ${ids.length-2} other observed links`));}
+        paths.append(card);
+      }
+      content.append(paths,node('p','tv-muted','Observed AS-path links, not confirmed customers. A matching report does not establish an outage on this connection.'));
     }
     const events=section.events||[];
-    if(!section.available)content.append(node('p','tv-watch-warning','Coverage is incomplete. Missing reports do not mean there are no issues.'));
-    if(section.limited)content.append(node('p',report.loadFailed?'tv-watch-warning':'tv-muted',report.loadFailed?'Some older reports could not be loaded. Retrying on the next refresh.':'Loading additional reports…'));
+    if(events.length&&!section.available)content.append(node('p','tv-watch-warning','Partial coverage · reports from available sources are shown.'));
+    if(events.length&&section.limited)content.append(node('p',report.loadFailed?'tv-watch-warning':'tv-muted',report.loadFailed?'Some older reports could not be loaded. Retrying on the next refresh.':'Loading additional seven-day history…'));
     const slice=reportPage(events,index,size);
     if(slice.pages>1){const paging=node('div','tv-paging tv-report-paging');paging.append(node('span','',`PAGE ${slice.page+1} OF ${slice.pages} · ${events.length} reports · changes every 15 seconds`));for(const [label,direction,glyph] of [['Previous report page',-1,'←'],['Next report page',1,'→']]){const button=node('button','',glyph);button.type='button';button.setAttribute('aria-label',label);button.onclick=()=>onTurn(direction);paging.append(button);}content.append(paging);}
     const list=node('div','tv-watch-events');
     for(const event of slice.events){
       const row=node('article','tv-watch-event');row.append(node('span','tv-watch-state',event.state),node('h2','',event.type),node('p','',event.description.replace(/AS(\d+)/g,(_,asn)=>asnLabel(report,asn))),node('small','tv-muted',`${date(event.start)} · ${event.asns.map(a=>asnLabel(report,a)).join(', ')||event.countries.join(', ')}${event.via?.length?' · downstream of '+[...new Set(event.via.map(v=>asnLabel(report,v.parent)))].join(', '):''}`));list.append(row);
     }
-    if(!events.length)list.append(node('p','tv-empty',section.available?'No matching Radar reports in the last 7 days.':'No verified reports available.'));
-    content.append(list,node('p','tv-muted','Reports include ended events. Routing anomalies are detections, not proof of an ISP outage.'));
+    if(!events.length)list.append(emptyReport(report,section,page));
+    content.append(list);
+    if(!events.length){const feeds=coverage(report);if(feeds)content.append(feeds);}
+    content.append(node('p','tv-muted',page===3?'Includes events involving a North American network, even when other participants are overseas. Detections do not establish a local ISP outage.':'Reports include ended events. Routing detections do not establish an ISP outage.'));
   }
-  const sources=node('div','tv-watch-sources');sources.append(link('Outage Center ↗','https://radar.cloudflare.com/outage-center'),link('Routing anomalies ↗','https://radar.cloudflare.com/routing/anomalies'),node('span','tv-muted',`Checked ${date(report.checkedAt)} · refreshes every 5 minutes`));content.append(sources);
+  const sources=node('div','tv-watch-sources');sources.append(link('Outage Center ↗','https://radar.cloudflare.com/outage-center'),link('Routing anomalies ↗','https://radar.cloudflare.com/routing/anomalies'),node('span','tv-muted',`Last report ${date(report.checkedAt)} · refreshes every 5 minutes`));content.append(sources);
 }
