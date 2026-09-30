@@ -1,4 +1,5 @@
 import { verifyNetworkStates } from './network-ui.mjs';
+import {verifyAudio} from './audio-ui.mjs';
 import { verifyRequests } from './request-ui.mjs';
 import { fixtureStatus } from '../test/fixtures.mjs';
 import AxeBuilder from '@axe-core/playwright';
@@ -9,13 +10,13 @@ import { spawn } from 'node:child_process';
 let preview;const suiteDeadline=setTimeout(()=>{preview?.kill();console.error('Browser suite exceeded 120 seconds');process.exit(1);},120000);
 if(process.env.SIGNAL_START_PREVIEW){preview=spawn(process.execPath,['scripts/preview.mjs']);await new Promise((resolve,reject)=>{preview.stdout.once('data',resolve);preview.once('error',reject);});}
 const browserType=({chromium,firefox,webkit})[process.env.BROWSER || 'chromium'];
-const browser=await browserType.launch({timeout:30000,headless:true,executablePath:process.env.CHROME_PATH||undefined,args:process.env.CHROME_PATH?['--no-sandbox','--disable-dev-shm-usage']:[]}).catch(error=>{preview?.kill();throw error;});await mkdir('artifacts',{recursive:true});
+const browser=await browserType.launch({timeout:30000,headless:true,executablePath:process.env.CHROME_PATH||undefined,args:['--mute-audio',...(process.env.CHROME_PATH?['--no-sandbox','--disable-dev-shm-usage']:[])]}).catch(error=>{preview?.kill();throw error;});await mkdir('artifacts',{recursive:true});
 try {
  const context=await browser.newContext({viewport:{width:1440,height:1100},colorScheme:'dark'});const page=await context.newPage();page.setDefaultTimeout(15000);const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.goto('http://127.0.0.1:4173');await page.waitForSelector('.service-card');await page.waitForSelector('#forecast-chart svg');
  assert.equal(await page.locator('.service-card').count(),12);await page.locator('#services-more').click();assert.equal(await page.locator('.service-card').count(),32);await page.locator('#services-more').click();assert.match(await page.locator('#location-name').innerText(),/Providence/);
  assert.equal(await page.locator('#station option').count(),5);assert.equal(await page.locator('#station').inputValue(),'river');
- await page.locator('#settings-button').click();const settingsA11y=await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21aa']).analyze();assert.deepEqual(settingsA11y.violations.map(v=>v.id),[]);await page.getByLabel('Density',{exact:true}).selectOption('compact');await page.getByRole('button',{name:'Move Forecast up',exact:true}).click();
+ await page.locator('#settings-button').click();await page.locator('#youtube-trim').fill('0.35');await page.locator('#youtube-trim').dispatchEvent('input');await page.keyboard.press('Escape');await page.reload();await page.waitForSelector('.service-card');await page.locator('#settings-button').click();assert.equal(await page.locator('#youtube-trim').inputValue(),'0.35');await page.locator('#youtube-trim').fill('0.5');await page.locator('#youtube-trim').dispatchEvent('input');const settingsA11y=await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21aa']).analyze();assert.deepEqual(settingsA11y.violations.map(v=>v.id),[]);await page.getByLabel('Density',{exact:true}).selectOption('compact');await page.getByRole('button',{name:'Move Forecast up',exact:true}).click();
  
  await page.locator('#settings-body summary').filter({hasText:'OpenAI'}).click();await page.getByLabel('United States',{exact:true}).check();await page.keyboard.press('Escape');
  await page.reload();await page.waitForSelector('#forecast-chart svg');assert.equal(await page.locator('body').getAttribute('data-density'),'compact');
@@ -88,8 +89,9 @@ try {
  await page.route('**/api/status',route=>route.fulfill({json:{services:[{id:'xss',name:'<img src=x onerror=alert(1)>',homepage:'https://example.com',status:'degraded',incidents:[],staleAfterMs:720000,checkedAt:new Date().toISOString()}],history:[]}}));
  await page.reload();await page.waitForSelector('.service-card');assert.equal(await page.locator('.service-card img').count(),0);
  await context.close();
- const isolated=await browserType.launch({timeout:30000,headless:true,executablePath:process.env.CHROME_PATH||undefined,args:process.env.CHROME_PATH?['--no-sandbox','--disable-dev-shm-usage']:[]});
+ const isolated=await browserType.launch({timeout:30000,headless:true,executablePath:process.env.CHROME_PATH||undefined,args:['--mute-audio',...(process.env.CHROME_PATH?['--no-sandbox','--disable-dev-shm-usage']:[])]});
  try{await verifyNetworkStates(isolated);}finally{await isolated.close();}
  await verifyRequests(browser);
+ if(browserType===chromium)await verifyAudio(browser);
  assert.deepEqual(errors,[]);console.log('Browser checks passed: desktop/mobile, filters, details, favorites, persistent location, IP reset, theme, board, radio catalog, latency, text-only upstream rendering.');
 } finally {clearTimeout(suiteDeadline);await browser.close();preview?.kill();}

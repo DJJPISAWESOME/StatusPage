@@ -71,3 +71,12 @@ test('alarm preserves invalidations that arrive during collection and retries fa
 test('Apple catalog uses the Apple parser and public developer endpoint',async()=>{
  const {SERVICES}=await import('../src/catalog.js');const {parseProvider}=await import('../src/providers.js');const s=SERVICES.find(s=>s.id==='apple-services');assert.equal(parseProvider(s,'{"services":[{"serviceName":"App Store","events":[]}]}').status,'operational');assert.equal(SERVICES.find(s=>s.id==='apple-developer').url,'https://www.apple.com/support/systemstatus/data/developer/system_status_en_US.js');
 });
+test('radio connection hooks precede play and repeat on retry, not on late inactive playing',async t=>{
+ t.mock.timers.enable({apis:['setTimeout']});const calls=[];
+ class Audio extends EventTarget{pause(){}async play(){calls.push('play');}}
+ const audio=new Audio(),player=new RadioRecovery(audio,()=>{},{onConnecting:()=>calls.push('connecting'),onPlaying:()=>calls.push('playing')});
+ player.start({stream:'https://example.com/audio'});assert.deepEqual(calls,['connecting','play']);
+ audio.dispatchEvent(new Event('playing'));assert.deepEqual(calls,['connecting','play','playing']);
+ player.retry();t.mock.timers.tick(2000);assert.deepEqual(calls,['connecting','play','playing','connecting','play']);
+ player.stop();audio.dispatchEvent(new Event('playing'));assert.equal(calls.at(-1),'play');await Promise.resolve();
+});

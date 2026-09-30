@@ -164,14 +164,19 @@ function selectedStation(){return STATIONS.find(s=>s.id===$('station').value)||S
 let radioTrack=null,metadataBusy=false;
 function paintStation(){for(const option of $('station').options)option.textContent=option.value===selectedStation().id&&requestRadio.requestPlaying?'Song Request':STATIONS.find(s=>s.id===option.value).name;}
 function setStation(){const s=selectedStation();radioTrack=null;store.set('radioFallback',s.id);store.set('station',s.id);$('station-site').href=s.site;$('station-site').textContent='Station ↗';document.querySelector('.radio-art').replaceChildren(document.createTextNode(s.id==='river'?'r':'♫'),el('span','',s.frequency));requestRadio.changeStation();paintStation();if(!requestRadio.active)$('radio-state').textContent='Ready when you are';}
-const recovery=new RadioRecovery(audio,message=>{$('radio-state').textContent=message;document.querySelector('.radio-bar').dataset.playing=String(recovery.active);});
-const requestRadio=initRequestRadio({container:document.querySelector('.radio-bar'),audio,getRadio:()=>({station:selectedStation().id,title:radioTrack?.title||null,artist:radioTrack?.artist||null,song:radioTrack?.song||null,playing:!audio.paused}),startFallback:()=>{const s=selectedStation();paintStation();recovery.start(s);},stopFallback:()=>recovery.stop(),onState:(message,playing)=>{$('tv-queue-here').disabled=playing;$('radio-state').textContent=message;$('radio-play').textContent=playing?'Ⅱ':'▶';$('radio-play').setAttribute('aria-label',playing?'Stop playback':'Play radio and song requests');paintStation();}});
+const recovery=new RadioRecovery(audio,message=>{$('radio-state').textContent=message;document.querySelector('.radio-bar').dataset.playing=String(recovery.active);},{onConnecting:()=>requestRadio.radioConnecting(),onPlaying:()=>requestRadio.radioPlaying()});
+const savedYoutubeTrim=store.get('youtubeTrim',.5);
+const youtubeTrim=Number.isFinite(savedYoutubeTrim)?Math.max(.1,Math.min(1,savedYoutubeTrim)):.5;
+const requestRadio=initRequestRadio({youtubeTrim,container:document.querySelector('.radio-bar'),audio,getRadio:()=>({station:selectedStation().id,title:radioTrack?.title||null,artist:radioTrack?.artist||null,song:radioTrack?.song||null,playing:!audio.paused}),startFallback:()=>{const s=selectedStation();paintStation();recovery.start(s);},stopFallback:()=>recovery.stop(),onState:(message,playing)=>{$('tv-queue-here').disabled=playing;$('radio-state').textContent=message;$('radio-play').textContent=playing?'Ⅱ':'▶';$('radio-play').setAttribute('aria-label',playing?'Stop playback':'Play radio and song requests');paintStation();}});
 initAudioLeveler({button:$('tv-level-audio'),requestRadio});
+$('youtube-trim').value=youtubeTrim;
+$('youtube-trim-value').textContent=`${Math.round(youtubeTrim*100)}%`;
+$('youtube-trim').addEventListener('input',e=>{const value=Number(e.target.value);requestRadio.setYoutubeTrim(value);store.set('youtubeTrim',value);$('youtube-trim-value').textContent=`${Math.round(value*100)}%`;});
 $('tv-queue-here').addEventListener('click',()=>requestRadio.takeover());
 $('radio-play').addEventListener('click',()=>requestRadio.toggle());
 $('station').addEventListener('change',setStation);
 const volume=store.get('volume',.4);audio.volume=Number.isFinite(volume)?Math.min(1,Math.max(0,volume)):.4;$('volume').value=audio.volume;
-$('volume').addEventListener('input',e=>{audio.volume=Number(e.target.value);store.set('volume',audio.volume);});
+$('volume').addEventListener('input',e=>{const value=Number(e.target.value);requestRadio.setVolume(value);store.set('volume',value);});
 function playingStation(){return requestRadio.fallbackActive?selectedStation():null;}
 async function nowPlaying(){const station=playingStation();if(!station||audio.paused||document.hidden||metadataBusy)return;const id=station.id;metadataBusy=true;try{const d=await api(`/api/radio?station=${encodeURIComponent(id)}`);if(playingStation()?.id===id&&!audio.paused){radioTrack=d.available?d:null;$('radio-state').textContent=d.available?d.title:`${station.name} · Live radio · track info unavailable`;}}catch{if(playingStation()?.id===id&&!audio.paused){radioTrack=null;$('radio-state').textContent=`${station.name} · Live radio · track info unavailable`;}}finally{metadataBusy=false;}}
 setInterval(nowPlaying,30000);
