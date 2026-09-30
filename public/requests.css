@@ -86,3 +86,6 @@
 @keyframes limit-pop{from{opacity:0;transform:translateY(14px) scale(.96)}to{opacity:1;transform:none}}@media(prefers-reduced-motion:reduce){#request-limit-dialog[open]{animation:none}#request-streak-meter::-webkit-progress-value{transition:none}}
 
 #request-limit-availability{font-size:14px;line-height:1.6;color:var(--gold);margin:0 0 24px}#request-limit-availability:empty{display:none}
+
+/* Keep anchored navigation and player motion comfortable for reduced-motion users. */
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*::before,*::after{animation:none!important;transition:none!important}}

@@ -12,12 +12,12 @@ function renderQuota(){
  $('request-reset').textContent=quota.nextResetAt?(left?`Next slot in ${Math.floor(left/60)}:${String(left%60).padStart(2,'0')} · ${new Date(quota.nextResetAt).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})}`:'Refreshing allowance…'):`All ${quota.limit} requests available`;
  $('request-streak').textContent=quota.consecutive>=consecutiveLimit?`${consecutiveLimit} in a row · limit reached`:`${quota.consecutive} / ${consecutiveLimit} consecutive songs`;
 }
-let searching=false,adding=false,latest=null,controlling=false,draggingVolume=false;
+let searching=false,adding=false,latest=null,connected=false,controlling=false,draggingVolume=false;
 const clock=value=>{const seconds=Math.max(0,Math.floor(value||0));return `${Math.floor(seconds/60)}:${String(seconds%60).padStart(2,'0')}`;};
 function progress(){
  renderQuota();
  const p=latest?.playback,duration=p?.duration||0;
- const extra=latest?.playerOnline&&!p?.paused?Math.min(5,Math.max(0,(Date.now()-(p?.at||Date.now()))/1000)):0;
+ const extra=connected&&latest?.playerOnline&&!p?.paused?Math.min(5,Math.max(0,(Date.now()-(p?.at||Date.now()))/1000)):0;
  const position=Math.min(duration,(p?.position||0)+extra);
  for(const id of ['request-progress','mini-progress']){$(id).max=duration||1;$(id).value=position;}
  $('request-elapsed').textContent=clock(position);$('request-duration').textContent=duration?clock(duration):'--:--';
@@ -35,7 +35,8 @@ function render(data,expectQuota=false){
  const validQuota=data.requester&&['used','limit','remaining','consecutive','serverTime'].every(key=>Number.isFinite(data.requester[key]));
  if(expectQuota&&!validQuota)quotaUnavailable('Retrying automatically…');
  if(validQuota){quota=data.requester;quotaClockOffset=quota.serverTime-Date.now();renderQuota();}
- latest=data;
+ if(!connected)$('request-control-status').textContent='';
+ latest=data;connected=true;
  const radio=data.playerOnline&&!data.current?data.radio:null;
  document.querySelector('.request-now').dataset.online=String(data.playerOnline);
  $('player-badge').textContent=data.playerOnline?(data.current?'CONNECTED':'RADIO'):'OFFLINE';
@@ -64,7 +65,14 @@ async function refresh(){
  if(adding||removing||controlling)return;
  const revision=queueRevision,sequence=++refreshSequence;
  try{const data=await requestAPI();if(revision!==queueRevision||sequence!==refreshSequence)return;render(data,true);}
- catch(error){if(revision!==queueRevision||sequence!==refreshSequence)return;quotaUnavailable('Connection interrupted · retrying automatically…');$('request-online').textContent=`Queue unavailable: ${error.message}`;$('mini-subtitle').textContent='Connection interrupted · retrying';}
+ catch(error){
+  if(revision!==queueRevision||sequence!==refreshSequence)return;
+  connected=false;quotaUnavailable('Connection interrupted · retrying automatically…');
+  document.querySelector('.request-now').dataset.online='false';$('player-badge').textContent='RECONNECTING';
+  for(const id of ['request-rewind','request-pause','request-skip','request-volume','mini-pause'])$(id).disabled=true;
+  $('request-control-status').textContent='Playback controls will return when the connection recovers.';
+  $('request-online').textContent=`Queue unavailable: ${error.message}`;$('mini-subtitle').textContent='Connection interrupted · retrying';
+ }
 }
 const limitDialog=$('request-limit-dialog');
 let limitKind=null;
@@ -106,7 +114,7 @@ $('request-form').addEventListener('submit',async event=>{
  catch(error){$('request-feedback').textContent=error.message;}finally{searching=false;$('request-submit').disabled=false;}
 });
 async function command(action,volume){
- if(controlling||!latest?.playerOnline||(!latest.current&&action!=='volume'))return;controlling=true;queueRevision++;render(latest);
+ if(controlling||!connected||!latest?.playerOnline||(!latest.current&&action!=='volume'))return;controlling=true;queueRevision++;render(latest);
  try{const data=await requestAPI('/remote',{command:action,id:latest.current?.id||null,volume});render(data);$('request-control-status').textContent='Sent to Board · updates within 5 seconds.';}
  catch(error){$('request-control-status').textContent=error.message;}
  finally{controlling=false;if(latest)render(latest);}

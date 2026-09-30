@@ -1,3 +1,4 @@
+import { verifyNetworkStates } from './network-ui.mjs';
 import { verifyRequests } from './request-ui.mjs';
 import { fixtureStatus } from '../test/fixtures.mjs';
 import AxeBuilder from '@axe-core/playwright';
@@ -53,6 +54,16 @@ try {
  await page.getByRole('button',{name:'Next service page',exact:true}).click();
  assert.equal(await page.locator('#tv-content .tv-service').count(),await page.evaluate(()=>innerWidth<700?4:innerHeight<850?6:8));
  const boardA11y=await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21aa']).analyze();assert.deepEqual(boardA11y.violations.map(v=>({id:v.id,nodes:v.nodes.map(n=>n.target)})),[]);
+
+ // Direct channel navigation is keyboard reachable and preserves the active timer.
+ assert.equal(await page.locator('.tv-channel-progress').evaluateAll(tracks=>tracks.every(track=>track.dataset.duration==='180000')),true);
+ await page.getByRole('button',{name:'Show weather channel',exact:true}).press('Enter');
+ assert.equal(await page.locator('#tv-board').getAttribute('data-scene'),'weather');
+ assert.equal(await page.getByRole('button',{name:'Show weather channel',exact:true}).evaluate(el=>el===document.activeElement),true);
+ await page.clock.fastForward(5000);const remaining=await page.locator('#tv-next').textContent();
+ await page.getByRole('button',{name:'Show weather channel',exact:true}).press('Enter');assert.equal(await page.locator('#tv-next').textContent(),remaining);
+ for(const channel of ['network','power','weather','services']){await page.getByRole('button',{name:`Show ${channel} channel`,exact:true}).click();assert.equal(await page.locator('#tv-board').getAttribute('data-scene'),channel);assert.ok(await page.locator('.tv-outgoing').count()<=1);}
+ await page.locator('#tv-content').evaluate(el=>Promise.all(el.getAnimations({subtree:true}).map(animation=>animation.finished.catch(()=>{}))));
  await page.screenshot({path:'artifacts/board-services.png',animations:'disabled'});
  const servicePagesTotal=Number((await page.locator('#tv-content .tv-subtitle').innerText()).match(/OF (\d+)/)[1]);assert.equal(await page.locator('[data-tv-channel=services] .tv-channel-segment').count(),servicePagesTotal*4);const allBoardServices=new Set();for(let i=0;i<servicePagesTotal;i++){await page.locator('[data-tv-channel=services] .tv-channel-segment').nth(i).click();for(const name of await page.locator('#tv-content .tv-service strong').allTextContents())allBoardServices.add(name);}assert.equal(allBoardServices.size,fixtureStatus().services.length);assert.equal(await page.locator('#tv-content .tv-service:not(.tv-unknown)').count(),0);await page.locator('[data-tv-channel=services] .tv-channel-segment').first().click();
  const changed=fixtureStatus();changed.demo=false;changed.services[0].status='outage';await page.route('**/api/status',route=>route.fulfill({json:changed}));await page.evaluate(()=>document.dispatchEvent(new Event('visibilitychange')));await page.locator('.tv-notice').waitFor();assert.match(await page.locator('.tv-notice').innerText(),/Outage/);await page.screenshot({path:'artifacts/board-notification.png',animations:'disabled'});await page.getByRole('button',{name:'Dismiss service update',exact:true}).click();await page.locator('.tv-notice').waitFor({state:'detached'}); // Keep the status fixture stable during channel navigation.
@@ -75,6 +86,7 @@ try {
  // Stored scripts/HTML from upstream must remain inert text.
  await page.route('**/api/status',route=>route.fulfill({json:{services:[{id:'xss',name:'<img src=x onerror=alert(1)>',homepage:'https://example.com',status:'degraded',incidents:[],staleAfterMs:720000,checkedAt:new Date().toISOString()}],history:[]}}));
  await page.reload();await page.waitForSelector('.service-card');assert.equal(await page.locator('.service-card img').count(),0);
+ await verifyNetworkStates(browser);
  await verifyRequests(browser);
  assert.deepEqual(errors,[]);console.log('Browser checks passed: desktop/mobile, filters, details, favorites, persistent location, IP reset, theme, board, radio catalog, latency, text-only upstream rendering.');
 } finally {clearTimeout(suiteDeadline);await browser.close();preview?.kill();}

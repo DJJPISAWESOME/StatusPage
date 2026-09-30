@@ -93,7 +93,9 @@ Primary references: [Cloudflare Durable Objects pricing](https://developers.clou
 
 ### Board broadcast pages
 
-The three-minute weather channel cycles through local conditions, the next six hours, a 48-hour ECMWF AIFS / NOAA AIGFS temperature comparison, and a five-day outlook (30 seconds each). Buttons select a weather page without restarting the channel timer. Missing sources remain explicitly unavailable. Network reports include edge / ASN / region / HTTP / TLS details and a five-request dashboard response check (median, range, variation, and request failures). This is not a bandwidth or packet-loss test. Scene transitions and weather / chart animations respect reduced-motion preferences. Radio remains visible throughout.
+Each channel runs for three minutes. Select a channel name to jump directly to it; selecting the current channel preserves its timer. Power appears when there are active local outages.
+
+The three-minute weather channel cycles through local conditions, the next six hours, a 48-hour ECMWF AIFS / NOAA AIGFS temperature comparison, and a five-day outlook (45 seconds each). Buttons select a weather page without restarting the channel timer. Missing sources remain explicitly unavailable. Network reports include edge / ASN / region / HTTP / TLS details and a five-request dashboard response check (median, range, variation, and request failures). This is not a bandwidth or packet-loss test. Scene transitions and weather / chart animations respect reduced-motion preferences. Radio remains visible throughout.
 
 ## Board weather, audio, and network watch
 

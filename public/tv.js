@@ -7,7 +7,7 @@ import { createBoardAlerts } from './board-alerts.js';
 import { boardStatus, boardChanges } from './board-status.js';
 import { weatherInfo, weatherIcon } from './weather-icons.js';
 const $ = id => document.getElementById(id);
-const SCENES = [{ id: 'services', ms: 5 * 60_000 }, { id: 'weather', ms: 3 * 60_000 }, { id: 'power', ms: 2 * 60_000 }, { id: 'network', ms: 3 * 60_000 }];
+const SCENES = [{ id: 'services', ms: 3 * 60_000 }, { id: 'weather', ms: 3 * 60_000 }, { id: 'power', ms: 3 * 60_000 }, { id: 'network', ms: 3 * 60_000 }];
 const names = { operational: 'Operational', degraded: 'Degraded', outage: 'Outage', maintenance: 'Maintenance', unknown: 'Unconfirmed' };
 const node = (tag, className, value) => { const element = document.createElement(tag); element.className = className; if (value !== undefined) element.textContent = value; return element; };
 const number = (value, suffix = '') => Number.isFinite(value) ? `${Math.round(value)}${suffix}` : '—';
@@ -99,12 +99,20 @@ export function initTV({ api }) {
   const reportPages={2:0,3:0};
   const reportSize=()=>window.innerWidth<700?2:networkPage===2?(window.innerHeight<850?2:4):window.innerHeight<850?4:6;
   const networkPages=['Your connection','Your ASNs','Downstream watch','North America'];
-  const channelStep = id => ({services:servicePageDuration(SCENES.find(scene=>scene.id==='services').ms,pageCount()),weather:SCENES.find(scene=>scene.id==='weather').ms/weatherPages.length,network:45000,power:120000})[id];
+  const channelStep = id => ({services:servicePageDuration(SCENES.find(scene=>scene.id==='services').ms,pageCount()),weather:SCENES.find(scene=>scene.id==='weather').ms/weatherPages.length,network:45000,power:SCENES.find(scene=>scene.id==='power').ms})[id];
   function channelPages(id){return id==='weather'?weatherPages:id==='network'?networkPages:id==='services'?Array.from({length:pageCount()},(_,i)=>`Service page ${i+1}`):['Local outages'];}
   function buildChannelProgress(){
     document.querySelectorAll('[data-tv-channel]').forEach(channel=>{
       const id=channel.dataset.tvChannel,scene=SCENES.find(s=>s.id===id),pages=channelPages(id);
-      channel.replaceChildren(node('span','tv-channel-name',id[0].toUpperCase()+id.slice(1)));
+      const select=node('button','tv-channel-name',id[0].toUpperCase()+id.slice(1));
+      select.type='button';select.setAttribute('aria-label',`Show ${id} channel`);select.setAttribute('aria-pressed',String(id===sceneId));
+      select.onclick=()=>{
+        if(!active||id===sceneId)return;
+        if(sceneId==='network')rememberNextReport();
+        if(powerTest&&id!=='power')powerTest=false;
+        sceneId=id;draw();channel.querySelector('.tv-channel-name').focus();wake();
+      };
+      channel.replaceChildren(select);
       const track=node('div','tv-channel-progress');track.setAttribute('aria-label',`${id} channel timeline`);
       track.dataset.duration=String(scene.ms);
       for(let i=0;i<(id==='services'?pages.length*4:Math.ceil(scene.ms/channelStep(id)));i++){
@@ -253,9 +261,9 @@ export function initTV({ api }) {
   }
   function connectionDetails() {
     title('Your connection', 'NETWORK REPORT · This display to the dashboard');
-    const route=node('div','tv-route');route.append(node('span','',navigator.onLine?'This display · online':'This display · offline'),node('span','tv-route-line','→'),node('span','',network?.asOrganization||'Network unavailable'),node('span','tv-route-line','→'),node('span','',`Cloudflare · ${network?.colo||'unknown edge'}`));content.append(route);
+    const route=node('div','tv-route');route.append(node('span','',navigator.onLine?'Browser network · connected':'Browser network · disconnected'),node('span','tv-route-line','→'),node('span','',network?.asOrganization||'Network unavailable'),node('span','tv-route-line','→'),node('span','',`Cloudflare · ${network?.colo||'unknown edge'}`));content.append(route);
     const grid=node('div','tv-network tv-network-expanded');
-    for(const [label,value] of [['Edge location',network?.colo],['Network / ASN',network?.asn?`AS${network.asn} · ${network.asOrganization||'Name unavailable'}`:null],['Approx. region',[network?.region,network?.country].filter(Boolean).join(', ')],['HTTP protocol',network?.protocol],['Transport security',network?.tls],['Browser connectivity',navigator.onLine?'Online':'Offline']])grid.append(metric(label,value||'Unavailable'));
+    for(const [label,value] of [['Edge location',network?.colo],['Network / ASN',network?.asn?`AS${network.asn} · ${network.asOrganization||'Name unavailable'}`:null],['Approx. region',[network?.region,network?.country].filter(Boolean).join(', ')],['HTTP protocol',network?.protocol],['Transport security',network?.tls],['Browser network signal',navigator.onLine?'Connected':'Disconnected']])grid.append(metric(label,value||'Unavailable'));
     content.append(grid);
     const panel=node('div','tv-probe');
     const result=networkResult;
@@ -272,7 +280,7 @@ export function initTV({ api }) {
   function connection() {
     screen.dataset.networkPage=String(networkPage);
     if(networkPage===0)connectionDetails();
-    else {title(networkPages[networkPage],networkPage===3?'RADAR REPORTS · Last 7 days':'RIPE RIS + RADAR · 3 watched networks');renderNetworkWatch(content,watchReport,networkPage,{index:reportPages[networkPage]||0,size:reportSize(),onTurn:turnReport});}
+    else {title(networkPages[networkPage],networkPage===3?'RADAR · Networks involved in the last 7 days':'RIPE + RADAR · 3 monitored networks');renderNetworkWatch(content,watchReport,networkPage,{index:reportPages[networkPage]||0,size:reportSize(),onTurn:turnReport});}
     void loadVisibleNames();
   }
   async function loadVisibleNames(){
@@ -302,7 +310,7 @@ export function initTV({ api }) {
   async function refreshWatch(){
     if(!active)return;clearTimeout(watchMoreTimer);const version=++watchVersion;
     try{const data=await api('/api/network-watch');if(!active||version!==watchVersion)return;watchReport={...data,names:{...watchReport?.names,...data.names}};attemptedNames.clear();}
-    catch{if(!active||version!==watchVersion)return;watchReport={error:true};}
+    catch{if(!active||version!==watchVersion)return;watchReport=watchReport&&!watchReport.error?{...watchReport,refreshFailed:true}:{error:true};}
     if(sceneId==='network'&&networkPage!==0)connection();
     if(watchReport.loadingMore)watchMoreTimer=setTimeout(()=>void loadMoreWatch(version),1800);
   }
