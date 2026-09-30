@@ -46,7 +46,7 @@ export async function verifyNetworkStates(browser){
  assert.equal(weatherPositions.size,4);assert.equal(networkPositions.size,4);
  await page.getByRole('button',{name:'Show network channel',exact:true}).click();await page.getByRole('button',{name:'03 Downstream watch',exact:true}).click();await page.emulateMedia({reducedMotion:'reduce'});
  const axe=await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21aa']).analyze();assert.deepEqual(axe.violations.map(v=>({id:v.id,nodes:v.nodes.map(n=>n.target)})),[]);
- await page.setViewportSize({width:390,height:844});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);await capture('artifacts/network-after-mobile.png');
+ await page.locator('#tv-exit').press('Enter');await page.waitForFunction(()=>!document.fullscreenElement);await page.setViewportSize({width:390,height:844});await page.locator('#board').click();await page.getByRole('button',{name:'Show network channel',exact:true}).press('Enter');await page.getByRole('button',{name:'03 Downstream watch',exact:true}).click();assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);await capture('artifacts/network-after-mobile.png');
  failed=true;const unavailable=await open();await unavailable.clock.fastForward(5000);assert.match(await unavailable.locator('.tv-watch-empty').innerText(),/retry automatically/);await unavailable.screenshot({path:'artifacts/network-after-error.png',animations:'disabled'});await unavailable.close();failed=false;
  assert.deepEqual(errors,[]);await context.close();console.log('Network UI checks passed: TV layout, empty/partial/loading/unconfigured/error/stale/recovery, complete unattended rotation, responsive width and axe.');
 }
