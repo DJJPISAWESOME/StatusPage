@@ -10,7 +10,8 @@ import { spawn } from 'node:child_process';
 let preview;const suiteDeadline=setTimeout(()=>{preview?.kill();console.error('Browser suite exceeded 120 seconds');process.exit(1);},120000);
 if(process.env.SIGNAL_START_PREVIEW){preview=spawn(process.execPath,['scripts/preview.mjs']);await new Promise((resolve,reject)=>{preview.stdout.once('data',resolve);preview.once('error',reject);});}
 const browserType=({chromium,firefox,webkit})[process.env.BROWSER || 'chromium'];
-const browser=await browserType.launch({timeout:30000,headless:true,executablePath:process.env.CHROME_PATH||undefined,args:['--mute-audio',...(process.env.CHROME_PATH?['--no-sandbox','--disable-dev-shm-usage']:[])]}).catch(error=>{preview?.kill();throw error;});await mkdir('artifacts',{recursive:true});
+const browserArgs=browserType===chromium?['--mute-audio',...(process.env.CHROME_PATH?['--no-sandbox','--disable-dev-shm-usage']:[])]:[];
+const browser=await browserType.launch({timeout:30000,headless:true,executablePath:process.env.CHROME_PATH||undefined,args:browserArgs}).catch(error=>{preview?.kill();throw error;});await mkdir('artifacts',{recursive:true});
 try {
  const context=await browser.newContext({viewport:{width:1440,height:1100},colorScheme:'dark'});const page=await context.newPage();page.setDefaultTimeout(15000);const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.goto('http://127.0.0.1:4173');await page.waitForSelector('.service-card');await page.waitForSelector('#forecast-chart svg');
@@ -89,7 +90,7 @@ try {
  await page.route('**/api/status',route=>route.fulfill({json:{services:[{id:'xss',name:'<img src=x onerror=alert(1)>',homepage:'https://example.com',status:'degraded',incidents:[],staleAfterMs:720000,checkedAt:new Date().toISOString()}],history:[]}}));
  await page.reload();await page.waitForSelector('.service-card');assert.equal(await page.locator('.service-card img').count(),0);
  await context.close();
- const isolated=await browserType.launch({timeout:30000,headless:true,executablePath:process.env.CHROME_PATH||undefined,args:['--mute-audio',...(process.env.CHROME_PATH?['--no-sandbox','--disable-dev-shm-usage']:[])]});
+ const isolated=await browserType.launch({timeout:30000,headless:true,executablePath:process.env.CHROME_PATH||undefined,args:browserArgs});
  try{await verifyNetworkStates(isolated);}finally{await isolated.close();}
  await verifyRequests(browser);
  if(browserType===chromium)await verifyAudio(browser);
