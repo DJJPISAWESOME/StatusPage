@@ -10,7 +10,7 @@ export function fixtureWeather(){
 }
 
 export function fixtureNetworkWatch(){
- const event={id:'demo-outage',type:'Internet outage',description:'Synthetic ISP disruption — preview only',asns:[65001],countries:['US'],state:'Ongoing',start:new Date().toISOString()};
+ const event={id:'demo-outage',type:'Internet outage',description:'Synthetic ISP disruption — preview only',asns:[65002],countries:['US'],state:'Ongoing',start:new Date().toISOString()};
  const events=Array.from({length:13},(_,i)=>({...event,id:`demo-${i}`,description:`Synthetic ISP disruption ${i+1} — preview only`}));
- return {names:{25710:'Example network AS25710',32145:'Example network AS32145',402280:'Example network AS402280',65001:'Example downstream'},checkedAt:new Date().toISOString(),radarConfigured:true,networks:[25710,32145,402280].map(asn=>({asn,name:`Example network AS${asn}`,routingAvailable:true,announced:true,routingAt:new Date().toISOString(),neighboursAvailable:true,downstream:[65001],upstream:[65002],events:[event],eventsAvailable:true,limited:false})),downstream:{available:true,limited:false,events:events.map(event=>({...event,via:[{parent:25710,asn:65001}]}))},northAmerica:{available:true,limited:false,events},feeds:[],window:'7 days'};
+ return {names:{25710:'Example network AS25710',32145:'Example network AS32145',402280:'Example network AS402280',65002:'Example upstream'},checkedAt:new Date().toISOString(),radarConfigured:true,networks:[25710,32145,402280].map(asn=>({asn,name:`Example network AS${asn}`,routingAvailable:true,announced:true,routingAt:new Date().toISOString(),neighboursAvailable:true,upstream:[65002],events:[event],eventsAvailable:true,limited:false})),upstream:{available:true,limited:false,events:events.map(event=>({...event,via:[{parent:25710,asn:65002}]}))},northAmerica:{available:true,limited:false,events},feeds:[],window:'7 days'};
 }
