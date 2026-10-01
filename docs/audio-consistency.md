@@ -34,7 +34,7 @@ On main `0268233`, the ordinary return sequence fades YouTube out, stops it, set
 Two reproducible restoration hazards were found and fixed:
 
 - Board alerts wrote duck/restore values into the radio element. Its `volumechange` handler promoted those temporary output levels into the master setting, so a 0.4 master became 0.1 during a 25% duck and changed back on restore. Alerts now use a separate gain composed with both sources. Restore releases only that gain, preserving concurrent remote mute/volume, fades, trim, and capture attenuation.
-- A late/repeated radio `playing` event during radio-to-request fade-out restarted the radio fade toward one, cancelled the handoff callback, and could stall request playback. Radio fade-in now requires active fallback outside a handoff. The fallback flag is established before starting the stream, including synchronous playback callbacks.
+- A late radio reconnect or repeated `playing` event during radio-to-request fade-out restarted the radio fade toward one, cancelled the handoff callback, and could stall request playback. Radio connect/playing gain changes now require active fallback outside a handoff. The fallback flag is established before starting the stream, including synchronous playback callbacks.
 
 The media element is now an output only. Master changes enter through the slider or remote command and update the same saved preference, including remote mute. Startup applies that preference explicitly rather than depending on asynchronous media events. No source trim, capture permission, network filter, or queue policy changed.
 
