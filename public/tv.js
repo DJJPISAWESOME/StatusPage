@@ -97,8 +97,8 @@ export function initTV({ api }) {
   const weatherPages = ['Local conditions', 'Hour by hour', 'AI temperature outlook', 'The next few days'];
   let weatherPage = 0, weatherDeadline = 0, networkResult = null, probeVersion = 0, networkPage=0, networkDeadline=0, reportDeadline=0;
   const reportPages={2:0,3:0};
-  const reportSize=()=>window.innerWidth<700?2:networkPage===2?(window.innerHeight<850?2:4):window.innerHeight<850?4:6;
-  const networkPages=['Your connection','Your ASNs','Downstream watch','North America'];
+  const reportSize=()=>window.innerWidth<700||networkPage===2?2:window.innerHeight<850?2:4;
+  const networkPages=['Your connection','Your ASNs','Upstream watch','North America'];
   const channelStep = id => ({services:servicePageDuration(SCENES.find(scene=>scene.id==='services').ms,pageCount()),weather:SCENES.find(scene=>scene.id==='weather').ms/weatherPages.length,network:45000,power:SCENES.find(scene=>scene.id==='power').ms})[id];
   function channelPages(id){return id==='weather'?weatherPages:id==='network'?networkPages:id==='services'?Array.from({length:pageCount()},(_,i)=>`Service page ${i+1}`):['Local outages'];}
   function buildChannelProgress(){
@@ -291,7 +291,7 @@ export function initTV({ api }) {
     clearTimeout(nameTimer);if(active)nameTimer=setTimeout(()=>void loadVisibleNames(),1800);
   }
   function turnReport(direction=1){
-    const section=networkPage===2?watchReport?.downstream:watchReport?.northAmerica;
+    const section=networkPage===2?watchReport?.upstream:watchReport?.northAmerica;
     const count=Math.max(1,Math.ceil((section?.events?.length||0)/reportSize()));
     reportDeadline=Date.now()+15000;if(count===1)return;
     reportPages[networkPage]=((reportPages[networkPage]||0)+direction+count)%count;changePage(connection);
