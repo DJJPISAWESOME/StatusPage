@@ -31,10 +31,12 @@ Coverage includes zero-before-load for four videos, pause/buffering, autoplay-bl
 
 On main `0268233`, the ordinary return sequence fades YouTube out, stops it, sets radio transition gain to zero, starts the selected stream, and ramps radio to its master setting after `playing`. At master 0.4, radio is 0.4 before and after requests; default YouTube commands peak at 20/100. The optional capture graph connects only to an analyser, never the destination. Capture attenuation affects YouTube alone. Neither those numerical scales nor synthetic media measurements establish equivalent perceived loudness on the TV.
 
-Two reproducible restoration hazards were found and fixed:
+Three reproducible restoration hazards were found and fixed:
 
 - Board alerts wrote duck/restore values into the radio element. Its `volumechange` handler promoted those temporary output levels into the master setting, so a 0.4 master became 0.1 during a 25% duck and changed back on restore. Alerts now use a separate gain composed with both sources. Restore releases only that gain, preserving concurrent remote mute/volume, fades, trim, and capture attenuation.
 - A late radio reconnect or repeated `playing` event during radio-to-request fade-out restarted the radio fade toward one, cancelled the handoff callback, and could stall request playback. Radio connect/playing gain changes now require active fallback outside a handoff. The fallback flag is established before starting the stream, including synchronous playback callbacks.
+
+YouTube buffering/pause events could cancel an outgoing fade and its radio-start callback. Those events now hold only incoming ramps, allowing an outgoing handoff to finish.
 
 The media element is now an output only. Master changes enter through the slider or remote command and update the same saved preference, including remote mute. Startup applies that preference explicitly rather than depending on asynchronous media events. No source trim, capture permission, network filter, or queue policy changed.
 

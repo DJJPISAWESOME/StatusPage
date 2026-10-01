@@ -28,7 +28,7 @@ export async function verifyAudio(browser){
  await page.evaluate(()=>player.emit(1));await page.clock.runFor(1200);assert.equal(await page.evaluate(()=>player.volume),30);
  transport={revision:1,paused:true,rewind:0};await page.clock.runFor(5100);await page.waitForFunction(()=>player.state===2);
  transport={revision:2,paused:false,rewind:0};remoteVolume={revision:1,value:.2};await page.clock.runFor(5100);await page.waitForFunction(()=>player.state===1&&player.volume===10);
- current=null;await page.clock.runFor(5100);await page.waitForFunction(()=>window.fallback);await page.clock.runFor(1200);assert.equal(await page.evaluate(()=>document.querySelector('audio').volume),.2);
+ current=null;await page.clock.runFor(5100);await page.clock.runFor(200);await page.evaluate(()=>{player.emit(3);player.emit(2);});await page.waitForFunction(()=>window.fallback);await page.clock.runFor(1200);assert.equal(await page.evaluate(()=>document.querySelector('audio').volume),.2);
  await page.evaluate(()=>{radio.setDuckGain(.25);});assert.equal(await page.evaluate(()=>radio.levelingState.volume),.2);assert.equal(await page.evaluate(()=>document.querySelector('audio').volume),.05);
  await page.evaluate(()=>radio.setDuckGain(1));
  await page.evaluate(()=>{radio.radioConnecting();radio.radioPlaying();});await page.clock.runFor(300);await page.evaluate(()=>{radio.radioConnecting();});await page.clock.runFor(1200);assert.equal(await page.evaluate(()=>document.querySelector('audio').volume),0);await page.evaluate(()=>radio.radioPlaying());await page.clock.runFor(1200);assert.equal(await page.evaluate(()=>document.querySelector('audio').volume),.2);
