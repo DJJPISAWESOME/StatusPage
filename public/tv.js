@@ -13,7 +13,7 @@ const node = (tag, className, value) => { const element = document.createElement
 const number = (value, suffix = '') => Number.isFinite(value) ? `${Math.round(value)}${suffix}` : '—';
 const condition = code => weatherInfo(code).label;
 
-export function initTV({ api }) {
+export function initTV({ api, setAudioDuck }) {
   let active = false, sceneId = 'services', deadline = 0, timer, ticker, powerRefresh, powerVersion = 0, snapshot, forecast, place, network, power, powerTest=false;
   const screen = $('tv-board'), content = $('tv-content');
   const radio = document.querySelector('.radio-bar'), radioHome = radio.parentNode;
@@ -27,7 +27,7 @@ export function initTV({ api }) {
   }
   for (const event of ['pointermove','pointerdown','keydown','focusin']) document.addEventListener(event,wake,{passive:true});
   const audio=$('audio');
-  const sound=createBoardAlerts({radio:audio,volumeInput:$('volume'),button:$('tv-audio')});
+  const sound=createBoardAlerts({setDuckGain:setAudioDuck,button:$('tv-audio')});
   function radioState() { radio.dataset.playing=String(!audio.paused&&!audio.ended&&audio.readyState>=3); }
   for (const event of ['playing','pause','waiting','ended','emptied','error']) audio.addEventListener(event,radioState);
   const equalizer=node('div','tv-equalizer');equalizer.setAttribute('aria-hidden','true');for(let i=0;i<5;i++)equalizer.append(node('i',''));radio.append(equalizer);
