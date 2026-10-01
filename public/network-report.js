@@ -1,6 +1,5 @@
-// Northern America, Central America, and Caribbean ISO country/territory codes.
-const NORTH_AMERICA=new Set('US CA MX GL BM PM BZ CR SV GT HN NI PA AI AG AW BS BB BQ VG KY CU CW DM DO GD GP HT JM MQ MS PR BL KN LC MF VC SX TT TC VI'.split(' '));
-export const inNorthAmerica=event=>(event.countries||[]).some(c=>NORTH_AMERICA.has(String(c).toUpperCase()));
+import { curateNetworkEvents } from './network-relevance.js';
+export { inNorthAmerica } from './network-relevance.js';
 export function upstreamMatches(events,networks){
   const links=networks.filter(n=>!n.neighboursStale).flatMap(n=>(n.upstream||[]).map(asn=>({parent:n.asn,asn})));
   return events.map(event=>({...event,via:links.filter(link=>event.asns.includes(link.asn))})).filter(event=>event.via.length);
@@ -8,13 +7,20 @@ export function upstreamMatches(events,networks){
 
 export function buildNetworkReport(networks,feeds,meta){
   const dedupe=events=>[...new Map(events.map(e=>[e.id,e])).values()].sort((a,b)=>(Date.parse(b.start)||0)-(Date.parse(a.start)||0));
-  const globalFeeds=feeds.filter(f=>!f.asn),all=dedupe(globalFeeds.flatMap(f=>f.events));
+  const globalFeeds=feeds.filter(f=>!f.asn);
   const covered=scope=>['outages','leaks','hijacks'].every(kind=>scope.some(feed=>feed.kind===kind&&feed.available));
   const available=covered(globalFeeds),limited=globalFeeds.some(f=>f.nextPage),loadingMore=feeds.some(f=>f.nextPage&&!f.loadFailed);
   const watched=networks.map(network=>{const direct=feeds.filter(f=>f.asn===network.asn);return {...network,events:dedupe(direct.flatMap(f=>f.events)),eventsAvailable:covered(direct),limited:direct.some(f=>f.nextPage)};});
   const names={...meta.names};for(const feed of feeds)for(const event of feed.events)Object.assign(names,event.names);for(const network of networks)if(network.name&&network.name!==`AS${network.asn}`)names[network.asn]=network.name;
+  const directIds=new Set(feeds.filter(f=>f.asn).flatMap(f=>f.events.map(e=>e.id)));
+  const collected=dedupe(feeds.flatMap(f=>f.events));
+  const at=Number.isFinite(meta.at)?meta.at:Date.parse(meta.checkedAt)||Date.now();
+  const regional=curateNetworkEvents(collected,networks,{at,scope:'northAmerica',directIds,limit:6});
+  const candidates=upstreamMatches(collected,networks);
+  const local=curateNetworkEvents(collected,networks,{at,scope:'upstream',directIds,limit:4});
+  local.events=local.events.map(event=>({...event,via:candidates.find(e=>e.id===event.id)?.via||[]}));
   const topologyIncomplete=networks.some(n=>!n.neighboursAvailable||n.neighboursStale||!n.upstream?.length);
-  return {...meta,names,networks:watched,feeds,loadingMore,loadFailed:feeds.some(f=>f.loadFailed),northAmerica:{available,limited,events:all.filter(inNorthAmerica)},upstream:{available:available&&!topologyIncomplete,topologyIncomplete,limited,events:upstreamMatches(all,networks)}};
+  return {...meta,names,networks:watched,feeds,loadingMore,loadFailed:feeds.some(f=>f.loadFailed),northAmerica:{available:available&&!regional.selection.roleUnknown,limited,...regional},upstream:{available:available&&!topologyIncomplete&&!local.selection.roleUnknown,topologyIncomplete,limited,...local}};
 }
 export function appendNetworkFeed(report,patch){
   const feeds=report.feeds.map(feed=>feed.kind===patch.kind&&feed.asn===patch.asn?{...feed,...patch,events:[...new Map([...feed.events,...(patch.events||[])].map(e=>[e.id,e])).values()],loadFailed:!patch.available}:feed);

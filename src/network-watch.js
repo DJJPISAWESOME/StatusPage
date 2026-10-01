@@ -6,33 +6,41 @@ export { inNorthAmerica, upstreamMatches } from '../public/network-report.js';
 const asns=list=>[...new Set((list||[]).map(Number).filter(x=>Number.isSafeInteger(x)&&x>0))];
 // Reject over-age cache entries even if an intermediary returns them beyond their TTL.
 async function networkCached(key,ttl,task,cache){
-  const freshCache=cache?{async match(request){const hit=await cache.match(request);if(!hit)return null;try{const value=await hit.clone().json();return Number.isFinite(Date.parse(value.fetchedAt))&&Date.now()-Date.parse(value.fetchedAt)<ttl*1000?hit:null;}catch{return null;}},put:(request,response)=>cache.put(request,response)}:null;
+  const freshCache=cache?{async match(request){let hit;try{hit=await cache.match(request);}catch{return null;}if(!hit)return null;try{const value=await hit.clone().json();return Number.isFinite(Date.parse(value.fetchedAt))&&Date.now()-Date.parse(value.fetchedAt)<ttl*1000?hit:null;}catch{return null;}},async put(request,response){try{await cache.put(request,response);}catch{}}}:null;
   return cachedJSON(key,ttl,task,freshCache);
 }
 const iso=value=>{if(!value)return null;const text=String(value);const date=new Date(/(?:Z|[+-]\d\d:\d\d)$/.test(text)?text:`${text}Z`);return Number.isFinite(date.getTime())?date.toISOString():null;};
+const latestISO=(...values)=>{const times=values.map(iso).filter(Boolean).map(Date.parse);return times.length?new Date(Math.max(...times)).toISOString():null;};
 export function normalizeRadar(kind,event,info=[]){
   const arrays=kind==='outages'?['asns','locations','asnsDetails']:kind==='leaks'?['leak_seg','countries']:['victim_asns','victim_countries'];
   if(!event||event.id==null||!Array.isArray(info)||arrays.some(key=>event[key]!=null&&!Array.isArray(event[key])))throw Error('Invalid Radar response');
   const involved=asns(kind==='outages'?event.asns:kind==='leaks'?[event.leak_asn,...(event.leak_seg||[])]:[event.hijacker_asn,...(event.victim_asns||[])]);
   const names=Object.fromEntries([...info,...(event.asnsDetails||[])].filter(n=>involved.includes(Number(n.asn))&&(n.org_name||n.name)).map(n=>[n.asn,n.org_name||n.name]));
-  if(kind==='outages')return {names,id:`outage-${event.id}`,type:event.eventType==='TRAFFIC_ANOMALY'?'Traffic anomaly':'Internet outage',description:String(event.description||'Reported Internet disruption').slice(0,600),asns:asns(event.asns),countries:event.locations||[],start:iso(event.startDate),state:event.endDate?'Ended':'No end reported',url:'https://radar.cloudflare.com/outage-center'};
+  if(kind==='outages')return {actorASN:null,victimASNs:[],lastSeen:iso(event.endDate||event.startDate),endAt:iso(event.endDate),names,id:`outage-${event.id}`,type:event.eventType==='TRAFFIC_ANOMALY'?'Traffic anomaly':'Internet outage',description:String(event.description||'Reported Internet disruption').slice(0,600),asns:asns(event.asns),countries:event.locations||[],start:iso(event.startDate),state:event.endDate?'Ended':'No end reported',url:'https://radar.cloudflare.com/outage-center'};
   const leak=kind==='leaks';
-  return {names,id:`${kind}-${event.id}`,type:leak?'Route leak':'Potential route hijack',description:leak?`AS${event.leak_asn} · ${event.prefix_count ?? 'Unknown'} prefixes`:`AS${event.hijacker_asn} · confidence ${event.confidence_score ?? 'unknown'}`,asns:asns(leak?[event.leak_asn,...(event.leak_seg||[])]:[event.hijacker_asn,...(event.victim_asns||[])]),countries:leak?event.countries||[]:[event.hijacker_country,...(event.victim_countries||[])].filter(Boolean),start:iso(leak?event.min_ts:event.min_hijack_ts),state:leak?(event.finished===true?'Ended':event.finished===false?'Ongoing':'Unconfirmed'):(event.is_stale?'Stale detection':event.on_going_count>0?'Ongoing':'No ongoing reports'),url:'https://radar.cloudflare.com/routing/anomalies'};
+  return {actorASN:asns([leak?event.leak_asn:event.hijacker_asn])[0]||null,victimASNs:leak?[]:asns(event.victim_asns),lastSeen:leak?latestISO(event.max_ts,event.detected_ts,event.min_ts):latestISO(event.max_hijack_ts,event.max_msg_ts,event.min_hijack_ts),confidence:leak?null:Number.isFinite(event.confidence_score)?event.confidence_score:null,prefixCount:leak?event.prefix_count??null:Array.isArray(event.prefixes)?event.prefixes.length:null,names,id:`${kind}-${event.id}`,type:leak?'Route leak':'Potential route hijack',description:leak?`AS${event.leak_asn} · ${event.prefix_count ?? 'Unknown'} prefixes`:`AS${event.hijacker_asn} · confidence ${event.confidence_score ?? 'unknown'}`,asns:asns(leak?[event.leak_asn,...(event.leak_seg||[])]:[event.hijacker_asn,...(event.victim_asns||[])]),countries:leak?event.countries||[]:[event.hijacker_country,...(event.victim_countries||[])].filter(Boolean),start:iso(leak?event.min_ts:event.min_hijack_ts),state:leak?(event.finished===true?'Ended':event.finished===false?'Ongoing':'Unconfirmed'):(event.is_stale?'Stale detection':event.on_going_count>0?'Ongoing':'No ongoing reports'),url:'https://radar.cloudflare.com/routing/anomalies'};
 }
 async function ripe(asn,fetcher,cache){
-  async function read(endpoint){return networkCached(`network-ripe-v2/${endpoint}/${asn}`,900,async()=>{const data=JSON.parse(await upstream(`https://stat.ripe.net/data/${endpoint}/data.json?resource=AS${asn}`,{fetcher,timeout:8000}));if(data.status!=='ok'||!data.data)throw Error('Invalid RIPE response');return data.data;},cache);}
+  // One cache record per ASN keeps the cold request within the shared fetch/cache quota.
+  const request=new Request(`https://signal-cache.invalid/network-ripe-v3/${asn}`);
+  if(cache){try{const hit=await cache.match(request);if(hit){const value=await hit.json();if(value.asn===asn&&Array.isArray(value.upstream)&&Date.now()-Date.parse(value.fetchedAt)<900000)return value;}}catch{}}
+  async function read(endpoint){const data=JSON.parse(await upstream(`https://stat.ripe.net/data/${endpoint}/data.json?resource=AS${asn}`,{fetcher,timeout:8000}));if(data.status!=='ok'||!data.data)throw Error('Invalid RIPE response');return data.data;}
   const [overview,neighbours]=await Promise.allSettled([read('as-overview'),read('asn-neighbours')]);
   const o=overview.status==='fulfilled'?overview.value:null,n=neighbours.status==='fulfilled'?neighbours.value:null;
-  const rows=Array.isArray(n?.neighbours)?n.neighbours:null;
-  return {asn,name:o?.holder||`AS${asn}`,routingAvailable:typeof o?.announced==='boolean',announced:typeof o?.announced==='boolean'?o.announced:null,routingAt:iso(o?.query_endtime),neighboursAvailable:!!rows,neighboursStale:!!n?.query_endtime&&Date.now()-Date.parse(iso(n.query_endtime))>48*3600000,upstream:rows?asns(rows.filter(r=>(r.type||r.position)==='left').map(r=>r.asn)):[],uncertain:rows?asns(rows.filter(r=>r.type==='uncertain').map(r=>r.asn)):[],neighboursAt:iso(n?.query_time||n?.query_endtime),neighboursFetchedAt:n?.fetchedAt||null};
+  const rows=Array.isArray(n?.neighbours)?n.neighbours:null,now=new Date().toISOString();
+  const result={asn,name:o?.holder||`AS${asn}`,routingAvailable:typeof o?.announced==='boolean',announced:typeof o?.announced==='boolean'?o.announced:null,routingAt:iso(o?.query_endtime),neighboursAvailable:!!rows,neighboursStale:!!n?.query_endtime&&Date.now()-Date.parse(iso(n.query_endtime))>48*3600000,upstream:rows?asns(rows.filter(r=>(r.type||r.position)==='left').map(r=>r.asn)):[],uncertain:rows?asns(rows.filter(r=>r.type==='uncertain').map(r=>r.asn)):[],neighboursAt:iso(n?.query_time||n?.query_endtime),neighboursFetchedAt:n?now:null,fetchedAt:now};
+  // Preserve independent source success, but never cache a partial failed observation.
+  if(cache&&result.routingAvailable&&result.neighboursAvailable){try{await cache.put(request,Response.json(result,{headers:{'Cache-Control':'public, max-age=900'}}));}catch{}}
+  return result;
 }
+
 async function radarFeed(kind,asn,token,fetcher,cache,startPage=1,at=Math.floor(Date.now()/300000)*300000){
   const unavailable={kind,asn,available:false,events:[],limited:false,nextPage:null};
   if(!token)return {...unavailable,reason:'Radar feed not configured'};
   const events=[];let nextPage=startPage;
   try{
-    for(let page=startPage;page<startPage+2;page++){
-      const result=await networkCached(`network-radar-v4/${kind}/${asn||'global'}/${at}/${page}`,300,async()=>{
+    for(let page=startPage;page<startPage+(startPage===1?1:2);page++){
+      const result=await networkCached(`network-radar-v5/${kind}/${asn||'global'}/${at}/${page}`,300,async()=>{
         const path=kind==='outages'?'annotations/outages':`bgp/${kind}/events`;
         const params=new URLSearchParams({dateStart:new Date(at-7*86400000).toISOString(),dateEnd:new Date(at).toISOString(),format:'JSON'});
         if(kind==='outages'){params.set('limit','100');params.set('offset',String((page-1)*100));if(asn)params.set('asn',String(asn));}
@@ -50,7 +58,7 @@ async function radarFeed(kind,asn,token,fetcher,cache,startPage=1,at=Math.floor(
   }catch(error){
     // Only public diagnostic codes; never upstream bodies or authentication material.
     const http=error.message.match(/^Upstream HTTP (\d{3})$/)?.[1];
-    const detail=http?`http_${http}`:error.status===413?'response_too_large':error.name==='AbortError'?'timeout':error instanceof SyntaxError||error.message==='Invalid Radar response'?'invalid_response':'request_failed';
+    const detail=/Too many (?:subrequests|API requests)/i.test(error.message)?'worker_request_limit':http?`http_${http}`:error.status===413?'response_too_large':error.name==='AbortError'?'timeout':error instanceof SyntaxError||error.message==='Invalid Radar response'?'invalid_response':'request_failed';
     return {...unavailable,events,limited:events.length>0,nextPage,loadFailed:true,reason:'Radar feed unavailable',detail};
   }
 }
