@@ -42,7 +42,7 @@ References: [RIPE neighbours](https://stat.ripe.net/docs/data-api/api-endpoints/
 
 ## Verification and evidence
 
-Baseline `npm test`: 89 passed. Baseline `npm run build`: passed. Final `npm test`: **96 passed**. Final `npm run build`: passed. Chrome outcomes are recorded in task `artifacts/` (ignored by Git).
+Baseline `npm test`: 89 passed. Baseline `npm run build`: passed. Final `npm test`: **96 passed**. Final `npm run build`: passed. Final `npm run test:runtime`: dry-run bundle plus local Miniflare runtime passed (visitor geo, collection, WebSocket, SQL history, authenticated webhook deduplication across restart). Production dependency `npm audit --omit=dev`: zero vulnerabilities. Chrome outcomes are recorded in task `artifacts/` (ignored by Git).
 
 Chrome uses installed Google Chrome with an isolated headless profile and muted audio. `SIGNAL_START_PREVIEW=1 CHROME_PATH='/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' npm run test:ui` covers four network pages, automatic report pagination, a full unattended twelve-minute channel rotation via virtual clock, TV full-height layout, responsive width, axe, disconnected/partial/incomplete/error/stale/recovery, and audio/queue regression contracts. Its synthetic fixtures are explicitly distinct from the public recorded evidence.
 
