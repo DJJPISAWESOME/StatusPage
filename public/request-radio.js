@@ -12,7 +12,7 @@ function loadYouTube(){
  });return youtubeReady;
 }
 const node=(tag,text,cls)=>{const el=document.createElement(tag);el.textContent=text||'';if(cls)el.className=cls;return el;};
-export function initRequestRadio({container,audio,onState,startFallback,stopFallback,getRadio,youtubeTrim=.5}){
+export function initRequestRadio({container,audio,onState,startFallback,stopFallback,getRadio,onVolume=()=>{},youtubeTrim=.5}){
  const panel=node('section','','request-panel');panel.hidden=true;panel.setAttribute('aria-label','YouTube request player');
  const media=node('div','','request-video');
  panel.append(media);container.prepend(panel);addRequestQR(container);
@@ -24,12 +24,12 @@ export function initRequestRadio({container,audio,onState,startFallback,stopFall
  const control=(action,id)=>requestAPI('/control',{action,session,id,radio:action==='heartbeat'&&fallback?getRadio?.():null,playback:action==='heartbeat'&&ready?{position:player.getCurrentTime?.()||0,duration:player.getDuration?.()||0,paused:player.getPlayerState?.()!==1,volume:fades.volume}:undefined});
  function sync(data){
   paint(data);current=data.current;
-  if(data.remoteVolume&&data.remoteVolume.revision!==appliedVolume){appliedVolume=data.remoteVolume.revision;fades.volumeTo(data.remoteVolume.value);const slider=document.getElementById('volume');if(slider)slider.value=fades.volume;}
+  if(data.remoteVolume&&data.remoteVolume.revision!==appliedVolume){appliedVolume=data.remoteVolume.revision;fades.volumeTo(data.remoteVolume.value);onVolume(fades.volume);}
   if(transitioning)return;
   if(!current){
    loadedId=null;if(fallback)return;
    transitioning=true;
-   const toRadio=()=>{player?.stopVideo?.();panel.hidden=true;fallback=true;fades.set('radio',0);startFallback();transitioning=false;sync(lastData);};
+   const toRadio=()=>{player?.stopVideo?.();panel.hidden=true;fallback=true;fades.set('radio',0);transitioning=false;startFallback();sync(lastData);};
    if(ready&&player.getPlayerState?.()===1)fades.fade('youtube',0,650,toRadio);else toRadio();
    return;
   }
@@ -81,5 +81,5 @@ export function initRequestRadio({container,audio,onState,startFallback,stopFall
  // Moving an iframe between the dashboard and Board reloads it. Stop before that move.
  document.addEventListener('request-radio-layout',()=>{if(active||starting)void stop();});
  document.addEventListener('visibilitychange',()=>{if(document.hidden&&(active||starting))void stop();});
- return {radioConnecting(){fades.set('radio',0);},radioPlaying(){fades.fade('radio',1,1100);},setVolume(value){fades.volumeTo(value);},setYoutubeTrim(value){fades.trimTo(value);},changeStation(){if(fallback){stopFallback();startFallback();}},setLevelGain(value){fades.levelTo(value);},get levelingState(){return {playing:active&&ready&&!fallback&&!transitioning&&player?.getPlayerState?.()===1&&fades.youtubeGain===1,volume:fades.volume,track:current?.id||null};},get requestPlaying(){return active&&!!current&&!fallback;},get fallbackActive(){return fallback;},get active(){return active||starting;},select(value){selected=value;panel.hidden=true;container.classList.toggle('request-mode',value);if(!value)void stop();else{status('Press Play to start radio and song requests.');void requestAPI().then(paint).catch(error=>{if(selected)status(error.message);});}},takeover(){if(!active&&!starting)void begin(true);},toggle(){if(active||starting)void stop();else void begin();}};
+ return {radioConnecting(){fades.set('radio',0);},radioPlaying(){if(fallback&&!transitioning)fades.fade('radio',1,1100);},setDuckGain(value){fades.duckTo(value);},setVolume(value){fades.volumeTo(value);onVolume(fades.volume);},setYoutubeTrim(value){fades.trimTo(value);},changeStation(){if(fallback){stopFallback();startFallback();}},setLevelGain(value){fades.levelTo(value);},get levelingState(){return {playing:active&&ready&&!fallback&&!transitioning&&player?.getPlayerState?.()===1&&fades.youtubeGain===1,volume:fades.volume,track:current?.id||null};},get requestPlaying(){return active&&!!current&&!fallback;},get fallbackActive(){return fallback;},get active(){return active||starting;},select(value){selected=value;panel.hidden=true;container.classList.toggle('request-mode',value);if(!value)void stop();else{status('Press Play to start radio and song requests.');void requestAPI().then(paint).catch(error=>{if(selected)status(error.message);});}},takeover(){if(!active&&!starting)void begin(true);},toggle(){if(active||starting)void stop();else void begin();}};
 }

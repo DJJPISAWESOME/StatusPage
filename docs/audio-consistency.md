@@ -26,3 +26,16 @@ Truly hands-off normalization across both sources needs output-side TV/receiver/
 Run `npm test`, `npm run build`, and `SIGNAL_START_PREVIEW=1 npm run test:ui`. Chrome can be selected with `CHROME_PATH`. The UI suite launches with audio muted and uses mocked YouTube/media contracts; `scripts/audio-ui.mjs` also runs independently against an already-running preview server.
 
 Coverage includes zero-before-load for four videos, pause/buffering, autoplay-blocked recovery, mute and volume edits during ramps, remote pause/resume/volume, radio→video→radio, unavailable-video fallback, stop/reconnect, saved trim, delayed radio playback/retry, simulated RMS loud-to-quiet recovery, and existing queue and channel rotation checks. Simulated leveler and player tests do not establish audible matching or sample-level safety on Justin's TV. Hardware listening/calibration remains outstanding.
+
+## Radio return regression investigation (October 2026)
+
+On main `0268233`, the ordinary return sequence fades YouTube out, stops it, sets radio transition gain to zero, starts the selected stream, and ramps radio to its master setting after `playing`. At master 0.4, radio is 0.4 before and after requests; default YouTube commands peak at 20/100. The optional capture graph connects only to an analyser, never the destination. Capture attenuation affects YouTube alone. Neither those numerical scales nor synthetic media measurements establish equivalent perceived loudness on the TV.
+
+Two reproducible restoration hazards were found and fixed:
+
+- Board alerts wrote duck/restore values into the radio element. Its `volumechange` handler promoted those temporary output levels into the master setting, so a 0.4 master became 0.1 during a 25% duck and changed back on restore. Alerts now use a separate gain composed with both sources. Restore releases only that gain, preserving concurrent remote mute/volume, fades, trim, and capture attenuation.
+- A late/repeated radio `playing` event during radio-to-request fade-out restarted the radio fade toward one, cancelled the handoff callback, and could stall request playback. Radio fade-in now requires active fallback outside a handoff. The fallback flag is established before starting the stream, including synchronous playback callbacks.
+
+The media element is now an output only. Master changes enter through the slider or remote command and update the same saved preference, including remote mute. Startup applies that preference explicitly rather than depending on asynchronous media events. No source trim, capture permission, network filter, or queue policy changed.
+
+These fixes remove demonstrated state bugs; the reported extremely loud request-to-radio experience has not been reproduced acoustically. A TV comparison of the same radio material before and after a request is still needed. Radio and YouTube may have different programme loudness even when all commanded gains are correct. Do not assume that lowering YouTube further fixes loud radio.

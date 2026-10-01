@@ -10,17 +10,17 @@ export function preferredAlertVoice(voices=[]){
   };
   return voices.filter(voice=>/^en(?:[-_]|$)/i.test(voice.lang)).sort((a,b)=>score(b)-score(a))[0]||null;
 }
-export function createBoardAlerts({radio,volumeInput,button,host=globalThis}) {
-  let context,enabled=true,active=false,queue=[],busy=false,timer,voiceTimer,restoreVolume=null,generation=0,oscillators=[];
+export function createBoardAlerts({setDuckGain,button,host=globalThis}) {
+  let context,enabled=true,active=false,queue=[],busy=false,timer,voiceTimer,ducked=false,generation=0,oscillators=[];
   try{enabled=host.localStorage.getItem('signal:board-audio')!=='off';}catch{}
   function paint(){button.textContent=enabled?'Sound alerts on':'Sound alerts off';button.setAttribute('aria-pressed',String(enabled));}
-  function restore(){if(restoreVolume!==null){radio.volume=Number.isFinite(Number(volumeInput.value))?Number(volumeInput.value):restoreVolume;restoreVolume=null;}}
+  function restore(){if(ducked){ducked=false;setDuckGain(1);}}
   function cancel(){generation++;clearTimeout(timer);clearTimeout(voiceTimer);queue=[];busy=false;for(const osc of oscillators){try{osc.stop();}catch{}}oscillators=[];host.speechSynthesis?.cancel();restore();}
   function unlock(){if(!enabled)return;try{const Audio=host.AudioContext||host.webkitAudioContext;if(Audio){context ||= new Audio();void context.resume().catch(()=>{});}}catch{}}
   function next(){
     if(!active||!enabled||busy||!queue.length)return;
     busy=true;let finished=false;const item=queue.shift(),version=generation;
-    if(restoreVolume===null){restoreVolume=radio.volume;radio.volume=restoreVolume*.25;}
+    if(!ducked){ducked=true;setDuckGain(.25);}
     const notes=tones[item.to]||tones.unknown;
     if(context?.state==='running')notes.forEach((frequency,i)=>{const osc=context.createOscillator(),gain=context.createGain(),start=context.currentTime+i*.18;osc.type='sine';osc.frequency.value=frequency;gain.gain.setValueAtTime(0,start);gain.gain.linearRampToValueAtTime(.12,start+.02);gain.gain.exponentialRampToValueAtTime(.001,start+.16);osc.connect(gain);gain.connect(context.destination);osc.start(start);osc.stop(start+.18);oscillators.push(osc);osc.onended=()=>{osc.disconnect();gain.disconnect();oscillators=oscillators.filter(x=>x!==osc);};});
     const finish=()=>{if(version!==generation||finished)return;finished=true;clearTimeout(voiceTimer);busy=false;restore();timer=setTimeout(next,250);};

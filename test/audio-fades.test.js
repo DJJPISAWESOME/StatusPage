@@ -9,7 +9,7 @@ test('transition gains preserve user volume and cancellation prevents stale hand
  fades.reset();assert.equal(audio.volume,.2);t.mock.timers.tick(1000);assert.equal(switched,false);assert.equal(audio.volume,.2);
  fades.set('youtube',0);assert.equal(player.volume,0);fades.fade('youtube',1,1100);t.mock.timers.tick(1200);assert.equal(player.volume,10);assert.equal(fades.volume,.2);
 });
-test('external Board volume changes update both sources at their current gain',()=>{const {audio,player,fades}=setup();fades.set('youtube',.5);audio.volume=.6;audio.dispatchEvent(new Event('volumechange'));assert.equal(fades.volume,.6);assert.equal(player.volume,15);fades.reset();assert.equal(player.volume,30);});
+test('media output events cannot rewrite the master volume',()=>{const {audio,player,fades}=setup();fades.set('youtube',.5);audio.volume=.6;audio.dispatchEvent(new Event('volumechange'));assert.equal(fades.volume,.4);fades.set('radio',1);assert.equal(audio.volume,.4);assert.equal(player.volume,10);});
 test('trim, mute and volume edits stay authoritative during a fade',t=>{
  t.mock.timers.enable({apis:['Date','setTimeout']});const {audio,player,fades}=setup();
  fades.set('youtube',0);fades.fade('youtube',1,1200);t.mock.timers.tick(300);
@@ -25,4 +25,13 @@ test('radio connection stays silent until playing and reconnect cancels an old r
  fades.fade('radio',1,1100);t.mock.timers.tick(300);assert.ok(audio.volume>0&&audio.volume<.4);
  fades.set('radio',0);t.mock.timers.tick(1500);assert.equal(audio.volume,0);
  fades.volumeTo(.6);fades.fade('radio',1,1100);t.mock.timers.tick(1200);assert.equal(audio.volume,.6);
+});
+
+test('alert ducking and restore compose with transitions, trims, capture attenuation and remote mute',t=>{
+ t.mock.timers.enable({apis:['Date','setTimeout']});const {audio,player,fades}=setup();
+ fades.trimTo(.35);fades.levelTo(.6);fades.duckTo(.25);assert.equal(audio.volume,.1);assert.equal(fades.volume,.4);
+ fades.fade('radio',0,650);t.mock.timers.tick(700);fades.set('youtube',0);fades.fade('youtube',1,1100);t.mock.timers.tick(1200);assert.equal(player.volume,2);
+ fades.volumeTo(0);fades.duckTo(1);fades.set('radio',0);fades.fade('radio',1,1100);t.mock.timers.tick(1200);assert.equal(audio.volume,0);assert.equal(player.volume,0);
+ fades.volumeTo(.2);fades.set('youtube',0);assert.equal(audio.volume,.2);fades.reset();assert.equal(audio.volume,.2);assert.equal(player.volume,4);
+ fades.duckTo(.25);fades.volumeTo(.6);fades.duckTo(1);assert.equal(audio.volume,.6);assert.equal(player.volume,13);assert.equal(fades.volume,.6);
 });
