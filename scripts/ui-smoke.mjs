@@ -65,7 +65,24 @@ try {
  await page.clock.fastForward(5000);const remaining=await page.locator('#tv-next').textContent();
  await page.getByRole('button',{name:'Show weather channel',exact:true}).press('Enter');assert.equal(await page.locator('#tv-next').textContent(),remaining);
  await page.mouse.move(500,200);await page.clock.runFor(100);
- for(const channel of ['network','power','weather','services']){await page.getByRole('button',{name:`Show ${channel} channel`,exact:true}).click({delay:100});await page.clock.runFor(100);await page.waitForFunction(channel=>document.getElementById('tv-board').dataset.scene===channel,channel);assert.equal(await page.locator('#tv-board').getAttribute('data-scene'),channel);assert.ok(await page.locator('.tv-outgoing').count()<=1);}
+ // Separate hover from mouse-down while the test controls the animation clock.
+ // Keep real pointer activation and record enough context to diagnose a lost event.
+ await page.evaluate(()=>{
+  window.__signalNavigationEvents=[];
+  for(const type of ['pointerdown','pointerup','click'])document.addEventListener(type,event=>{
+   const button=event.target.closest?.('button');
+   window.__signalNavigationEvents.push({type,target:button?.getAttribute('aria-label')||button?.id||event.target.tagName,scene:document.getElementById('tv-board').dataset.scene});
+   if(window.__signalNavigationEvents.length>64)window.__signalNavigationEvents.shift();
+  },true);
+ });
+ for(const channel of ['network','power','weather','services']){
+  const select=page.getByRole('button',{name:`Show ${channel} channel`,exact:true});
+  await select.hover();await page.clock.runFor(100);
+  await select.click({delay:100});await page.clock.runFor(100);
+  try{await page.waitForFunction(channel=>document.getElementById('tv-board').dataset.scene===channel,channel);}
+  catch(error){console.error('Channel navigation failure',JSON.stringify({target:channel,...await page.evaluate(()=>({scene:document.getElementById('tv-board').dataset.scene,events:window.__signalNavigationEvents}))}));throw error;}
+  assert.equal(await page.locator('#tv-board').getAttribute('data-scene'),channel);assert.ok(await page.locator('.tv-outgoing').count()<=1);
+ }
  await page.locator('#tv-content').evaluate(el=>Promise.all(el.getAnimations({subtree:true}).map(animation=>animation.finished.catch(()=>{}))));
  await page.screenshot({path:'artifacts/board-services.png',animations:'disabled'});
  const servicePagesTotal=Number((await page.locator('#tv-content .tv-subtitle').innerText()).match(/OF (\d+)/)[1]);assert.equal(await page.locator('[data-tv-channel=services] .tv-channel-segment').count(),servicePagesTotal*4);const allBoardServices=new Set();for(let i=0;i<servicePagesTotal;i++){await page.locator('[data-tv-channel=services] .tv-channel-segment').nth(i).click();for(const name of await page.locator('#tv-content .tv-service strong').allTextContents())allBoardServices.add(name);}assert.equal(allBoardServices.size,fixtureStatus().services.length);assert.equal(await page.locator('#tv-content .tv-service:not(.tv-unknown)').count(),0);await page.locator('[data-tv-channel=services] .tv-channel-segment').first().click();
