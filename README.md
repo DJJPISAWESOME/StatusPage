@@ -52,6 +52,8 @@ This repository supports the existing Pages URL while running the stateful API i
 
 The Pages Function forwards the original request, preserving the Pages origin for same-origin checks and WebSocket upgrades. `public/_routes.json` limits Function invocations to `/api/*`; ordinary assets stay on the static Pages path. The Worker can also serve the UI directly on its own `workers.dev` URL. Existing 2.0 deployments retain the Durable Object name and migration tag. The SQL history table is created on initialization; history begins then.
 
+Worker branch builds using `wrangler preview` use the explicit `previews` configuration. Its status hub receives isolated preview storage, and its rate-limit namespaces differ from production. The existing migration stays top-level; previews do not run the production Cron. No production secrets or webhook subscriptions are added by this configuration. Pages branch previews retain their existing service-binding behavior.
+
 Open-Meteo's free endpoint is for non-commercial use. For commercial use, obtain an appropriate plan and set `OPEN_METEO_API_KEY` with `npx wrangler secret put OPEN_METEO_API_KEY`. Forecast and marine requests then use customer hosts. This does not enable a paid subscription automatically.
 
 ## Validate
