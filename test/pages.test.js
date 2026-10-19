@@ -26,3 +26,16 @@ test('Pages reports a missing Worker binding', async () => {
   assert.equal(response.status, 503);
   assert.deepEqual(await response.json(), { error: 'Status API binding is unavailable' });
 });
+
+test('Worker previews isolate status storage and rate limits from production', () => {
+  const config = JSON.parse(readFileSync(new URL('../wrangler.jsonc', import.meta.url)));
+  assert.deepEqual(config.previews.durable_objects.bindings, [{ name: 'STATUS_HUB', class_name: 'StatusHub' }]);
+  const productionNamespaces = new Set(config.ratelimits.map(binding => binding.namespace_id));
+  for (const binding of config.previews.ratelimits) {
+    assert.equal(productionNamespaces.has(binding.namespace_id), false);
+    assert.deepEqual(binding.simple, config.ratelimits.find(p => p.name === binding.name).simple);
+  }
+  assert.equal(config.previews.vars.WEBHOOK_SERVICES, '');
+  assert.equal(config.previews.triggers, undefined); // Cron remains production-only.
+  assert.deepEqual(config.migrations, [{ tag: 'v1', new_sqlite_classes: ['StatusHub'] }]);
+});
