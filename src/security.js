@@ -21,13 +21,23 @@ export async function readLimited(response, limit = 1024 * 1024) {
   for (const part of parts) { bytes.set(part, offset); offset += part.length; }
   return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
 }
+function retryAfterAt(value) {
+  const delay = value?.trim() || '';
+  const time = /^\d+$/.test(delay) ? Date.now() + Number(delay) * 1000 : Date.parse(delay);
+  const date = new Date(time);
+  return Number.isFinite(date.getTime()) ? date.toISOString() : undefined;
+}
 export async function upstream(url, { fetcher = fetch, accept = 'application/json', limit = 1024 * 1024, timeout = 12000, headers = {} } = {}) {
   const controller = new AbortController(); const timer = setTimeout(() => controller.abort(), timeout);
   try {
     // Cloudflare Workers support manual redirects, but not redirect: 'error'.
     // A 3xx response is rejected by the non-OK check below without following it.
     const response = await fetcher(url, { headers: { Accept: accept, 'User-Agent': 'SignalStatus/2.0', ...headers }, signal: controller.signal, redirect: 'manual' });
-    if (!response.ok) { await response.body?.cancel(); throw new Error(`Upstream HTTP ${response.status}`); }
+    if (!response.ok) {
+      const error = new Error(`Upstream HTTP ${response.status}`);
+      error.retryAfterAt = retryAfterAt(response.headers.get('Retry-After'));
+      await response.body?.cancel(); throw error;
+    }
     return await readLimited(response, limit);
   } finally { clearTimeout(timer); }
 }

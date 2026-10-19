@@ -94,6 +94,6 @@ export async function collectService(service, fetcher = fetch) {
     const raw = await upstream(service.url, { fetcher, timeout:service.id==='dnsfilter'?20000:12000, accept: service.parser === 'rss' ? 'application/rss+xml, application/atom+xml, application/xml, text/xml' : '*/*' });
     return { id: service.id, ...parseProvider(service, raw), checkedAt, lastSuccessAt: checkedAt };
   } catch (error) {
-    return { id: service.id, status: 'unknown', incidents: [], checkedAt, error: error.status === 413 ? 'Provider response exceeds the safe size limit. Open its status page for current details.' : 'Provider unavailable or response format changed', detail: error.status === 413 ? 'response_too_large' : /Timeout|Abort/.test(error.name) ? 'timeout' : /schema|JSON|Unexpected|XML|feed/i.test(error.message) ? 'schema' : 'upstream', httpStatus: Number(error.message.match(/Upstream HTTP (\d{3})/)?.[1]) || null };
+    return { id: service.id, status: 'unknown', incidents: [], checkedAt, error: error.status === 413 ? 'Provider response exceeds the safe size limit. Open its status page for current details.' : 'Provider unavailable or response format changed', detail: error.status === 413 ? 'response_too_large' : /Timeout|Abort/.test(error.name) ? 'timeout' : /schema|JSON|Unexpected|XML|feed/i.test(error.message) ? 'schema' : 'upstream', httpStatus: Number(error.message.match(/Upstream HTTP (\d{3})/)?.[1]) || null, retryAfterAt: error.retryAfterAt };
   }
 }

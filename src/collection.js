@@ -4,7 +4,7 @@ import { collectService } from './providers.js';
 // Adobe needs two fetches; every other current adapter needs one.
 const FETCH_BUDGET = 48;
 const cost = service => service.parser === 'adobe' ? 2 : 1;
-const transient = result => result.error && (
+const transient = result => result.error && !(Date.parse(result.retryAfterAt) > Date.now()) && (
   result.detail === 'timeout' ||
   result.detail === 'upstream' && (result.httpStatus === null || [408, 500, 502, 503, 504, 520, 521, 522, 523, 524].includes(result.httpStatus))
 );

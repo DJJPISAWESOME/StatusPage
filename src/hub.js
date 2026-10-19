@@ -38,7 +38,10 @@ export class StatusHub {
     }
     if (!this.state.prunedAt || now - this.state.prunedAt > 86400000) { this.history?.prune(now); this.state.prunedAt = now; }
     this.state.history = this.state.history.slice(0, 60);
-    this.state.updatedAt = new Date().toISOString();
+    // Persist a strict ordering even when forced checks share a millisecond or
+    // the wall clock moves back. Clients use this value to reject older snapshots.
+    const previousUpdate = Date.parse(this.state.updatedAt);
+    this.state.updatedAt = new Date(Math.max(Date.now(), Number.isFinite(previousUpdate) ? previousUpdate + 1 : 0)).toISOString();
     if (!ids) this.state.lastPollAt = now;
     this.state.receipts = Object.fromEntries(Object.entries(this.state.receipts).filter(([, time]) => now - time < 600000));
     await this.ctx.storage.put('snapshot', this.state);

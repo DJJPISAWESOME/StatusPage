@@ -32,6 +32,26 @@ test('transport and timeout failures get one retry; persistent failures remain u
   }
 });
 
+test('provider Retry-After seconds and HTTP dates suppress early retries; expired or invalid delays do not', async t => {
+  const now = Date.parse('2026-10-19T18:00:00Z');
+  t.mock.timers.enable({ apis: ['Date'], now });
+  for (const retryAfter of ['60', new Date(now + 60000).toUTCString()]) {
+    let calls = 0;
+    const [result] = await collectServices([service], async () => { calls++; return new Response(null, { status: 503, headers: { 'Retry-After': retryAfter } }); });
+    assert.equal(calls, 1, `Must respect Retry-After: ${retryAfter}`);
+    assert.equal(result.status, 'unknown');
+    assert.equal(result.attempts, 1);
+    assert.equal(Date.parse(result.retryAfterAt), now + 60000);
+  }
+  for (const retryAfter of ['0', new Date(now - 60000).toUTCString(), 'invalid']) {
+    let calls = 0;
+    const [result] = await collectServices([service], async () => ++calls === 1 ? new Response(null, { status: 503, headers: { 'Retry-After': retryAfter } }) : healthy());
+    assert.equal(calls, 2);
+    assert.equal(result.status, 'operational');
+    assert.equal(result.retryAfterAt, undefined);
+  }
+});
+
 test('permanent, rate-limited and invalid responses do not trigger immediate retries or imply health', async () => {
   for (const response of [new Response(null, { status: 401 }), new Response(null, { status: 429 }), new Response(null, { status: 404 }), Response.json({}), new Response('invalid JSON'), new Response('too large', { headers: { 'Content-Length': '99999999' } })]) {
     let calls = 0;
@@ -114,4 +134,47 @@ test('overlapping scheduled refreshes coalesce, publish only the final observati
   await Promise.all([hub.enqueue(), hub.enqueue()]);
   assert.equal(broadcasts.length, start + 1);
   assert.equal(fullCalls, SERVICES.length);
+});
+
+test('queued forced collections preserve the newer incident across timestamp ties, clock rollback and hub restart', async t => {
+  const pair = Object.getOwnPropertyDescriptor(globalThis, 'WebSocketRequestResponsePair');
+  globalThis.WebSocketRequestResponsePair = class {};
+  t.after(() => { if (pair) Object.defineProperty(globalThis, 'WebSocketRequestResponsePair', pair); else delete globalThis.WebSocketRequestResponsePair; });
+  const now = Date.parse('2026-10-19T18:00:00Z');
+  t.mock.timers.enable({ apis: ['Date'], now });
+  const db = new Map(), broadcasts = []; let initialization;
+  const ctx = {
+    storage: { async get(key) { return structuredClone(db.get(key)); }, async put(key, value) { db.set(key, structuredClone(value)); } },
+    blockConcurrencyWhile(fn) { return initialization = fn(); }, setWebSocketAutoResponse() {},
+    getWebSockets() { return [{ send(value) { broadcasts.push(JSON.parse(value)); } }]; }
+  };
+  let hub = new StatusHub(ctx, {}); await initialization;
+  let release, entered, calls = 0;
+  const held = new Promise(resolve => { release = resolve; });
+  const started = new Promise(resolve => { entered = resolve; });
+  t.mock.method(globalThis, 'fetch', async () => {
+    calls++;
+    if (calls === 1) { entered(); await held; return healthy(); }
+    return Response.json({ status: { indicator: 'major' } });
+  });
+  const id = SERVICES.find(s => s.parser === 'statuspage').id;
+  const first = hub.enqueue([id], true); await started;
+  const second = hub.enqueue([id], true);
+  await Promise.resolve(); assert.equal(calls, 1, 'The newer forced check must wait for the in-flight collection');
+  release(); await Promise.all([first, second]);
+  assert.equal(broadcasts.length, 2);
+  const [healthySnapshot, incidentSnapshot] = broadcasts;
+  assert.equal(incidentSnapshot.services.find(s => s.id === id).status, 'outage');
+  assert.ok(Date.parse(incidentSnapshot.updatedAt) > Date.parse(healthySnapshot.updatedAt));
+  assert.equal(acceptsSnapshot(incidentSnapshot, healthySnapshot), false);
+  // Persistence must preserve ordering even if the clock moves back across a restart.
+  t.mock.timers.setTime(now - 60000);
+  hub = new StatusHub(ctx, {}); await initialization;
+  t.mock.method(globalThis, 'fetch', async () => Response.json({ status: { indicator: 'minor' } }));
+  await hub.enqueue([id], true);
+  const latest = broadcasts.at(-1);
+  assert.equal(latest.services.find(s => s.id === id).status, 'degraded');
+  assert.ok(Date.parse(latest.updatedAt) > Date.parse(incidentSnapshot.updatedAt));
+  assert.equal(acceptsSnapshot(incidentSnapshot, latest), true);
+  assert.equal(acceptsSnapshot(latest, incidentSnapshot), false);
 });

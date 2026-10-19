@@ -29,30 +29,37 @@ Other paths inspected:
 
 `src/collection.js` runs every selected source once with four concurrent collectors. It then waits 250 ms and retries eligible timeout, transport, HTTP 408 and selected server-error results once, using the remaining request budget. No status, SQL interval, change event or socket update is published between attempts. Each result reports `attempts` (one or two).
 
-The catalog currently reserves 33 initial fetches for 32 services, including Adobe's two-fetch adapter. The 48-fetch ceiling leaves at most 15 fetches for retries on a full run. Schema-classified errors, oversized responses, auth failures and HTTP 429 are not retried immediately. The worst-case fleet fixture uses exactly 48 fetches, observes every source and stays at four concurrent fetches. This conservatively respects [Cloudflare's documented free-plan subrequest and connection limits](https://developers.cloudflare.com/workers/platform/limits/).
+The catalog currently reserves 33 initial fetches for 32 services, including Adobe's two-fetch adapter. The 48-fetch ceiling leaves at most 15 fetches for retries on a full run. Schema-classified errors, oversized responses, auth failures and HTTP 429 are not retried immediately. Active `Retry-After` seconds or HTTP-date delays also suppress the immediate retry; only a normalized `retryAfterAt` timestamp is propagated from the response. The worst-case fleet fixture uses exactly 48 fetches, observes every source and stays at four concurrent fetches. This conservatively respects [Cloudflare's documented free-plan subrequest and connection limits](https://developers.cloudflare.com/workers/platform/limits/).
 
-`public/status-snapshot.js` compares snapshot `updatedAt` values. Once a timestamped snapshot is displayed, an older or undated snapshot is rejected before updating the dashboard, Board or notification baseline. Equal snapshots remain valid for settings reprocessing. A newer unknown result is accepted.
+`public/status-snapshot.js` compares snapshot `updatedAt` values. The hub allocates each update as the greater of the wall-clock time or the persisted previous update plus one millisecond. This makes the ordering strict across same-millisecond collections, clock rollback and hub restart. Once a timestamped snapshot is displayed, an older or undated snapshot is rejected before updating the dashboard, Board or notification baseline. Equal snapshots remain valid for settings reprocessing. A newer unknown result is accepted.
+
+## Independent review and corrections
+
+An independent reviewer inspected exact commit `d7971290fadd7c37525b2d113f7fc5f0ef014140` and its surrounding implementation/tests. The reviewer found two P2 issues: the added 503 retry ignored `Retry-After`, and equal wall-clock timestamps allowed an older snapshot to hide a newer incident. Both new regression cases failed against that commit (`artifacts/review-regressions-before.log`).
+
+The corrections preserve and check provider backoff metadata before retry, and allocate strictly increasing persisted `updatedAt` timestamps. The reviewer independently rechecked the correction diff and reran all eight focused regressions plus `git diff --check`: passed, with no remaining supported findings. Queued forced collections also preserve the newer incident while serializing in-flight work. The reviewer made no edits.
 
 ## Validation
 
 | Check | Result |
 | --- | --- |
 | Baseline Node suite | 112 passed |
-| Final Node suite (`npm test`) | 118 passed, including six new regression cases |
+| Final Node suite (`npm test`) | 120 passed, including eight new regression cases |
 | Build (`npm run build`) | Passed: 32 services, static assets and Worker modules |
 | Worker bundle (`wrangler deploy --dry-run --outdir artifacts/worker`) | Passed; no upload/deployment |
 | Runtime (`node scripts/runtime-smoke.mjs`) | Passed in actual local workerd/SQLite: all-source failure remains unknown, WebSocket broadcast, history and restart persistence |
 | Focused browser (`npm run test:status-ui`) | Passed in a fresh headless Google Chrome context: delayed HTTP rejected, older recovery rejected, new outage/unknown accepted, Board shows unknown, no page exceptions |
 
-The six new cases cover recovered retries with each status class, persistent network/timeouts, nonretryable errors/feed-only unknowns, fleet request/concurrency budgets, snapshot ordering/stale expiry, and the real hub's publication/persistence behavior. The focused browser command is also added to the Chromium CI job. Runtime and browser upstreams are synthetic. Existing installed dependencies matched the lockfile versions and were copied into the isolated worktree; no package versions were changed.
+The eight new cases cover recovered retries with each status class, persistent network/timeouts, nonretryable errors/feed-only unknowns, fleet request/concurrency budgets, snapshot ordering/stale expiry, provider backoff, and the real hub's publication/persistence behavior including forced-run ordering, timestamp ties, clock rollback and restart. The focused browser command is also added to the Chromium CI job. Runtime and browser upstreams are synthetic. Existing installed dependencies matched the lockfile versions and were copied into the isolated worktree; no package versions were changed.
 
-Local evidence is in `artifacts/tests.log`, `build.log`, `worker-build.log`, `runtime.log`, `status-browser.log`, `status-race.png` and `status-live-evidence.json` (artifacts are intentionally ignored by Git).
+Original local evidence is in `artifacts/tests.log`, `build.log`, `worker-build.log`, `runtime.log`, `status-browser.log`, `status-race.png` and `status-live-evidence.json`. Review follow-up evidence is in `artifacts/review-regressions-before.log`, `review-regressions-after.log`, `review-full-tests.log`, `review-build.log`, `review-worker-build.log`, `review-runtime.log` and `review-status-browser.log` (artifacts are intentionally ignored by Git).
 
 ## Remaining limits and proposed release
 
 - A source still becomes unknown if its retry fails, its error is nonretryable, or a fleet incident exhausts the retry budget. This is intentional truthful reporting. No claim is made that upstream outages are fixed.
 - The underlying transport cause of past source errors needs production observation during a failing collection. Check per-source `detail`, `httpStatus`, `attempts`, `consecutiveFailures`, `checkedAt` and `lastSuccessAt` after release.
 - IBM's oversized feed and the feed-only unknowns are separate existing limitations and remain visible.
-- Retries can increase collection duration and upstream traffic during failures. First observations have priority; timeouts, concurrency and the request budget bound the added work. Snapshot ordering relies on the shared hub's server timestamps.
+- Retries can increase collection duration and upstream traffic during failures. First observations have priority; timeouts, concurrency and the request budget bound the added work. Long provider backoff delays do not defer later scheduled/forced collections; this is the existing collection cadence, while the added immediate retry now respects active backoff.
+- Snapshot ordering relies on one shared hub and its retained snapshot. Source freshness still uses `checkedAt` and the client clock; changing the ordering does not expand stale-data windows or compensate for client clock skew.
 
-No merge, push or deployment has been performed. Proposed release: review this branch and run the normal CI gates, then approve release. Deploy the Worker and Pages assets from the same approved commit using the existing bindings. Observe several five-minute cycles and inspect failures/retries, live connection reconnects, and a client reload. Confirm genuine source errors and stale observations still appear as unconfirmed, and provider incidents remain visible. If regressions appear, roll both the Worker and Pages assets back to the prior release; no storage migration is needed.
+No merge, push or deployment has been performed. Publication requires **no database migration, configuration change, binding change, new secret or dependency update**. `retryAfterAt` is additive metadata in the existing JSON snapshot; ordering continues using the existing `updatedAt` field. Worker and Pages assets should come from the same reviewed commit using the existing bindings. Release remains pending; after approval and normal CI, observe several five-minute cycles and inspect failures/retries, live reconnects, and a client reload. Confirm genuine source errors and stale observations still appear as unconfirmed, and provider incidents remain visible. Rollback uses the prior Worker and Pages release; no schema rollback is needed.
