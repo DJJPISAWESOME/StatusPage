@@ -1,7 +1,7 @@
 import { RequestQueue } from './requests.js';
 import { History } from './history.js';
 import { SERVICES } from './catalog.js';
-import { collectService } from './providers.js';
+import { collectServices } from './collection.js';
 import { json, secretMap } from './security.js';
 export function mergeResult(previous, next, mode) {
   return { ...next, mode, consecutiveFailures: next.error ? (previous?.consecutiveFailures || 0) + 1 : 0, lastSuccessAt: next.lastSuccessAt || previous?.lastSuccessAt || null, previousStatus: next.error ? previous?.status === 'unknown' ? previous?.previousStatus : previous?.status : null };
@@ -29,11 +29,7 @@ export class StatusHub {
     if (!ids && !force && now - this.state.lastPollAt < 240000) return;
     const hooks = this.webhookServices();
     const selected = SERVICES.filter(s => ids ? ids.includes(s.id) : !hooks.has(s.id) || !this.state.services[s.id]?.lastSuccessAt || now - Date.parse(this.state.services[s.id].lastSuccessAt) >= 3600000 || this.state.services[s.id]?.error);
-    // Four workers keep the subrequest connection count under Cloudflare's limit of six.
-    let index = 0; const results = [];
-    await Promise.all(Array.from({ length: Math.min(4, selected.length) }, async () => {
-      while (index < selected.length) { const service = selected[index++]; results.push(await collectService(service)); }
-    }));
+    const results = await collectServices(selected);
     for (const result of results) {
       const before = this.state.services[result.id];
       this.history?.record(result, hooks.has(result.id) ? 75*60000 : 12*60000);

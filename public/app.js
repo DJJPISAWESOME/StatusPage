@@ -4,6 +4,7 @@ import { initEnhancements } from './enhancements.js';
 import { RadioRecovery } from './radio-player.js';
 import { STATIONS } from './stations.js';
 import { initTV } from './tv.js';
+import { acceptsSnapshot } from './status-snapshot.js';
 const $ = id => document.getElementById(id);
 const store = { get(key, fallback = null) { try { const value = localStorage.getItem(`signal:${key}`); return value === null ? fallback : JSON.parse(value); } catch { return fallback; } }, set(key, value) { try { localStorage.setItem(`signal:${key}`, JSON.stringify(value)); } catch {} }, delete(key) { try { localStorage.removeItem(`signal:${key}`); } catch {} } };
 const state = { services: [], history: [], filter: 'all', expanded: false, search: '', favorites: new Set(Array.isArray(store.get('favorites', [])) ? store.get('favorites', []) : []), place: null, forecast: null, socket: null, reconnect: null, fallback: null, attempts: 0, weatherVersion: 0 };
@@ -66,7 +67,7 @@ function renderActivity() {
   if (!state.history.length) replace('activity', el('p', 'muted small', 'No changes recorded yet. New status changes will appear here.'));
 }
 function receive(snapshot) {
-  if (!Array.isArray(snapshot.services)) return;
+  if (!acceptsSnapshot(state.rawSnapshot, snapshot)) return;
   if (snapshot.demo) notify('DESIGN PREVIEW · Synthetic service and weather data. Run with Cloudflare for live data.');
   state.rawSnapshot = snapshot; snapshot = enhancements.processSnapshot(snapshot); state.services = snapshot.services; state.history = snapshot.history || []; state.updatedAt = snapshot.updatedAt;
   tv?.update({ snapshot: { ...state.rawSnapshot, services: state.rawSnapshot.services.map(service => snapshot.services.find(scoped => scoped.id === service.id) || service) } });

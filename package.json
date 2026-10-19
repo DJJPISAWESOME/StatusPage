@@ -14,6 +14,7 @@
     "preview": "node scripts/preview.mjs",
     "webhook": "node scripts/send-webhook.mjs",
     "test:ui": "node scripts/ui-smoke.mjs",
+    "test:status-ui": "node scripts/status-ui.mjs",
     "test:runtime": "wrangler deploy --dry-run --outdir artifacts/worker && node scripts/runtime-smoke.mjs",
     "test:live": "node scripts/live-check.mjs"
   },
