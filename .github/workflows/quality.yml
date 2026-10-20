@@ -15,6 +15,7 @@ jobs:
       - run: npm ci
       - run: npm run build && npm test && npm run test:runtime
       - run: npm audit --omit=dev
+      - run: npm audit --audit-level=high
   browser:
     runs-on: ubuntu-latest
     timeout-minutes: 10

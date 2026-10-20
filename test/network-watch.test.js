@@ -35,6 +35,21 @@ test('continuations fetch records beyond 200 with a stable window and merge with
  const patch=await networkWatchPage(new URLSearchParams({kind:'outages',asn:'0',page:'2',at:report.at}),{RADAR_API_TOKEN:'test-token'},fetcher,null);report=appendNetworkFeed(report,patch);assert.equal(report.feeds.find(f=>f.asn===0&&f.kind==='outages').events.length,250);assert.equal(report.northAmerica.limited,false);assert.equal(patch.nextPage,null);assert.equal(new Set(requests.map(u=>u.searchParams.get('dateEnd'))).size,1);
  report=appendNetworkFeed(report,patch);assert.equal(report.feeds.find(f=>f.asn===0&&f.kind==='outages').events.length,250);
 });
+test('continuation cursors share a five-minute bucket and reject unrealistic pages before fetching',async()=>{
+ const {networkWatchPage,MAX_RADAR_PAGE}=await import('../src/network-watch.js');
+ let calls=0;const db=new Map(),cache={async match(r){return db.get(r.url)?.clone();},async put(r,v){db.set(r.url,v.clone());}};
+ const fetcher=async url=>{if(!url.includes('api.cloudflare.com'))throw Error('unexpected');calls++;return Response.json({success:true,result:{annotations:[],events:[]}});};
+ const now=Date.now(),bucket=Math.floor(now/300000)*300000;
+ await networkWatchPage(new URLSearchParams({kind:'outages',asn:'0',page:'2',at:String(bucket+60000)}),{RADAR_API_TOKEN:'test-token'},fetcher,cache);
+ await networkWatchPage(new URLSearchParams({kind:'outages',asn:'0',page:'2',at:String(bucket+120000)}),{RADAR_API_TOKEN:'test-token'},fetcher,cache);
+ assert.equal(calls,1);
+ const fail=()=>{throw Error('Should not fetch');};
+ await assert.rejects(()=>networkWatchPage(new URLSearchParams({kind:'outages',asn:'0',page:'100000',at:String(bucket)}),{},fail,null),/Invalid/);
+ await assert.rejects(()=>networkWatchPage(new URLSearchParams({kind:'outages',asn:'0',page:String(MAX_RADAR_PAGE+1),at:String(bucket)}),{},fail,null),/Invalid/);
+ await assert.rejects(()=>networkWatchPage(new URLSearchParams({kind:'outages',asn:'0',page:'2',at:String(bucket-86400000-300000)}),{},fail,null),/Invalid/);
+ await networkWatchPage(new URLSearchParams({kind:'outages',asn:'0',page:String(MAX_RADAR_PAGE),at:String(bucket)}),{RADAR_API_TOKEN:'test-token'},fetcher,null);
+ assert.equal(calls,2);
+});
 test('invalid continuation and ASN-name parameters are rejected before fetching',async()=>{
  const {networkWatchPage,networkNames}=await import('../src/network-watch.js');const fail=()=>{throw Error('Should not fetch');};
  await assert.rejects(()=>networkWatchPage(new URLSearchParams({kind:'bad',asn:'0',page:'3',at:Date.now()}),{},fail,null),/Invalid/);

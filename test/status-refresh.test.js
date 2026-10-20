@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { SERVICES } from '../src/catalog.js';
 import { collectServices } from '../src/collection.js';
-import { StatusHub } from '../src/hub.js';
+import { feedTransition, StatusHub } from '../src/hub.js';
 import { acceptsSnapshot } from '../public/status-snapshot.js';
 import { boardStatus } from '../public/board-status.js';
 
@@ -134,6 +134,72 @@ test('overlapping scheduled refreshes coalesce, publish only the final observati
   await Promise.all([hub.enqueue(), hub.enqueue()]);
   assert.equal(broadcasts.length, start + 1);
   assert.equal(fullCalls, SERVICES.length);
+});
+
+test('feed transitions ignore a single collection failure and still record confirmed changes', () => {
+  const failed = (failures, previousStatus = 'operational') => ({ status: 'unknown', error: 'down', consecutiveFailures: failures, previousStatus });
+  const merged = failures => ({ consecutiveFailures: failures });
+  assert.equal(feedTransition({ status: 'operational', consecutiveFailures: 0 }, { status: 'unknown', error: 'down' }, merged(1)), null);
+  assert.deepEqual(feedTransition(failed(1), { status: 'unknown', error: 'down' }, merged(2)), { from: 'operational', to: 'unknown' });
+  assert.equal(feedTransition(failed(2), { status: 'unknown', error: 'down' }, merged(3)), null);
+  assert.equal(feedTransition(failed(1), { status: 'operational' }, merged(0)), null);
+  assert.deepEqual(feedTransition(failed(1), { status: 'outage' }, merged(0)), { from: 'operational', to: 'outage' });
+  assert.deepEqual(feedTransition({ status: 'operational', consecutiveFailures: 0 }, { status: 'outage' }, merged(0)), { from: 'operational', to: 'outage' });
+});
+
+function hubContext() {
+  const db = new Map(); let initialization;
+  const ctx = {
+    storage: { async get(key) { return structuredClone(db.get(key)); }, async put(key, value) { db.set(key, structuredClone(value)); } },
+    blockConcurrencyWhile(fn) { return initialization = fn(); }, setWebSocketAutoResponse() {},
+    getWebSockets() { return []; }
+  };
+  return { ctx, ready: () => initialization };
+}
+
+test('a single collection error does not publish a recent-changes blip', async t => {
+  globalThis.WebSocketRequestResponsePair = class {};
+  const { ctx, ready } = hubContext();
+  const hub = new StatusHub(ctx, {}); await ready();
+  const id = SERVICES.find(s => s.parser === 'statuspage').id;
+  const down = async () => new Response(null, { status: 401 });
+  t.mock.method(globalThis, 'fetch', async () => healthy());
+  await hub.enqueue([id], true);
+  assert.equal(hub.state.history.length, 0);
+  t.mock.method(globalThis, 'fetch', down);
+  await hub.enqueue([id], true);
+  assert.equal(hub.state.services[id].status, 'unknown');
+  assert.equal(hub.state.services[id].consecutiveFailures, 1);
+  assert.equal(hub.state.history.length, 0);
+  t.mock.method(globalThis, 'fetch', async () => healthy());
+  await hub.enqueue([id], true);
+  assert.equal(hub.state.services[id].status, 'operational');
+  assert.equal(hub.state.history.length, 0);
+  t.mock.method(globalThis, 'fetch', down);
+  await hub.enqueue([id], true);
+  assert.equal(hub.state.history.length, 0);
+  await hub.enqueue([id], true);
+  assert.equal(hub.state.services[id].consecutiveFailures, 2);
+  assert.deepEqual(hub.state.history.map(entry => [entry.from, entry.to]), [['operational', 'unknown']]);
+  t.mock.method(globalThis, 'fetch', async () => healthy());
+  await hub.enqueue([id], true);
+  assert.deepEqual(hub.state.history.map(entry => [entry.from, entry.to]), [['unknown', 'operational'], ['operational', 'unknown']]);
+  t.mock.method(globalThis, 'fetch', async () => Response.json({ status: { indicator: 'major' } }));
+  await hub.enqueue([id], true);
+  assert.equal(hub.state.history[0].from, 'operational');
+  assert.equal(hub.state.history[0].to, 'outage');
+});
+
+test('reserved websocket close codes are replaced and close failures are ignored', () => {
+  globalThis.WebSocketRequestResponsePair = class {};
+  const { ctx } = hubContext();
+  const hub = new StatusHub(ctx, {});
+  const codes = [];
+  const socket = { close(code) { if (code === 1006 || code === 1015) throw new Error('reserved'); codes.push(code); } };
+  for (const code of [1006, 1015, 1005, 1004, 1016, 999, 5000]) hub.webSocketClose(socket, code);
+  for (const code of [1000, 1001, 1008, 3000]) hub.webSocketClose(socket, code);
+  assert.deepEqual(codes, [1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1001, 1008, 3000]);
+  assert.doesNotThrow(() => hub.webSocketClose({ close() { throw new Error('already closed'); } }, 1000));
 });
 
 test('queued forced collections preserve the newer incident across timestamp ties, clock rollback and hub restart', async t => {

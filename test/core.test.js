@@ -60,6 +60,8 @@ test('upstream requests forbid redirects and preserve timeout through the respon
  let init;await upstream('https://allowed.test',{fetcher:async(_url,options)=>{init=options;return new Response('{}');}});assert.equal(init.redirect,'manual');
  await assert.rejects(upstream('https://allowed.test',{fetcher:async()=>new Response(null,{status:302,headers:{Location:'https://elsewhere.test'}})}),/Upstream HTTP 302/);
  await assert.rejects(upstream('https://allowed.test',{timeout:10,fetcher:async(_url,{signal})=>new Response(new ReadableStream({start(c){signal.addEventListener('abort',()=>c.error(new Error('timeout')));}}))}),/timeout/);
+ await assert.rejects(upstream('https://allowed.test',{type:'text/html',fetcher:async()=>new Response('{}',{headers:{'content-type':'application/json'}})}),/content type/);
+ assert.equal(await upstream('https://allowed.test',{type:'text/html',fetcher:async()=>new Response('<p>ok</p>',{headers:{'content-type':'text/html; charset=utf-8'}})}),'<p>ok</p>');
 });
 test('provider failures are unknown and previous freshness is preserved honestly',async()=>{
  const result=await collectService(service,async()=>new Response('bad',{status:503}));assert.equal(result.status,'unknown');assert.ok(result.error);

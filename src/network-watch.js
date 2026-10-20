@@ -1,6 +1,9 @@
 import { upstream, HttpError } from './security.js';
 import { cachedJSON } from './weather.js';
 export const WATCHED_ASNS=[25710,32145,402280];
+const RADAR_BUCKET_MS=300000;
+// 100 events per page. Fifty pages is 5,000 events in the fixed 7-day window.
+export const MAX_RADAR_PAGE=50;
 import { buildNetworkReport } from '../public/network-report.js';
 export { inNorthAmerica, upstreamMatches } from '../public/network-report.js';
 const asns=list=>[...new Set((list||[]).map(Number).filter(x=>Number.isSafeInteger(x)&&x>0))];
@@ -34,22 +37,24 @@ async function ripe(asn,fetcher,cache){
   return result;
 }
 
-async function radarFeed(kind,asn,token,fetcher,cache,startPage=1,at=Math.floor(Date.now()/300000)*300000){
+async function radarFeed(kind,asn,token,fetcher,cache,startPage=1,at=Math.floor(Date.now()/RADAR_BUCKET_MS)*RADAR_BUCKET_MS){
+  const bucket=Math.floor(at/RADAR_BUCKET_MS)*RADAR_BUCKET_MS;
   const unavailable={kind,asn,available:false,events:[],limited:false,nextPage:null};
   if(!token)return {...unavailable,reason:'Radar feed not configured'};
   const events=[];let nextPage=startPage;
   try{
-    for(let page=startPage;page<startPage+(startPage===1?1:2);page++){
-      const result=await networkCached(`network-radar-v5/${kind}/${asn||'global'}/${at}/${page}`,300,async()=>{
+    const pageCount=startPage===1?1:2;
+    for(let page=startPage;page<startPage+pageCount&&page<=MAX_RADAR_PAGE;page++){
+      const result=await networkCached(`network-radar-v5/${kind}/${asn||'global'}/${bucket}/${page}`,300,async()=>{
         const path=kind==='outages'?'annotations/outages':`bgp/${kind}/events`;
-        const params=new URLSearchParams({dateStart:new Date(at-7*86400000).toISOString(),dateEnd:new Date(at).toISOString(),format:'JSON'});
+        const params=new URLSearchParams({dateStart:new Date(bucket-7*86400000).toISOString(),dateEnd:new Date(bucket).toISOString(),format:'JSON'});
         if(kind==='outages'){params.set('limit','100');params.set('offset',String((page-1)*100));if(asn)params.set('asn',String(asn));}
         else{params.set('per_page','100');params.set('page',String(page));params.set('sortBy','TIME');params.set('sortOrder','DESC');if(asn)params.set('involvedAsn',String(asn));if(kind==='hijacks')params.set('minConfidence','8');}
         const data=JSON.parse(await upstream(`https://api.cloudflare.com/client/v4/radar/${path}?${params}`,{fetcher,timeout:8000,headers:{Authorization:`Bearer ${token}`}}));
         const rows=kind==='outages'?data.result?.annotations:data.result?.events;
         if(data.success!==true||!Array.isArray(rows)||rows.some(row=>!row||row.id==null))throw Error('Invalid Radar response');
         const limited=rows.length===100&&!(Number.isFinite(data.result_info?.total_count)&&page*100>=data.result_info.total_count);
-        return {events:rows.map(event=>normalizeRadar(kind,event,data.result?.asn_info||[])),nextPage:limited?page+1:null};
+        return {events:rows.map(event=>normalizeRadar(kind,event,data.result?.asn_info||[])),nextPage:limited&&page<MAX_RADAR_PAGE?page+1:null};
       },cache);
       events.push(...result.events);nextPage=result.nextPage;
       if(!nextPage)return {kind,asn,available:true,events,limited:false,nextPage:null,fetchedAt:result.fetchedAt};
@@ -63,8 +68,14 @@ async function radarFeed(kind,asn,token,fetcher,cache,startPage=1,at=Math.floor(
   }
 }
 
+export function normalizeRadarCursor(page,at,now=Date.now()){
+  if(!Number.isSafeInteger(page)||page<2||page>MAX_RADAR_PAGE||!Number.isSafeInteger(at))return null;
+  const current=Math.floor(now/RADAR_BUCKET_MS)*RADAR_BUCKET_MS,bucket=Math.floor(at/RADAR_BUCKET_MS)*RADAR_BUCKET_MS;
+  if(bucket<current-86400000||bucket>current)return null;
+  return {page,at:bucket};
+}
 export async function networkWatch(env={},fetcher=fetch,cache=globalThis.caches?.default){
-  const token=env.RADAR_API_TOKEN, kinds=['outages','leaks','hijacks'],at=Math.floor(Date.now()/300000)*300000;
+  const token=env.RADAR_API_TOKEN, kinds=['outages','leaks','hijacks'],at=Math.floor(Date.now()/RADAR_BUCKET_MS)*RADAR_BUCKET_MS;
   const [networks,globalFeeds,direct]=await Promise.all([
     Promise.all(WATCHED_ASNS.map(asn=>ripe(asn,fetcher,cache))),
     Promise.all(kinds.map(kind=>radarFeed(kind,0,token,fetcher,cache,1,at))),
@@ -73,9 +84,9 @@ export async function networkWatch(env={},fetcher=fetch,cache=globalThis.caches?
   return buildNetworkReport(networks,[...globalFeeds,...direct.flat()],{checkedAt:new Date().toISOString(),radarConfigured:!!token,at,window:'7 days',source:'Cloudflare Radar + RIPE RIS'});
 }
 export async function networkWatchPage(params,env={},fetcher=fetch,cache=globalThis.caches?.default){
-  const kind=params.get('kind'),asn=Number(params.get('asn')),page=Number(params.get('page')),at=Number(params.get('at'));
-  if(!['outages','leaks','hijacks'].includes(kind)||!params.has('asn')||![0,...WATCHED_ASNS].includes(asn)||!Number.isSafeInteger(page)||page<2||page>100000||!Number.isSafeInteger(at)||at< Date.now()-86400000||at>Date.now()+300000)throw new HttpError(400,'Invalid network report page');
-  return radarFeed(kind,asn,env.RADAR_API_TOKEN,fetcher,cache,page,at);
+  const kind=params.get('kind'),asn=Number(params.get('asn')),cursor=normalizeRadarCursor(Number(params.get('page')),Number(params.get('at')));
+  if(!['outages','leaks','hijacks'].includes(kind)||!params.has('asn')||![0,...WATCHED_ASNS].includes(asn)||!cursor)throw new HttpError(400,'Invalid network report page');
+  return radarFeed(kind,asn,env.RADAR_API_TOKEN,fetcher,cache,cursor.page,cursor.at);
 }
 
 export async function networkNames(raw,fetcher=fetch,cache=globalThis.caches?.default){

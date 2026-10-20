@@ -26,20 +26,16 @@ export function parsePowerCount(html, marker) {
 async function officialCount(source, fetcher) {
   if (source.instance) {
     const stateUrl = `https://kubra.io/stormcenter/api/v1/stormcenters/${source.instance}/views/${source.view}/currentState?preview=false`;
-    const stateResponse = await fetcher(stateUrl, { signal: AbortSignal.timeout(8000) });
-    if (!stateResponse.ok) return null;
-    const path = (await stateResponse.json()).data?.interval_generation_data;
+    const state = JSON.parse(await upstream(stateUrl, { fetcher, timeout: 8000 }));
+    const path = state.data?.interval_generation_data;
     if (typeof path !== 'string' || !/^[a-zA-Z0-9/_.-]{1,200}$/.test(path) || path.split('/').includes('..')) return null;
-    const summaryResponse = await fetcher(`https://kubra.io/${path.replace(/^\//, '')}/public/summary-1/data.json`, { signal: AbortSignal.timeout(8000) });
-    if (!summaryResponse.ok) return null;
-    const count = (await summaryResponse.json()).summaryFileData?.totals?.[0]?.total_outages;
+    const summaryUrl = `https://kubra.io/${path.replace(/^\//, '')}/public/summary-1/data.json`;
+    const summary = JSON.parse(await upstream(summaryUrl, { fetcher, timeout: 8000 }));
+    const count = summary.summaryFileData?.totals?.[0]?.total_outages;
     return Number.isSafeInteger(count) && count >= 0 ? count : null;
   }
-  const response = await fetcher(source.page, { signal: AbortSignal.timeout(8000), headers: { Accept: 'text/html' } });
-  if (!response.ok || !response.headers.get('content-type')?.includes('text/html')) return null;
-  const length = Number(response.headers.get('content-length') || 0);
-  if (length > 5_000_000) return null;
-  return parsePowerCount((await response.text()).slice(0, 5_000_000), source.marker);
+  const html = await upstream(source.page, { fetcher, timeout: 8000, accept: 'text/html', limit: 5_000_000, type: 'text/html' });
+  return parsePowerCount(html, source.marker);
 }
 
 export function parseLocalPower(data) {

@@ -26,6 +26,28 @@ test('National Grid summary derives its rotating data path from current state', 
   assert.match(calls[1],/data\/2026\/09\/25\/public\/summary-1\/data\.json$/);
 });
 
+test('utility fetches reject redirects and oversized bodies', async () => {
+  const redirected = [];
+  const redirectResult = await powerStatus({ latitude: 42.1, longitude: -71.2 }, 'MA', async (url, options) => {
+    redirected.push(url);
+    assert.equal(options.redirect, 'manual');
+    return new Response(null, { status: 302, headers: { Location: 'https://evil.test/secret' } });
+  }, null);
+  assert.equal(redirected.length, 1);
+  assert.equal(redirectResult.available, false);
+  assert.equal(redirectResult.count, null);
+  const calls = [];
+  const huge = JSON.stringify({ data: { interval_generation_data: 'data/2026/09/25' }, pad: 'x'.repeat(1_500_000) });
+  const sized = await powerStatus({ latitude: 42.1, longitude: -71.2 }, 'MA', async () => {
+    calls.push(1);
+    if (calls.length === 1) return new Response(huge, { headers: { 'content-type': 'application/json' } });
+    return Response.json({ summaryFileData: { totals: [{ total_outages: 9 }] } });
+  }, null);
+  assert.equal(calls.length, 1);
+  assert.equal(sized.available, false);
+  assert.equal(sized.count, null);
+});
+
 test('local power totals exclude other towns and missing data is not zero',()=>{
  assert.deepEqual(parseLocalPower({data:[{nm:'Bristol',mun:[{nm:'Warren',nc:0},{nm:'Bristol',nc:2},{nm:'Barrington',nc:100}]}]}),{towns:[{name:'Warren',count:0},{name:'Bristol',count:2}],count:2});
  assert.throws(()=>parseLocalPower({data:[]}));

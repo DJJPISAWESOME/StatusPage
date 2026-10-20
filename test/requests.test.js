@@ -108,7 +108,7 @@ test('anonymous cookie is private, reused across visits and independent for brow
  const cookie=set.split(';')[0];assert.equal((await first.json()).requester.remaining,6);
  assert.equal((await get(cookie)).headers.has('Set-Cookie'),false);await get();
  assert.equal(clients[0],clients[1]);assert.notEqual(clients[0],clients[2]);
- assert.equal(requesterCookie(new Request('https://signal.test',{headers:{Cookie:'__Host-signal-requester=bad'}})),null);
+ assert.equal(await requesterCookie(new Request('https://signal.test',{headers:{Cookie:'__Host-signal-requester=bad'}})),null);
  await assert.rejects(()=>requestRoute(new Request('https://signal.test/api/requests',{method:'POST',headers:{Origin:'https://signal.test','Content-Type':'application/json'},body:JSON.stringify({url:videoId,requestId:crypto.randomUUID()})}),env),e=>e.status===428);
 });
 
@@ -139,6 +139,57 @@ test('removing after expiry grants no extra quota, and concurrent removal never 
  const state=await storage.get('music');state.recent[0].at=Date.now()-3600001;await storage.put('music',state);
  const results=await Promise.all([1,2].map(()=>call(q,{action:'remove',client:'one',id:added.items[0].id})));
  assert.deepEqual(results.map(r=>r.status),[200,409]);assert.equal(results[0].requester.remaining,6);
+});
+
+test('rotating the requester cookie cannot reset the hourly quota for one address', async t => {
+ t.mock.method(globalThis, 'fetch', async () => Response.json({ title: 'Song', author_name: 'Artist' }));
+ const q = new RequestQueue(new Storage());
+ const env = { STATUS_HUB: { idFromName: x => x, get: () => ({ fetch: (url, init) => q.handle(new Request(url, init)) }) } };
+ const view = (cookie, ip = '203.0.113.10', secret) => requestRoute(new Request('https://signal.test/api/requests', {
+  headers: { 'CF-Connecting-IP': ip, ...(cookie ? { Cookie: cookie } : {}) }
+ }), secret ? { ...env, REQUESTER_SECRET: secret } : env);
+ const cookieOf = response => response.headers.get('Set-Cookie').split(';')[0];
+ const first = await view();
+ const cookieA = cookieOf(first);
+ const clientA = await requesterCookie(new Request('https://signal.test', { headers: { Cookie: cookieA } }));
+ assert.match(clientA, /^[0-9a-f-]{36}$/);
+ const cookieB = cookieOf(await view());
+ const clientB = await requesterCookie(new Request('https://signal.test', { headers: { Cookie: cookieB } }));
+ assert.notEqual(clientA, clientB);
+ assert.equal((await view(cookieA)).headers.has('Set-Cookie'), false);
+ const post = (cookie, ip, id) => requestRoute(new Request('https://signal.test/api/requests', {
+  method: 'POST', headers: { Cookie: cookie, Origin: 'https://signal.test', 'Content-Type': 'application/json', 'CF-Connecting-IP': ip },
+  body: JSON.stringify({ url: id, requestId: `hourly-request-${id}` })
+ }), env);
+ const ids = Array.from({ length: 8 }, (_, i) => String(i).padStart(11, 'a'));
+ const added = [];
+ for (let i = 0; i < 6; i++) {
+  const response = await post(i % 2 ? cookieB : cookieA, '203.0.113.10', ids[i]);
+  assert.equal(response.status, 200);
+  added.push(await response.json());
+ }
+ assert.equal(added[5].requester.remaining, 0);
+ assert.equal((await (await view(cookieA)).json()).requester.remaining, 0);
+ assert.equal((await post(cookieB, '203.0.113.10', ids[6])).status, 429);
+ const cookieC = cookieOf(await view(null, '203.0.113.11'));
+ assert.equal((await post(cookieC, '203.0.113.11', ids[6])).status, 200);
+ await assert.rejects(() => post(`__Host-signal-requester=${crypto.randomUUID()}`, '203.0.113.10', ids[7]), error => error.status === 428);
+ const song = added[0].items[0].id;
+ const remove = (cookie, id) => requestRoute(new Request('https://signal.test/api/requests/remove', {
+  method: 'POST', headers: { Cookie: cookie, Origin: 'https://signal.test', 'Content-Type': 'application/json', 'CF-Connecting-IP': '203.0.113.10' },
+  body: JSON.stringify({ id })
+ }), env);
+ assert.equal((await remove(cookieB, song)).status, 403);
+ const freed = await remove(cookieA, song);
+ assert.equal(freed.status, 200);
+ assert.equal((await freed.json()).requester.remaining, 1);
+ assert.equal((await post(cookieB, '203.0.113.10', ids[7])).status, 200);
+ const prod = 'p'.repeat(32);
+ assert.equal(await requesterCookie(new Request('https://signal.test', { headers: { Cookie: cookieA } }), { REQUESTER_SECRET: 'short' }), clientA);
+ assert.equal(await requesterCookie(new Request('https://signal.test', { headers: { Cookie: cookieA } }), { REQUESTER_SECRET: prod }), null);
+ const prodCookie = cookieOf(await view(null, '198.51.100.10', prod));
+ assert.ok(await requesterCookie(new Request('https://signal.test', { headers: { Cookie: prodCookie } }), { REQUESTER_SECRET: prod }));
+ assert.equal(await requesterCookie(new Request('https://signal.test', { headers: { Cookie: prodCookie } })), null);
 });
 
 test('only the active Board reports bounded radio metadata, hidden during requests and after release',async()=>{

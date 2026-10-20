@@ -3,3 +3,7 @@
 WEBHOOK_SECRETS={"cloudflare":"REPLACE_WITH_AT_LEAST_32_RANDOM_CHARACTERS"}
 # Optional native Statuspage callback tokens. Invalidation only, never trusts payload status.
 STATUSPAGE_TOKENS={"cloudflare":"REPLACE_WITH_A_DIFFERENT_RANDOM_TOKEN"}
+# Signs the anonymous song-request cookie. Required in production (at least 32 characters).
+# Generate with `openssl rand -hex 32`, then `npx wrangler secret put REQUESTER_SECRET`.
+# When unset, local dev and tests use a built-in development fallback. Do not deploy that fallback.
+REQUESTER_SECRET=REPLACE_WITH_AT_LEAST_32_RANDOM_CHARACTERS

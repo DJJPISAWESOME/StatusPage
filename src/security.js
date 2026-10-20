@@ -27,7 +27,7 @@ function retryAfterAt(value) {
   const date = new Date(time);
   return Number.isFinite(date.getTime()) ? date.toISOString() : undefined;
 }
-export async function upstream(url, { fetcher = fetch, accept = 'application/json', limit = 1024 * 1024, timeout = 12000, headers = {} } = {}) {
+export async function upstream(url, { fetcher = fetch, accept = 'application/json', limit = 1024 * 1024, timeout = 12000, headers = {}, type } = {}) {
   const controller = new AbortController(); const timer = setTimeout(() => controller.abort(), timeout);
   try {
     // Cloudflare Workers support manual redirects, but not redirect: 'error'.
@@ -37,6 +37,10 @@ export async function upstream(url, { fetcher = fetch, accept = 'application/jso
       const error = new Error(`Upstream HTTP ${response.status}`);
       error.retryAfterAt = retryAfterAt(response.headers.get('Retry-After'));
       await response.body?.cancel(); throw error;
+    }
+    if (type && !response.headers.get('content-type')?.includes(type)) {
+      await response.body?.cancel();
+      throw new Error('Upstream content type rejected');
     }
     return await readLimited(response, limit);
   } finally { clearTimeout(timer); }
