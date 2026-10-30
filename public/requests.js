@@ -1,4 +1,5 @@
 import {requestAPI,youtubeLink} from './request-api.js';
+import {STATIONS} from './stations.js';
 const $=id=>document.getElementById(id),make=(tag,text)=>{const el=document.createElement(tag);el.textContent=text;return el;};
 let quota=null,quotaClockOffset=0,queueRevision=0,refreshSequence=0;
 function renderQuota(){
@@ -12,7 +13,7 @@ function renderQuota(){
  $('request-reset').textContent=quota.nextResetAt?(left?`Next slot in ${Math.floor(left/60)}:${String(left%60).padStart(2,'0')} · ${new Date(quota.nextResetAt).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})}`:'Refreshing allowance…'):`All ${quota.limit} requests available`;
  $('request-streak').textContent=quota.consecutive>=consecutiveLimit?`${consecutiveLimit} in a row · limit reached`:`${quota.consecutive} / ${consecutiveLimit} consecutive songs`;
 }
-let searching=false,adding=false,latest=null,connected=false,controlling=false,draggingVolume=false;
+let searching=false,adding=false,latest=null,connected=false,controlling=false,draggingVolume=false,draggingBalance=false;
 const clock=value=>{const seconds=Math.max(0,Math.floor(value||0));return `${Math.floor(seconds/60)}:${String(seconds%60).padStart(2,'0')}`;};
 function progress(){
  renderQuota();
@@ -51,6 +52,10 @@ function render(data,expectQuota=false){
  if($('mini-art').dataset.video!==videoId){$('mini-art').dataset.video=videoId;$('mini-art').replaceChildren(...artwork(data.current).childNodes);}
  $('queue-empty').hidden=data.items.length>0;
  $('request-volume').disabled=controlling||!data.playerOnline;
+ for(const id of ['request-station','request-radio-level'])$(id).disabled=controlling||!data.playerOnline||!Number.isSafeInteger(data.playerRevision);
+ $('request-station').value=data.radioSettings?.station||radio?.station||'';
+ if(!draggingBalance){const level=data.radioSettings?.level??1;$('request-radio-level').value=level;$('request-radio-level-value').textContent=`${Math.round(level*100)}%`;}
+
  if(!draggingVolume){const volume=data.remoteVolume?.value??data.playback?.volume??0.4;$('request-volume').value=volume;$('request-volume-value').textContent=`${Math.round(volume*100)}%`;}
  for(const id of ['request-rewind','request-pause','request-skip'])$(id).disabled=controlling||!data.playerOnline||!data.current;
  $('request-pause').textContent=(data.transport?.paused??data.playback?.paused)?'Resume':'Pause';progress();
@@ -69,7 +74,7 @@ async function refresh(){
   if(revision!==queueRevision||sequence!==refreshSequence)return;
   connected=false;quotaUnavailable('Connection interrupted · retrying automatically…');
   document.querySelector('.request-now').dataset.online='false';$('player-badge').textContent='RECONNECTING';
-  for(const id of ['request-rewind','request-pause','request-skip','request-volume','mini-pause'])$(id).disabled=true;
+  for(const id of ['request-rewind','request-pause','request-skip','request-volume','mini-pause','request-station','request-radio-level'])$(id).disabled=true;
   $('request-control-status').textContent='Playback controls will return when the connection recovers.';
   $('request-online').textContent=`Queue unavailable: ${error.message}`;$('mini-subtitle').textContent='Connection interrupted · retrying';
  }
@@ -113,12 +118,16 @@ $('request-form').addEventListener('submit',async event=>{
  for(const item of data.results){const row=make('article',''),copy=make('div',''),title=make('h3',item.title),by=make('p',item.artist),link=make('a','View on YouTube ↗'),button=make('button','Add to queue');link.href=youtubeLink(item.videoId);link.target='_blank';link.rel='noopener noreferrer';button.type='button';button.onclick=()=>add(youtubeLink(item.videoId));copy.className='track-copy';copy.append(title,by,link);row.append(artwork(item),copy,button);$('request-results').append(row);}}
  catch(error){$('request-feedback').textContent=error.message;}finally{searching=false;$('request-submit').disabled=false;}
 });
-async function command(action,volume){
- if(controlling||!connected||!latest?.playerOnline||(!latest.current&&action!=='volume'))return;controlling=true;queueRevision++;render(latest);
- try{const data=await requestAPI('/remote',{command:action,id:latest.current?.id||null,volume});render(data);$('request-control-status').textContent='Sent to Board · updates within 5 seconds.';}
+async function command(action,volume,extra={}){
+ if(controlling||!connected||!latest?.playerOnline||(!latest.current&&!['volume','station','radioLevel'].includes(action)))return;controlling=true;queueRevision++;render(latest);
+ try{const data=await requestAPI('/remote',{command:action,id:latest.current?.id||null,volume,playerRevision:latest.playerRevision,...extra});render(data);$('request-control-status').textContent='Sent to Board · updates within 5 seconds.';}
  catch(error){$('request-control-status').textContent=error.message;}
  finally{controlling=false;if(latest)render(latest);}
 }
+for(const station of STATIONS){const option=make('option',station.name);option.value=station.id;$('request-station').append(option);}
+$('request-station').onchange=()=>void command('station',undefined,{station:$('request-station').value});
+$('request-radio-level').oninput=()=>{draggingBalance=true;$('request-radio-level-value').textContent=`${Math.round(Number($('request-radio-level').value)*100)}%`;};
+$('request-radio-level').onchange=()=>{draggingBalance=false;void command('radioLevel',undefined,{radioLevel:Number($('request-radio-level').value)});};
 $('request-volume').oninput=()=>{draggingVolume=true;$('request-volume-value').textContent=`${Math.round(Number($('request-volume').value)*100)}%`;};
 $('request-volume').onchange=()=>{const volume=Number($('request-volume').value);draggingVolume=false;void command('volume',volume);};
 $('request-rewind').onclick=()=>command('rewind');$('request-skip').onclick=()=>command('skip');$('request-pause').onclick=()=>command((latest?.transport?.paused??latest?.playback?.paused)?'resume':'pause');

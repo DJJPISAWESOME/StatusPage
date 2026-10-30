@@ -81,10 +81,10 @@ export async function requestRoute(request,env){
     return hub.fetch('https://hub/requests',{method:'POST',body:JSON.stringify({action:'remove',client,id:body.id})});
   }
   if(path==='/api/requests/remote'){
-    return hub.fetch('https://hub/requests',{method:'POST',body:JSON.stringify({action:'remote',client:requesterCookie(request),command:body.command,id:body.id,volume:body.volume})});
+    return hub.fetch('https://hub/requests',{method:'POST',body:JSON.stringify({action:'remote',client:requesterCookie(request),command:body.command,id:body.id,volume:body.volume,station:body.station,radioLevel:body.radioLevel,playerRevision:body.playerRevision})});
   }
   if(path==='/api/requests/control'){
-    return hub.fetch('https://hub/requests',{method:'POST',body:JSON.stringify({action:body.action,session:body.session,id:body.id,playback:body.playback,radio:body.radio})});
+    return hub.fetch('https://hub/requests',{method:'POST',body:JSON.stringify({action:body.action,session:body.session,id:body.id,playback:body.playback,radio:body.radio,station:body.station,radioSettingsRevision:body.radioSettingsRevision})});
   }
   if(path!=='/api/requests')throw new HttpError(405,'Method not allowed');
   const client=requesterCookie(request);
@@ -123,10 +123,17 @@ export class RequestQueue{
         const receipt=state.recent.find(r=>!r.refunded&&r.client===body.client&&(r.itemId===item.id||(!r.itemId&&r.at===item.addedAt)));
         if(receipt)receipt.refunded=true;
       }else if(body.action==='remote'){
-        if(!['pause','resume','rewind','skip','volume'].includes(body.command))throw new HttpError(400,'Invalid playback command');
-        if(state.leaseUntil<=now||(!state.current&&body.command!=='volume'))throw new HttpError(409,'Board playback is offline or idle.');
-        if(body.command!=='volume'&&body.id!==state.current.id)throw new HttpError(409,'The song changed. Please try again.');
-        if(body.command==='volume'){
+        if(!['pause','resume','rewind','skip','volume','station','radioLevel'].includes(body.command))throw new HttpError(400,'Invalid playback command');
+        const radioCommand=['station','radioLevel'].includes(body.command);
+        if(state.leaseUntil<=now||(!state.current&&!radioCommand&&body.command!=='volume'))throw new HttpError(409,'Board playback is offline or idle.');
+        if(!radioCommand&&body.command!=='volume'&&body.id!==state.current.id)throw new HttpError(409,'The song changed. Please try again.');
+        if(radioCommand){
+          if(!Number.isSafeInteger(body.playerRevision)||body.playerRevision!==(state.playerRevision||0))throw new HttpError(409,'The active Board changed. Refresh and try again.');
+          if(body.command==='station'&&!STATIONS.some(s=>s.id===body.station))throw new HttpError(400,'Choose a supported radio station.');
+          if(body.command==='radioLevel'&&(!Number.isFinite(body.radioLevel)||body.radioLevel<.1||body.radioLevel>1))throw new HttpError(400,'Radio balance must be between 0.1 and 1.');
+          const previous=state.radioSettings||{station:null,level:1,revision:0};
+          state.radioSettings={...previous,revision:previous.revision+1,...(body.command==='station'?{station:body.station}:{level:body.radioLevel})};
+        }else if(body.command==='volume'){
           if(!Number.isFinite(body.volume)||body.volume<0||body.volume>1)throw new HttpError(400,'Volume must be between 0 and 1');
           state.remoteVolume={value:body.volume,revision:(state.remoteVolume?.revision||0)+1};
         }else if(body.command==='skip'){state.current=state.items.shift()||null;state.transport=null;state.playback=null;}
@@ -139,6 +146,7 @@ export class RequestQueue{
         if(!['claim','takeover','heartbeat','next','release'].includes(body.action))throw new HttpError(400,'Invalid player action');
         if(body.action==='claim'||body.action==='takeover'){
           if(body.action!=='takeover'&&state.leaseUntil>now&&state.owner!==body.session)throw new HttpError(409,'Another Board is playing this queue. Stop it first or wait one minute.');
+          if(state.owner!==body.session||state.leaseUntil<=now)state.playerRevision=(state.playerRevision||0)+1;
           state.owner=body.session;
         }else if(state.owner!==body.session||state.leaseUntil<=now)throw new HttpError(409,'Player session expired. Press Play to reconnect.');
         if(body.action==='next'){
@@ -147,6 +155,9 @@ export class RequestQueue{
         }else if(['claim','takeover'].includes(body.action)&&!state.current)state.current=state.items.shift()||null;
         if(['claim','takeover','release'].includes(body.action))state.radio=null;
         if(body.action==='heartbeat'){
+          const settings=state.radioSettings||{station:null,level:1,revision:0};
+          // An old heartbeat must not overwrite a newer portal selection.
+          if(body.radioSettingsRevision===settings.revision&&STATIONS.some(s=>s.id===body.station))state.radioSettings={...settings,station:body.station};
           const station=STATIONS.find(s=>s.id===body.radio?.station);
           const clean=value=>typeof value==='string'?value.trim().slice(0,200):null;
           state.radio=!state.current&&station?{station:station.id,name:station.name,title:clean(body.radio.title),artist:clean(body.radio.artist),song:clean(body.radio.song),playing:body.radio.playing===true,at:now}:null;
@@ -163,5 +174,5 @@ export class RequestQueue{
     });}catch(error){if(error instanceof HttpError)return json({error:error.message,...(error.code?{code:error.code}:{})},error.status);throw error;}
   }
   empty(){return {items:[],current:null,owner:null,leaseUntil:0,recent:[]};}
-  public(state,client){const visible=item=>{if(!item)return null;const {requester,...song}=item;return {...song,canRemove:!!client&&requester===client&&item!==state.current};};return {queueLimit:36,...(client?{requester:requesterQuota(state,client)}:{}),current:visible(state.current),items:state.items.map(visible),playerOnline:state.leaseUntil>Date.now(),radio:state.leaseUntil>Date.now()&&!state.current?state.radio||null:null,remoteVolume:state.remoteVolume||null,transport:state.transport||null,playback:state.playback||null};}
+  public(state,client){const visible=item=>{if(!item)return null;const {requester,...song}=item;return {...song,canRemove:!!client&&requester===client&&item!==state.current};};return {playerRevision:state.playerRevision||0,radioSettings:state.radioSettings||{station:null,level:1,revision:0},queueLimit:36,...(client?{requester:requesterQuota(state,client)}:{}),current:visible(state.current),items:state.items.map(visible),playerOnline:state.leaseUntil>Date.now(),radio:state.leaseUntil>Date.now()&&!state.current?state.radio||null:null,remoteVolume:state.remoteVolume||null,transport:state.transport||null,playback:state.playback||null};}
 }

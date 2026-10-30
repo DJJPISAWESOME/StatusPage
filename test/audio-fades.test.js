@@ -40,3 +40,12 @@ test('both sources use the same master; obsolete trim options cannot attenuate r
  const audio={volume:.4},player={setVolume(value){this.volume=value;}};const fades=createAudioFades(audio,()=>player,{youtubeTrim:.1});
  for(const master of [0,.1,.4,1]){fades.volumeTo(master);assert.equal(audio.volume,master);assert.equal(player.volume,Math.round(master*100));}
 });
+
+test('radio balance attenuates only radio, ramps independently and preserves mute and handoffs',t=>{
+ t.mock.timers.enable({apis:['Date','setTimeout']});const {audio,player,fades}=setup();
+ fades.volumeTo(.4);fades.radioLevelTo(.5);assert.equal(audio.volume,.4);t.mock.timers.tick(1200);assert.equal(audio.volume,.2);assert.equal(player.volume,40);assert.equal(fades.volume,.4);
+ fades.duckTo(.25);assert.equal(audio.volume,.05);assert.equal(player.volume,10);
+ fades.volumeTo(0);fades.radioLevelTo(1);t.mock.timers.tick(1200);assert.equal(audio.volume,0);assert.equal(player.volume,0);
+ fades.volumeTo(.6);fades.duckTo(1);let handedOff=false;fades.fade('radio',0,650,()=>handedOff=true);fades.radioLevelTo(.2);t.mock.timers.tick(1200);assert.equal(handedOff,true);assert.equal(audio.volume,0);assert.equal(player.volume,60);
+ fades.reset();assert.equal(audio.volume,.12);fades.radioLevelTo(100);t.mock.timers.tick(1200);assert.equal(audio.volume,.6,'Balance cannot amplify');
+});

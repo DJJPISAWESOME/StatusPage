@@ -152,3 +152,44 @@ test('only the active Board reports bounded radio metadata, hidden during reques
  assert.equal((await call(q,{action:'heartbeat',session,radio:{station:'invalid'}})).radio,null);
  await call(q,{action:'heartbeat',session,radio});assert.equal((await call(q,{action:'release',session})).radio,null);
 });
+
+test('radio controls target the current Board, persist settings and preserve queued playback',async()=>{
+ const storage=new Storage(),q=new RequestQueue(storage);
+ await call(q,add());await call(q,add('aaaaaaaaaaa','two'));
+ let data=await call(q,{action:'claim',session});const target=data.playerRevision;
+ const remote=fields=>call(q,{action:'remote',playerRevision:target,...fields});
+ const original={current:data.current,items:data.items};
+ assert.equal((await remote({command:'station',station:'https://evil.test'})).status,400);
+ assert.equal((await remote({command:'station',station:'wror',playerRevision:target-1})).status,409);
+ data=await remote({command:'station',station:'wror'});
+ assert.deepEqual({current:data.current,items:data.items},original);
+ assert.equal(data.radioSettings.station,'wror');
+ data=await call(q,{action:'heartbeat',session,station:'river',radioSettingsRevision:0});
+ assert.equal(data.radioSettings.station,'wror','Unacknowledged old selection cannot overwrite a command');
+ data=await call(q,{action:'heartbeat',session,station:'wror',radioSettingsRevision:1});
+ assert.equal(data.radioSettings.station,'wror');
+ for(const value of [0,1.1,null,'0.5'])assert.equal((await remote({command:'radioLevel',radioLevel:value})).status,400);
+ data=await remote({command:'radioLevel',radioLevel:.5});assert.equal(data.radioSettings.level,.5);
+ assert.equal(data.current.id,original.current.id);assert.deepEqual(data.items,original.items);
+ assert.deepEqual((await call(new RequestQueue(storage))).radioSettings,data.radioSettings,'Settings survive storage reload');
+ const replacement='new-board-session-123456';
+ data=await call(q,{action:'takeover',session:replacement});assert.notEqual(data.playerRevision,target);
+ assert.equal((await remote({command:'station',station:'hjy'})).status,409,'Old portal cannot target a replacement Board');
+ assert.equal((await call(q,{action:'heartbeat',session,station:'hjy',radioSettingsRevision:2})).status,409);
+ const newTarget=data.playerRevision;
+ await call(q,{action:'next',session:replacement,id:data.current.id});data=await call(q);await call(q,{action:'next',session:replacement,id:data.current.id});
+ data=await call(q,{action:'remote',command:'station',station:'hjy',playerRevision:newTarget});assert.equal(data.status,200);assert.equal(data.current,null);
+ assert.equal(data.radioSettings.level,.5);
+ assert.equal(JSON.stringify(data).includes(replacement),false,'Public targeting revision does not expose ownership secret');
+ await call(q,{action:'release',session:replacement});assert.equal((await call(q,{action:'remote',command:'station',station:'river',playerRevision:newTarget})).status,409);
+});
+
+test('request HTTP routes forward radio settings and acknowledgments with existing origin protection',async()=>{
+ const q=new RequestQueue(new Storage());const env={STATUS_HUB:{idFromName:()=>1,get:()=>({fetch:(url,options)=>q.handle(new Request(url,options))})}};
+ const post=(path,body,origin='https://board.test')=>requestRoute(new Request('https://board.test/api/requests/'+path,{method:'POST',headers:{Origin:origin,'Content-Type':'application/json'},body:JSON.stringify(body)}),env);
+ let response=await post('control',{action:'claim',session});let data=await response.json();
+ response=await post('remote',{command:'station',station:'wror',playerRevision:data.playerRevision});data=await response.json();assert.equal(data.radioSettings.station,'wror');
+ response=await post('control',{action:'heartbeat',session,station:'hjy',radioSettingsRevision:data.radioSettings.revision});data=await response.json();assert.equal(data.radioSettings.station,'hjy','Board-local selection propagates after ack');
+ response=await post('remote',{command:'radioLevel',radioLevel:.4,playerRevision:data.playerRevision});assert.equal((await response.json()).radioSettings.level,.4);
+ await assert.rejects(post('remote',{command:'station',station:'river',playerRevision:data.playerRevision},'https://other.test'),/Same-origin/);
+});
