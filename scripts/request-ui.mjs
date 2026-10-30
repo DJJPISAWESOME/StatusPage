@@ -21,7 +21,7 @@ export async function verifyRequests(browser){
     if(body.action==='next'&&(current?.id||null)===(body.id||null))current=items.shift()||null;
    }else if(url.pathname.endsWith('/remote')){
     if(body.command==='skip'){current=items.shift()||null;transport=null;playback=null;}
-    else if(['station','radioLevel'].includes(body.command)){assert.equal(body.playerRevision,1);radioSettings={...radioSettings,revision:radioSettings.revision+1,...(body.command==='station'?{station:body.station}:{level:body.radioLevel})};}
+    else if(['station','radioLevel'].includes(body.command)){assert.equal(body.playerRevision,1);radioSettings={...radioSettings,revision:radioSettings.revision+1,...(body.command==='station'?{station:body.station,stationRevision:(radioSettings.stationRevision||0)+1}:{level:body.radioLevel})};}
     else if(body.command==='volume')remoteVolume={value:body.volume,revision:(remoteVolume?.revision||0)+1};
     else{const t=transport||{revision:0,paused:false,rewind:0};transport={revision:t.revision+1,paused:body.command==='pause'?true:body.command==='resume'?false:t.paused,rewind:t.rewind+(body.command==='rewind'?1:0)};}
    }else{assert.equal(req.headers().authorization,undefined);submitted++;items.push({...(!items.length&&!current?song:second),id:crypto.randomUUID(),canRemove:true});}
@@ -80,8 +80,9 @@ export async function verifyRequests(browser){
  await board.clock.fastForward(5100);await board.waitForFunction(()=>document.getElementById('station').value==='wror');
  assert.equal(current.id,playingBefore);assert.deepEqual(items,queuedBefore);assert.equal(await board.evaluate(()=>window.testYT.volume),25);
  assert.equal(await board.evaluate(()=>JSON.parse(localStorage.getItem('signal:radioFallback'))),'wror');
+ await board.locator('#station').selectOption('hjy'); // Local selection has not reached the next heartbeat yet.
  await portal.locator('#request-radio-level').fill('0.5');await portal.locator('#request-radio-level').dispatchEvent('change');await portal.waitForFunction(()=>!document.getElementById('request-radio-level').disabled);
- await board.clock.fastForward(5100);await board.clock.runFor(1200);assert.equal(await board.evaluate(()=>window.testYT.volume),25,'Balance leaves requested songs unchanged');
+ await board.clock.fastForward(5100);await board.clock.runFor(1200);assert.equal(await board.evaluate(()=>window.testYT.volume),25,'Balance leaves requested songs unchanged');assert.equal(await board.locator('#station').inputValue(),'hjy','Balance command cannot revert a newer local station choice');
  await portal.screenshot({path:'artifacts/request-radio-controls-mobile.png',animations:'disabled'});
  assert.deepEqual((await new AxeBuilder({page:portal}).withTags(['wcag2a','wcag2aa','wcag21aa']).analyze()).violations.map(v=>v.id),[]);
  await portal.locator('#request-station').selectOption('river');await portal.waitForFunction(()=>!document.getElementById('request-station').disabled);await board.clock.fastForward(5100);

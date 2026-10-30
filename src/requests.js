@@ -132,7 +132,7 @@ export class RequestQueue{
           if(body.command==='station'&&!STATIONS.some(s=>s.id===body.station))throw new HttpError(400,'Choose a supported radio station.');
           if(body.command==='radioLevel'&&(!Number.isFinite(body.radioLevel)||body.radioLevel<.1||body.radioLevel>1))throw new HttpError(400,'Radio balance must be between 0.1 and 1.');
           const previous=state.radioSettings||{station:null,level:1,revision:0};
-          state.radioSettings={...previous,revision:previous.revision+1,...(body.command==='station'?{station:body.station}:{level:body.radioLevel})};
+          state.radioSettings={...previous,revision:previous.revision+1,...(body.command==='station'?{station:body.station,stationRevision:(previous.stationRevision||0)+1}:{level:body.radioLevel})};
         }else if(body.command==='volume'){
           if(!Number.isFinite(body.volume)||body.volume<0||body.volume>1)throw new HttpError(400,'Volume must be between 0 and 1');
           state.remoteVolume={value:body.volume,revision:(state.remoteVolume?.revision||0)+1};

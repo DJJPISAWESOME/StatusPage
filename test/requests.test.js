@@ -169,7 +169,7 @@ test('radio controls target the current Board, persist settings and preserve que
  data=await call(q,{action:'heartbeat',session,station:'wror',radioSettingsRevision:1});
  assert.equal(data.radioSettings.station,'wror');
  for(const value of [0,1.1,null,'0.5'])assert.equal((await remote({command:'radioLevel',radioLevel:value})).status,400);
- data=await remote({command:'radioLevel',radioLevel:.5});assert.equal(data.radioSettings.level,.5);
+ data=await remote({command:'radioLevel',radioLevel:.5});assert.equal(data.radioSettings.level,.5);assert.equal(data.radioSettings.stationRevision,1,'Balance does not reissue a station command');
  assert.equal(data.current.id,original.current.id);assert.deepEqual(data.items,original.items);
  assert.deepEqual((await call(new RequestQueue(storage))).radioSettings,data.radioSettings,'Settings survive storage reload');
  const replacement='new-board-session-123456';

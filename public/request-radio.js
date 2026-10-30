@@ -17,7 +17,7 @@ export function initRequestRadio({container,audio,onState,startFallback,stopFall
  const panel=node('section','','request-panel');panel.hidden=true;panel.setAttribute('aria-label','YouTube request player');
  const media=node('div','','request-video');
  panel.append(media);container.prepend(panel);addRequestQR(container);
- let lastData={items:[],current:null},readyTimer,revision=0,appliedTransport=0,appliedRewind=0,appliedVolume=0,appliedRadioSettings=-1;
+ let lastData={items:[],current:null},readyTimer,revision=0,appliedTransport=0,appliedRewind=0,appliedVolume=0,appliedRadioSettings=-1,appliedRemoteStation=-1;
  let selected=false,active=false,starting=false,player=null,ready=false,current=null,session=null,timer=null,generation=0,busy=false,loadedId=null,fallback=false;
  const fades=createAudioFades(audio,()=>ready?player:null);let transitioning=false;
  function status(text){onState(text,active);}
@@ -34,7 +34,11 @@ export function initRequestRadio({container,audio,onState,startFallback,stopFall
   paint(data);current=data.current;
   if(data.radioSettings&&data.radioSettings.revision!==appliedRadioSettings){
    appliedRadioSettings=data.radioSettings.revision;fades.radioLevelTo(data.radioSettings.level);
-   if(STATIONS.some(s=>s.id===data.radioSettings.station)&&getRadio?.().station!==data.radioSettings.station)onStation(data.radioSettings.station);
+   const stationRevision=data.radioSettings.stationRevision||0;
+   if(stationRevision!==appliedRemoteStation){
+    appliedRemoteStation=stationRevision;
+    if(STATIONS.some(s=>s.id===data.radioSettings.station)&&getRadio?.().station!==data.radioSettings.station)onStation(data.radioSettings.station);
+   }
   }
   if(data.remoteVolume&&data.remoteVolume.revision!==appliedVolume){appliedVolume=data.remoteVolume.revision;setVolume(data.remoteVolume.value);}
   if(transitioning)return;
