@@ -1,13 +1,16 @@
 import assert from 'node:assert/strict';
 import AxeBuilder from '@axe-core/playwright';
 export async function verifyRequests(browser){
- const context=await browser.newContext({viewport:{width:1440,height:1100}}),errors=[];let blockNextAdd=false,quotaMode='valid',submitted=0,current=null,items=[],online=false,transport=null,playback=null,remoteVolume=null,radioSettings={station:null,level:1,revision:0},radio=null,pollHandler=null,hourlyLimit=false;
+ const context=await browser.newContext({viewport:{width:1440,height:1100}}),errors=[];let blockNextAdd=false,quotaMode='valid',searchMode='success',submitted=0,current=null,items=[],online=false,transport=null,playback=null,remoteVolume=null,radioSettings={station:null,level:1,revision:0},radio=null,pollHandler=null,hourlyLimit=false;
  const song={videoId:'dQw4w9WgXcQ',title:'A requested song',artist:'Example artist'},second={videoId:'aaaaaaaaaaa',title:'Second request',artist:'Another artist'};
  await context.route('**/api/requests**',async route=>{
   const req=route.request(),url=new URL(req.url());let data;
   if(pollHandler&&await pollHandler(route))return;
   if(hourlyLimit&&req.method()==='POST'&&url.pathname==='/api/requests'){hourlyLimit=false;await route.fulfill({status:429,json:{error:'You have used all 6 requests this hour. Your next slot opens in 60 minute(s).'}});return;}
-  if(url.pathname.endsWith('/search'))data={results:[song]};
+  if(url.pathname.endsWith('/search')){
+   if(searchMode==='error'){await route.fulfill({status:503,json:{error:'YouTube search is temporarily unavailable.'}});return;}
+   data=searchMode==='empty'?{results:[]}:searchMode==='malformed'?{}:{results:[song]};
+  }
   else if(req.method()==='POST'){
    const body=req.postDataJSON();
    if(blockNextAdd&&url.pathname==='/api/requests'){blockNextAdd=false;await route.fulfill({status:429,json:{error:'You already have 2 songs in a row. Let someone else request a song, wait for your songs to play, or remove one of your queued songs.'}});return;}
@@ -40,7 +43,13 @@ export async function verifyRequests(browser){
    getCurrentTime(){return this.position||0;}getDuration(){return 180;}getPlayerState(){return this.state;}pauseVideo(){this.state=2;}playVideo(){this.state=1;}seekTo(n){this.position=n;}setVolume(n){this.volume=n;}loadVideoById(id){(this.starts ||= []).push(this.volume);this.id=id;this.position=30;this.state=1;this.options.events.onStateChange({data:1});}getVideoData(){return {video_id:this.id};}stopVideo(){}destroy(){this.frame.remove();}finish(){this.options.events.onStateChange({data:0});}
   }};
  });
- const portal=await context.newPage();portal.on('pageerror',e=>errors.push(e.message));await portal.goto('http://127.0.0.1:4173/requests.html');await portal.locator('#request-query').fill('song');await portal.locator('#request-submit').click();await portal.getByRole('button',{name:'Add to queue',exact:true}).click();await portal.waitForFunction(()=>document.getElementById('request-count').textContent==='1 / 36 songs');
+ const portal=await context.newPage();portal.on('pageerror',e=>errors.push(e.message));await portal.goto('http://127.0.0.1:4173/requests.html');
+ for(const mode of ['error','empty','malformed']){
+  searchMode=mode;await portal.locator('#request-query').fill('Rock & roll');await portal.locator('#request-submit').click();await portal.locator('.request-search-recovery').waitFor();
+  assert.equal(await portal.locator('#request-submit').isDisabled(),false);assert.equal(await portal.locator('#request-query').inputValue(),'Rock & roll');assert.equal(await portal.locator('.request-search-recovery a').getAttribute('href'),'https://www.youtube.com/results?search_query=Rock%20%26%20roll');assert.equal(await portal.getByRole('button',{name:'Add to queue',exact:true}).count(),0);assert.equal(submitted,0);
+  assert.match(await portal.locator('#request-feedback').innerText(),mode==='empty'?/No results/:mode==='malformed'?/Search response unavailable/:/temporarily unavailable/);
+ }
+ searchMode='success';await portal.locator('#request-query').fill('song');await portal.locator('#request-submit').click();await portal.getByRole('button',{name:'Add to queue',exact:true}).waitFor();assert.equal(await portal.locator('.request-search-recovery').count(),0);await portal.getByRole('button',{name:'Add to queue',exact:true}).click();await portal.waitForFunction(()=>document.getElementById('request-count').textContent==='1 / 36 songs');
  assert.equal(await portal.locator('.queue-remove').count(),1);
  let releaseOld,oldStarted,oldFinished;const oldReady=new Promise(resolve=>oldStarted=resolve),oldDone=new Promise(resolve=>oldFinished=resolve),oldGate=new Promise(resolve=>releaseOld=resolve);let held=false;
  const stalePoll=async route=>{if(route.request().method()!=='GET'||new URL(route.request().url()).pathname!=='/api/requests'||held)return false;held=true;const stale={items:structuredClone(items),current:null,playerOnline:false,searchEnabled:true,queueLimit:36,requester:{used:1,remaining:5,limit:6,consecutive:1,serverTime:Date.now(),nextResetAt:Date.now()+3600000}};oldStarted();await oldGate;await route.fulfill({json:stale});oldFinished();return true;};
@@ -72,7 +81,10 @@ export async function verifyRequests(browser){
  await portal.getByRole('button',{name:'Resume',exact:true}).click();await portal.waitForFunction(()=>!document.getElementById('request-pause').disabled);await board.clock.fastForward(5100);await board.waitForFunction(()=>window.testYT.state===1);
  await portal.getByRole('button',{name:'Restart current song',exact:true}).click();await portal.waitForFunction(()=>!document.getElementById('request-pause').disabled);await board.clock.fastForward(5100);await board.waitForFunction(()=>window.testYT.position===0);
  await portal.locator('#request-volume').fill('0.25');await portal.locator('#request-volume').dispatchEvent('change');await portal.waitForFunction(()=>!document.getElementById('request-volume').disabled);await board.clock.fastForward(5100);await board.waitForFunction(()=>window.testYT.volume===25);assert.equal(await board.evaluate(()=>JSON.parse(localStorage.getItem('signal:volume'))),.25);
- await portal.locator('.request-radio-settings summary').click();
+ // A failed search must leave playback, station and balance controls usable.
+ await portal.keyboard.press('Escape');searchMode='error';await portal.locator('#request-query').fill('Beatles');await portal.locator('#request-submit').click();await portal.locator('.request-search-recovery').waitFor();
+ await portal.screenshot({path:'artifacts/request-search-recovery-mobile.png',fullPage:true});assert.deepEqual((await new AxeBuilder({page:portal}).withTags(['wcag2a','wcag2aa','wcag21aa']).analyze()).violations.map(v=>v.id),[]);
+ await portal.locator('#mini-open').click();await portal.locator('.request-radio-settings summary').click();searchMode='success';
  // Radio controls are available in the mobile full-player sheet during a request.
  assert.equal(await portal.locator('#request-station').isVisible(),true);
  const queuedBefore=structuredClone(items),playingBefore=current.id;

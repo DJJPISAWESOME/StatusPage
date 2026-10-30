@@ -110,13 +110,18 @@ async function add(url){
  try{render(await requestAPI('',{url,requestId:crypto.randomUUID()}),true);$('request-feedback').textContent='Added to the queue. Thanks for the request!';$('request-query').value='';$('request-submit').textContent='Search';$('request-results').replaceChildren();}
  catch(error){$('request-feedback').textContent=error.message;if(['consecutive_limit','hourly_limit'].includes(error.code)||/\d+ songs in a row|used all \d+ requests this hour/i.test(error.message))showLimitWarning(error);adding=false;await refresh();}finally{adding=false;buttons.forEach(b=>b.disabled=false);}
 }
+function searchRecovery(query){
+ const help=make('div','');help.className='request-search-recovery';
+ const link=make('a','Search on YouTube ↗');link.href=`https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`;link.target='_blank';link.rel='noopener noreferrer';
+ help.append(make('p','You can still request a song: open YouTube search, copy a video link, then paste it into the search box above.'),link);$('request-results').append(help);
+}
 $('request-form').addEventListener('submit',async event=>{
  event.preventDefault();if(searching||adding)return;const query=$('request-query').value.trim();$('request-youtube-search').href=`https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`;
  if(/^https?:\/\//i.test(query)){await add(query);return;}
  searching=true;$('request-submit').disabled=true;$('request-feedback').textContent='Searching YouTube…';$('request-results').replaceChildren();
- try{const data=await requestAPI(`/search?q=${encodeURIComponent(query)}`);$('request-feedback').textContent=data.results.length?'Choose a video to add.':'No results found. Try another search.';
+ try{const data=await requestAPI(`/search?q=${encodeURIComponent(query)}`);if(!Array.isArray(data.results))throw new Error('Search response unavailable. Please try again.');$('request-feedback').textContent=data.results.length?'Choose a video to add.':'No results found. Try another search.';if(!data.results.length)searchRecovery(query);
  for(const item of data.results){const row=make('article',''),copy=make('div',''),title=make('h3',item.title),by=make('p',item.artist),link=make('a','View on YouTube ↗'),button=make('button','Add to queue');link.href=youtubeLink(item.videoId);link.target='_blank';link.rel='noopener noreferrer';button.type='button';button.onclick=()=>add(youtubeLink(item.videoId));copy.className='track-copy';copy.append(title,by,link);row.append(artwork(item),copy,button);$('request-results').append(row);}}
- catch(error){$('request-feedback').textContent=error.message;}finally{searching=false;$('request-submit').disabled=false;}
+ catch(error){$('request-feedback').textContent=error.message;if(error.status!==400)searchRecovery(query);}finally{searching=false;$('request-submit').disabled=false;}
 });
 async function command(action,volume,extra={}){
  if(controlling||!connected||!latest?.playerOnline||(!latest.current&&!['volume','station','radioLevel'].includes(action)))return;controlling=true;queueRevision++;render(latest);
