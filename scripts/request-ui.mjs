@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import AxeBuilder from '@axe-core/playwright';
 export async function verifyRequests(browser){
- const context=await browser.newContext({viewport:{width:1440,height:1100}}),errors=[];let blockNextAdd=false,quotaMode='valid',submitted=0,current=null,items=[],online=false,transport=null,playback=null,remoteVolume=null,radio=null,pollHandler=null,hourlyLimit=false;
+ const context=await browser.newContext({viewport:{width:1440,height:1100}}),errors=[];let blockNextAdd=false,quotaMode='valid',submitted=0,current=null,items=[],online=false,transport=null,playback=null,remoteVolume=null,radioSettings={station:null,level:1,revision:0},radio=null,pollHandler=null,hourlyLimit=false;
  const song={videoId:'dQw4w9WgXcQ',title:'A requested song',artist:'Example artist'},second={videoId:'aaaaaaaaaaa',title:'Second request',artist:'Another artist'};
  await context.route('**/api/requests**',async route=>{
   const req=route.request(),url=new URL(req.url());let data;
@@ -15,17 +15,19 @@ export async function verifyRequests(browser){
     assert.equal(req.headers().authorization,undefined);
     if(['claim','takeover'].includes(body.action)){online=true;if(!current)current=items.shift()||null;}
     if(body.action==='release')online=false;
+    if(body.action==='heartbeat'&&body.radioSettingsRevision===radioSettings.revision)radioSettings.station=body.station;
     if(body.action==='heartbeat')radio=body.radio?{...body.radio,name:body.radio.station==='river'?'92.5 The River':'105.7 WROR'}:null;
     if(body.action==='heartbeat'&&body.id===current?.id)playback={...body.playback,at:Date.now()};
     if(body.action==='next'&&(current?.id||null)===(body.id||null))current=items.shift()||null;
    }else if(url.pathname.endsWith('/remote')){
     if(body.command==='skip'){current=items.shift()||null;transport=null;playback=null;}
+    else if(['station','radioLevel'].includes(body.command)){assert.equal(body.playerRevision,1);radioSettings={...radioSettings,revision:radioSettings.revision+1,...(body.command==='station'?{station:body.station,stationRevision:(radioSettings.stationRevision||0)+1}:{level:body.radioLevel})};}
     else if(body.command==='volume')remoteVolume={value:body.volume,revision:(remoteVolume?.revision||0)+1};
     else{const t=transport||{revision:0,paused:false,rewind:0};transport={revision:t.revision+1,paused:body.command==='pause'?true:body.command==='resume'?false:t.paused,rewind:t.rewind+(body.command==='rewind'?1:0)};}
    }else{assert.equal(req.headers().authorization,undefined);submitted++;items.push({...(!items.length&&!current?song:second),id:crypto.randomUUID(),canRemove:true});}
   }
   if(quotaMode==='error'&&req.method()==='GET'&&url.pathname==='/api/requests'){await route.fulfill({status:503,json:{error:'Temporary test interruption'}});return;}
-  await route.fulfill({json:data||{requester:quotaMode==='missing'?undefined:{used:submitted,limit:6,remaining:Math.max(0,6-submitted),consecutive:Math.min(3,submitted),consecutiveLimit:3,nextResetAt:submitted?Date.now()+3600000:null,serverTime:Date.now()},queueLimit:36,radio,current,items,transport,playback,remoteVolume,playerOnline:online,searchEnabled:true,playerEnabled:true}});
+  await route.fulfill({json:data||{requester:quotaMode==='missing'?undefined:{used:submitted,limit:6,remaining:Math.max(0,6-submitted),consecutive:Math.min(3,submitted),consecutiveLimit:3,nextResetAt:submitted?Date.now()+3600000:null,serverTime:Date.now()},queueLimit:36,playerRevision:1,radioSettings,radio,current,items,transport,playback,remoteVolume,playerOnline:online,searchEnabled:true,playerEnabled:true}});
  });
  await context.addInitScript(()=>{
   localStorage.setItem('signal:youtubeTrim','0.1');
@@ -70,8 +72,28 @@ export async function verifyRequests(browser){
  await portal.getByRole('button',{name:'Resume',exact:true}).click();await portal.waitForFunction(()=>!document.getElementById('request-pause').disabled);await board.clock.fastForward(5100);await board.waitForFunction(()=>window.testYT.state===1);
  await portal.getByRole('button',{name:'Restart current song',exact:true}).click();await portal.waitForFunction(()=>!document.getElementById('request-pause').disabled);await board.clock.fastForward(5100);await board.waitForFunction(()=>window.testYT.position===0);
  await portal.locator('#request-volume').fill('0.25');await portal.locator('#request-volume').dispatchEvent('change');await portal.waitForFunction(()=>!document.getElementById('request-volume').disabled);await board.clock.fastForward(5100);await board.waitForFunction(()=>window.testYT.volume===25);assert.equal(await board.evaluate(()=>JSON.parse(localStorage.getItem('signal:volume'))),.25);
+ await portal.locator('.request-radio-settings summary').click();
+ // Radio controls are available in the mobile full-player sheet during a request.
+ assert.equal(await portal.locator('#request-station').isVisible(),true);
+ const queuedBefore=structuredClone(items),playingBefore=current.id;
+ await portal.locator('#request-station').selectOption('wror');await portal.waitForFunction(()=>!document.getElementById('request-station').disabled);
+ await board.clock.fastForward(5100);await board.waitForFunction(()=>document.getElementById('station').value==='wror');
+ assert.equal(current.id,playingBefore);assert.deepEqual(items,queuedBefore);assert.equal(await board.evaluate(()=>window.testYT.volume),25);
+ assert.equal(await board.evaluate(()=>JSON.parse(localStorage.getItem('signal:radioFallback'))),'wror');
+ await board.locator('#station').selectOption('hjy'); // Local selection has not reached the next heartbeat yet.
+ await portal.locator('#request-radio-level').fill('0.5');await portal.locator('#request-radio-level').dispatchEvent('change');await portal.waitForFunction(()=>!document.getElementById('request-radio-level').disabled);
+ await board.clock.fastForward(5100);await board.clock.runFor(1200);assert.equal(await board.evaluate(()=>window.testYT.volume),25,'Balance leaves requested songs unchanged');assert.equal(await board.locator('#station').inputValue(),'hjy','Balance command cannot revert a newer local station choice');
+ await portal.screenshot({path:'artifacts/request-radio-controls-mobile.png',animations:'disabled'});
+ assert.deepEqual((await new AxeBuilder({page:portal}).withTags(['wcag2a','wcag2aa','wcag21aa']).analyze()).violations.map(v=>v.id),[]);
+ await portal.locator('#request-station').selectOption('river');await portal.waitForFunction(()=>!document.getElementById('request-station').disabled);await board.clock.fastForward(5100);
  await portal.getByRole('button',{name:'Skip',exact:false}).click();await portal.waitForFunction(()=>!document.getElementById('request-pause').disabled);await board.clock.fastForward(5100);await board.waitForFunction(()=>window.testYT.id==='aaaaaaaaaaa');assert.deepEqual(await board.evaluate(()=>window.testYT.starts),[0,0]);await board.evaluate(()=>window.testYT.finish());await board.waitForFunction(()=>!document.getElementById('audio').paused&&document.querySelector('.request-panel').hidden);assert.equal(current,null);assert.equal(await board.locator('#audio').evaluate(a=>a.paused),false);assert.equal(await board.locator('.request-panel').isVisible(),false);assert.equal(await board.locator('#station').inputValue(),'river');
  await board.clock.fastForward(5100);await portal.evaluate(()=>document.dispatchEvent(new Event('visibilitychange')));await portal.waitForFunction(()=>document.getElementById('request-online').textContent.includes('92.5 The River'));assert.equal(await board.locator('#station option:checked').innerText(),'92.5 The River');
+ await board.clock.runFor(1200);assert.equal(await board.locator('#audio').evaluate(a=>a.volume),.125,'Radio returns at calibrated balance');
+ await portal.locator('#request-station').selectOption('wror');await portal.waitForFunction(()=>!document.getElementById('request-station').disabled);await board.clock.fastForward(5100);await board.clock.runFor(1200);
+ assert.equal(await board.locator('#station').inputValue(),'wror');assert.equal(await board.locator('#audio').evaluate(a=>a.volume),.125);
+ await portal.locator('#request-station').selectOption('river');await portal.waitForFunction(()=>!document.getElementById('request-station').disabled);await board.clock.fastForward(5100);
+ await portal.reload();await portal.locator('#request-query').waitFor();await portal.locator('#mobile-player').click();await portal.locator('.request-radio-settings summary').click();assert.equal(await portal.locator('#request-radio-level').inputValue(),'0.5','Portal reload retains the saved balance');
+ await portal.locator('#request-radio-level').fill('1');await portal.locator('#request-radio-level').dispatchEvent('change');await portal.waitForFunction(()=>!document.getElementById('request-radio-level').disabled);await board.clock.fastForward(5100);await board.clock.runFor(1200);
  const radioStarts=await board.locator('#audio').evaluate(a=>a.testPlayCount);await board.clock.fastForward(5100);assert.equal(await board.locator('#audio').evaluate(a=>a.testPlayCount),radioStarts,'An empty queue does not repeatedly restart radio');
  await board.evaluate(()=>fetch('/api/requests',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url:'https://youtu.be/dQw4w9WgXcQ',requestId:crypto.randomUUID()})}));await board.clock.fastForward(11000);await board.waitForFunction(()=>window.testYT.id==='dQw4w9WgXcQ'&&document.getElementById('audio').paused);assert.equal(await board.locator('.request-panel').isVisible(),true);assert.equal(await board.locator('#station option:checked').innerText(),'Song Request');await board.locator('#station').selectOption('wror');assert.equal(await board.locator('#station option:checked').innerText(),'Song Request');assert.equal(current.videoId,'dQw4w9WgXcQ');
  await board.evaluate(()=>window.testYT.finish());await board.waitForFunction(()=>!document.getElementById('audio').paused);await board.locator('#radio-play').click();assert.equal(await board.locator('#audio').evaluate(a=>a.paused),true);await board.locator('#radio-play').click();await board.waitForFunction(()=>!document.getElementById('audio').paused);

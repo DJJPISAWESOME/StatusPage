@@ -89,3 +89,7 @@
 
 /* Keep anchored navigation and player motion comfortable for reduced-motion users. */
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*::before,*::after{animation:none!important;transition:none!important}}
+
+.request-radio-settings{grid-column:1/-1;margin-top:20px;font-size:12px;color:var(--muted)}.request-radio-settings select{display:block;width:100%;min-height:44px;margin:8px 0;padding:10px;border:1px solid #718a9a;border-radius:8px;background:#173449;color:#fff;font:inherit}.request-radio-settings p{font-size:11px;line-height:1.6;margin:8px 0 14px}.request-radio-settings input{min-height:36px}.request-radio-settings select:disabled{opacity:.55}
+
+.request-radio-settings summary{min-height:44px;display:list-item;align-content:center;color:var(--gold);cursor:pointer;font-weight:600}.request-radio-settings[open]{padding-bottom:8px}

@@ -1,6 +1,7 @@
 import {addRequestQR} from './request-qr.js';
 import {createAudioFades} from './audio-fades.js';
 import {requestAPI} from './request-api.js';
+import {STATIONS} from './stations.js';
 let youtubeReady;
 function loadYouTube(){
  if(globalThis.YT?.Player)return Promise.resolve(globalThis.YT);
@@ -12,11 +13,11 @@ function loadYouTube(){
  });return youtubeReady;
 }
 const node=(tag,text,cls)=>{const el=document.createElement(tag);el.textContent=text||'';if(cls)el.className=cls;return el;};
-export function initRequestRadio({container,audio,onState,startFallback,stopFallback,getRadio,onVolume=()=>{}}){
+export function initRequestRadio({container,audio,onState,startFallback,stopFallback,getRadio,onVolume=()=>{},onStation=()=>{}}){
  const panel=node('section','','request-panel');panel.hidden=true;panel.setAttribute('aria-label','YouTube request player');
  const media=node('div','','request-video');
  panel.append(media);container.prepend(panel);addRequestQR(container);
- let lastData={items:[],current:null},readyTimer,revision=0,appliedTransport=0,appliedRewind=0,appliedVolume=0;
+ let lastData={items:[],current:null},readyTimer,revision=0,appliedTransport=0,appliedRewind=0,appliedVolume=0,appliedRadioSettings=-1,appliedRemoteStation=-1;
  let selected=false,active=false,starting=false,player=null,ready=false,current=null,session=null,timer=null,generation=0,busy=false,loadedId=null,fallback=false;
  const fades=createAudioFades(audio,()=>ready?player:null);let transitioning=false;
  function status(text){onState(text,active);}
@@ -28,9 +29,17 @@ export function initRequestRadio({container,audio,onState,startFallback,stopFall
   if(ready&&fades.volume>0)player.unMute?.();
   onVolume(fades.volume);
  }
- const control=(action,id)=>requestAPI('/control',{action,session,id,radio:action==='heartbeat'&&fallback?getRadio?.():null,playback:action==='heartbeat'&&ready?{position:player.getCurrentTime?.()||0,duration:player.getDuration?.()||0,paused:player.getPlayerState?.()!==1,volume:fades.volume}:undefined});
+ const control=(action,id)=>requestAPI('/control',{action,session,id,station:getRadio?.().station,radioSettingsRevision:Math.max(0,appliedRadioSettings),radio:action==='heartbeat'&&fallback?getRadio?.():null,playback:action==='heartbeat'&&ready?{position:player.getCurrentTime?.()||0,duration:player.getDuration?.()||0,paused:player.getPlayerState?.()!==1,volume:fades.volume}:undefined});
  function sync(data){
   paint(data);current=data.current;
+  if(data.radioSettings&&data.radioSettings.revision!==appliedRadioSettings){
+   appliedRadioSettings=data.radioSettings.revision;fades.radioLevelTo(data.radioSettings.level);
+   const stationRevision=data.radioSettings.stationRevision||0;
+   if(stationRevision!==appliedRemoteStation){
+    appliedRemoteStation=stationRevision;
+    if(STATIONS.some(s=>s.id===data.radioSettings.station)&&getRadio?.().station!==data.radioSettings.station)onStation(data.radioSettings.station);
+   }
+  }
   if(data.remoteVolume&&data.remoteVolume.revision!==appliedVolume){appliedVolume=data.remoteVolume.revision;setVolume(data.remoteVolume.value);}
   if(transitioning)return;
   if(!current){
@@ -109,5 +118,5 @@ export function initRequestRadio({container,audio,onState,startFallback,stopFall
  // Moving an iframe between the dashboard and Board reloads it. Stop before that move.
  document.addEventListener('request-radio-layout',()=>{if(active||starting)void stop();});
  document.addEventListener('visibilitychange',()=>{if(document.hidden&&(active||starting))void stop();});
- return {radioConnecting(){if(fallback&&!transitioning)fades.set('radio',0);},radioPlaying(){if(fallback&&!transitioning)fades.fade('radio',1,1100);},setDuckGain(value){fades.duckTo(value);},setVolume,changeStation(){if(fallback){stopFallback();startFallback();}},setLevelGain(value){fades.levelTo(value);},get levelingState(){return {playing:active&&ready&&!fallback&&!transitioning&&player?.getPlayerState?.()===1&&fades.youtubeGain===1,volume:fades.volume,track:current?.id||null};},get requestPlaying(){return active&&!!current&&!fallback;},get fallbackActive(){return fallback;},get active(){return active||starting;},select(value){selected=value;panel.hidden=true;container.classList.toggle('request-mode',value);if(!value)void stop();else{status('Press Play to start radio and song requests.');void requestAPI().then(paint).catch(error=>{if(selected)status(error.message);});}},takeover(){if(!active&&!starting)void begin(true);},toggle(){if(active||starting)void stop();else void begin();}};
+ return {radioConnecting(){if(fallback&&!transitioning)fades.set('radio',0);},radioPlaying(){if(fallback&&!transitioning)fades.fade('radio',1,1100);},setDuckGain(value){fades.duckTo(value);},setVolume,changeStation(){if(fallback&&!transitioning){stopFallback();startFallback();}},setLevelGain(value){fades.levelTo(value);},get levelingState(){return {playing:active&&ready&&!fallback&&!transitioning&&player?.getPlayerState?.()===1&&fades.youtubeGain===1,volume:fades.volume,track:current?.id||null};},get requestPlaying(){return active&&!!current&&!fallback;},get fallbackActive(){return fallback;},get active(){return active||starting;},select(value){selected=value;panel.hidden=true;container.classList.toggle('request-mode',value);if(!value)void stop();else{status('Press Play to start radio and song requests.');void requestAPI().then(paint).catch(error=>{if(selected)status(error.message);});}},takeover(){if(!active&&!starting)void begin(true);},toggle(){if(active||starting)void stop();else void begin();}};
 }
