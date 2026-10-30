@@ -5,21 +5,34 @@ export async function verifyAudio(browser){
  const context=await browser.newContext();
  try{
  const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
- let current={id:'one',videoId:'aaaaaaaaaaa',title:'Loud fixture'},transport=null,remoteVolume=null;
+ let current={id:'one',videoId:'aaaaaaaaaaa',title:'Loud fixture'},transport=null,remoteVolume=null,advances=0;
  await page.route('**/api/requests**',route=>{
   const body=route.request().method()==='POST'?route.request().postDataJSON():{};
-  if(body.action==='next')current=null;
+  if(body.action==='next'){advances++;current=null;}
   return route.fulfill({json:{current,items:[],transport,remoteVolume,playerEnabled:true}});
  });
  await page.route('**/audio-fixture',route=>route.fulfill({contentType:'text/html',body:'<div id="container"></div><input id="volume"><audio id="audio"></audio><script type="module">import {initRequestRadio} from "/request-radio.js"; const audio=document.querySelector("audio");audio.volume=.4;window.fallbackStarts=0;window.radio=initRequestRadio({container:document.querySelector("#container"),audio,startFallback(){window.fallbackStarts++;window.fallback=true;radio.radioConnecting();radio.radioPlaying();},stopFallback(){window.fallback=false;},onState(text){window.statusText=text;}});radio.select(true);radio.toggle();</script>'}));
  await page.addInitScript(()=>{window.YT={Player:class{
-  constructor(mount,options){this.options=options;window.player=this;this.starts=[];setTimeout(()=>options.events.onReady({target:this}),0);}
+  constructor(mount,options){this.options=options;window.player=this;this.starts=[];this.muted=true;this.unmuteVolumes=[];setTimeout(()=>options.events.onReady({target:this}),0);}
+  unMute(){this.unmuteVolumes.push(this.volume);this.muted=false;}
   setVolume(n){this.volume=n;}getPlayerState(){return this.state;}getVideoData(){return {video_id:this.id};}
   loadVideoById(id){this.starts.push(this.volume);this.id=id;this.emit(1);}emit(state){this.state=state;this.options.events.onStateChange({data:state});}
   playVideo(){this.emit(1);}pauseVideo(){this.emit(2);}stopVideo(){this.state=0;}destroy(){}getCurrentTime(){return 0;}
  }};});
  await page.clock.install();await page.goto('http://127.0.0.1:4173/audio-fixture');await page.waitForFunction(()=>window.player?.id==='aaaaaaaaaaa');
  assert.deepEqual(await page.evaluate(()=>player.starts),[0]);await page.evaluate(()=>{player.emit(3);player.options.events.onAutoplayBlocked();});assert.equal(await page.evaluate(()=>player.volume),0);assert.match(await page.evaluate(()=>statusText),/allow playback/);await page.evaluate(()=>player.emit(1));await page.clock.runFor(1200);assert.equal(await page.evaluate(()=>player.volume),40);
+ // The iframe can restore a different output when playback resumes. The Board
+ // master must be reapplied even when its incoming fade has already finished.
+ await page.evaluate(()=>{player.emit(3);player.volume=9;player.emit(1);});
+ assert.equal(await page.evaluate(()=>player.volume),40,'Resume reapplies the settled Board volume');
+ assert.equal(await page.evaluate(()=>player.muted),false,'New requests clear inherited iframe mute');
+ assert.equal(await page.evaluate(()=>player.unmuteVolumes[0]),0,'Unmute occurs after setting output to zero');
+ await page.evaluate(()=>{radio.setLevelGain(.5);radio.setDuckGain(.25);player.volume=90;player.emit(1);});
+ assert.equal(await page.evaluate(()=>player.volume),5,'Repeated PLAYING preserves attenuation and alert ducking');
+ await page.evaluate(()=>{radio.setVolume(0);player.volume=90;player.emit(1);});
+ assert.equal(await page.evaluate(()=>player.volume),0,'Repeated PLAYING preserves Board mute');
+ await page.evaluate(()=>{radio.setLevelGain(1);radio.setDuckGain(1);player.muted=true;radio.setVolume(.4);});
+ assert.equal(await page.evaluate(()=>player.muted),false,'Explicit volume restores sound after native mute');
  current={id:'two',videoId:'bbbbbbbbbbb',title:'Quiet fixture'};await page.clock.runFor(4000);await page.waitForFunction(()=>player.id==='bbbbbbbbbbb');assert.deepEqual(await page.evaluate(()=>player.starts),[0,0]);
  await page.evaluate(()=>radio.setVolume(0));await page.clock.runFor(1200);assert.equal(await page.evaluate(()=>player.volume),0);
  await page.evaluate(()=>radio.setVolume(.6));assert.equal(await page.evaluate(()=>player.volume),60);
@@ -35,6 +48,13 @@ export async function verifyAudio(browser){
  const starts=await page.evaluate(()=>fallbackStarts);await page.clock.runFor(5100);assert.equal(await page.evaluate(()=>fallbackStarts),starts);
  transport=null;current={id:'four',videoId:'ddddddddddd',title:'Radio to video'};await page.clock.runFor(5100);await page.clock.runFor(200);await page.evaluate(()=>{radio.radioConnecting();radio.radioPlaying();});await page.clock.runFor(2000);await page.waitForFunction(()=>player.id==='ddddddddddd');await page.clock.runFor(1200);assert.equal(await page.evaluate(()=>player.volume),20);assert.equal(await page.evaluate(()=>fallback),false);assert.equal(await page.evaluate(()=>document.querySelector('audio').volume),0);assert.deepEqual(await page.evaluate(()=>player.starts),[0,0,0,0]);
  await page.evaluate(()=>player.options.events.onError({data:150}));await page.waitForFunction(()=>fallback);await page.clock.runFor(2200);
+ const returned=await page.evaluate(()=>fallbackStarts);
+ const advanced=advances;
+ await page.evaluate(()=>{player.emit(1);player.emit(0);player.options.events.onError({data:150});});
+ await page.clock.runFor(1200);
+ assert.equal(await page.evaluate(()=>fallbackStarts),returned,'Late video callbacks cannot restart fallback');
+ assert.equal(await page.evaluate(()=>player.volume),0,'Late video callbacks cannot revive request output');
+ assert.equal(advances,advanced,'Late video errors cannot advance the queue during radio playback');
  await page.evaluate(()=>{radio.toggle();radio.toggle();});await page.clock.runFor(1200);await page.waitForFunction(()=>fallback);const simulated=await page.evaluate(async()=>{const {levelGain}=await import('/audio-leveler.js');let gain=.75;for(let i=0;i<100;i++)gain=levelGain(gain,.6*.4*gain,.4);const loud=gain;for(let i=0;i<600;i++)gain=levelGain(gain,.04*.4*gain,.4);return {loud,quiet:gain};});assert.ok(simulated.loud<.45);assert.equal(simulated.quiet,1);assert.deepEqual(errors,[]);
  console.log('Chrome audio contract passed (muted, mocked YouTube): zero-volume starts, four videos, mute/volume during ramps, pause/resume, remote controls, radio→video→radio, unavailable-video fallback, stop/reconnect.');
  }finally{await context.close();}

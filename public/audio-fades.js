@@ -12,5 +12,5 @@ export function createAudioFades(audio,getPlayer){
   tick();
  }
  // Media volume is an output, never the source of the listener's master setting.
- return {get volume(){return target;},get youtubeGain(){return youtubeGain;},get fadingYoutube(){return timers.has('youtube');},duckTo(value){duckGain=clamp(value);apply();},holdYoutube(){cancel('youtube');},levelTo(value){levelGain=clamp(value,.2);apply();},volumeTo(value){target=clamp(value);apply();},set,fade,reset(){cancel('radio');cancel('youtube');radioGain=youtubeGain=1;apply();}};
+ return {get volume(){return target;},get youtubeGain(){return youtubeGain;},get fadingYoutube(){return timers.has('youtube');},refresh:apply,duckTo(value){duckGain=clamp(value);apply();},holdYoutube(){cancel('youtube');},levelTo(value){levelGain=clamp(value,.2);apply();},volumeTo(value){target=clamp(value);apply();},set,fade,reset(){cancel('radio');cancel('youtube');radioGain=youtubeGain=1;apply();}};
 }
