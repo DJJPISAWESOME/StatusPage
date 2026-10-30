@@ -43,11 +43,29 @@ export function parseYoutubeSearch(html){
   }
   return {results};
 }
-export async function searchYoutube(query,fetcher=fetch,cache=globalThis.caches?.default){
+export async function searchYoutube(query,fetcher=fetch,cache=globalThis.caches?.default,apiKey=''){
   const q=String(query||'').trim();if(q.length<2||q.length>100)throw new HttpError(400,'Search using 2–100 characters.');
-  return cachedJSON(`request-public-search-v1/${encodeURIComponent(q.toLowerCase())}`,600,async()=>{
-    const params=new URLSearchParams({search_query:q,hl:'en',gl:'US'});
-    try{return parseYoutubeSearch(await upstream(`https://www.youtube.com/results?${params}`,{fetcher,accept:'text/html',limit:3*1024*1024,headers:{'Accept-Language':'en-US,en;q=0.9'}}));}
+  const key=typeof apiKey==='string'?apiKey.trim():'';
+  return cachedJSON(`request-${key?'data':'public'}-search-v1/${encodeURIComponent(q.toLowerCase())}`,600,async()=>{
+    try{
+      if(key){
+        const params=new URLSearchParams({part:'snippet',type:'video',videoEmbeddable:'true',videoSyndicated:'true',maxResults:'8',q,relevanceLanguage:'en',regionCode:'US'});
+        // Use the documented API when configured. Keep its key out of URLs,
+        // cache keys, browser responses, and public-page fallback requests.
+        const data=JSON.parse(await upstream(`https://www.googleapis.com/youtube/v3/search?${params}`,{fetcher,limit:128*1024,headers:{'X-Goog-Api-Key':key}}));
+        if(!Array.isArray(data.items))throw Error('Search response unavailable');
+        const results=[],seen=new Set();
+        for(const item of data.items){
+          const videoId=item?.id?.videoId,title=item?.snippet?.title,artist=item?.snippet?.channelTitle;
+          if(!/^[\w-]{11}$/.test(videoId||'')||typeof title!=='string'||!title||seen.has(videoId))continue;
+          seen.add(videoId);results.push({videoId,title:title.slice(0,200),artist:typeof artist==='string'?artist.slice(0,120):'YouTube'});
+          if(results.length===8)break;
+        }
+        return {results};
+      }
+      const params=new URLSearchParams({search_query:q,hl:'en',gl:'US'});
+      return parseYoutubeSearch(await upstream(`https://www.youtube.com/results?${params}`,{fetcher,accept:'text/html',limit:3*1024*1024,headers:{'Accept-Language':'en-US,en;q=0.9'}}));
+    }
     catch{throw new HttpError(503,'YouTube search is temporarily unavailable. Open Search on YouTube, then paste a video link here.');}
   },cache);
 }
@@ -65,7 +83,7 @@ function requesterQuota(state,client,now=Date.now()){
 export async function requestRoute(request,env){
   const url=new URL(request.url),path=url.pathname;
   if(!['/api/requests','/api/requests/search','/api/requests/control','/api/requests/remote','/api/requests/remove'].includes(path))throw new HttpError(404,'Not found');
-  if(request.method==='GET'&&path==='/api/requests/search')return json(await searchYoutube(url.searchParams.get('q')));
+  if(request.method==='GET'&&path==='/api/requests/search')return json(await searchYoutube(url.searchParams.get('q'),fetch,globalThis.caches?.default,env.YOUTUBE_API_KEY));
   const hub=env.STATUS_HUB.get(env.STATUS_HUB.idFromName('request-radio-v1'));
   if(request.method==='GET'&&path==='/api/requests'){
     const existing=requesterCookie(request),client=existing||crypto.randomUUID();
