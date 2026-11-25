@@ -5,6 +5,7 @@ import { RadioRecovery } from './radio-player.js';
 import { STATIONS } from './stations.js';
 import { initTV } from './tv.js';
 import { acceptsSnapshot } from './status-snapshot.js';
+import { weatherIcon, weatherInfo } from './weather-icons.js';
 const $ = id => document.getElementById(id);
 const store = { get(key, fallback = null) { try { const value = localStorage.getItem(`signal:${key}`); return value === null ? fallback : JSON.parse(value); } catch { return fallback; } }, set(key, value) { try { localStorage.setItem(`signal:${key}`, JSON.stringify(value)); } catch {} }, delete(key) { try { localStorage.removeItem(`signal:${key}`); } catch {} } };
 const state = { services: [], history: [], filter: 'all', expanded: false, search: '', favorites: new Set(Array.isArray(store.get('favorites', [])) ? store.get('favorites', []) : []), place: null, forecast: null, socket: null, reconnect: null, fallback: null, attempts: 0, weatherVersion: 0 };
@@ -22,10 +23,12 @@ function statusLabel(s) { return effective(s) !== s.status ? 'Stale · unconfirm
 function renderSummary() {
   const count = key => state.services.filter(s => effective(s) === key).length;
   const issues = count('outage') + count('degraded') + count('maintenance'); const unknown = count('unknown'); const healthy = count('operational');
+  const allHidden = !state.services.length && state.rawSnapshot?.services.length > 0;
   $('healthy-count').textContent = healthy; $('issue-count').textContent = issues; $('unknown-count').textContent = unknown;
-  $('health-title').textContent = !state.services.length ? 'Getting the picture.' : issues ? `${issues} signal${issues === 1 ? '' : 's'} to watch.` : unknown ? 'Quiet, with a few unknowns.' : 'Everything is looking good.';
-  $('health-description').textContent = `${healthy} operational · ${issues} reporting issues or maintenance · ${unknown} unconfirmed. Open a service for context.`;
-  $('health-badge').textContent = !state.services.length ? 'Awaiting data' : issues ? 'Attention needed' : unknown ? 'Partial visibility' : 'All operational';
+  $('health-title').textContent = allHidden ? 'No services selected.' : !state.services.length ? 'Getting the picture.' : issues ? `${issues} signal${issues === 1 ? '' : 's'} to watch.` : unknown ? 'Some services are unconfirmed.' : 'Everything is looking good.';
+  $('health-description').textContent = allHidden ? 'Choose services in dashboard settings to see their status here.' : state.services.length ? `${healthy} operational · ${issues} reporting issues or maintenance · ${unknown} unconfirmed. Open a service for context.` : 'Waiting for the first service update.';
+  $('health-badge').textContent = allHidden ? 'No services shown' : !state.services.length ? 'Awaiting data' : issues ? 'Attention needed' : unknown ? 'Partial visibility' : 'All operational';
+  $('health-badge').closest('.health-panel').dataset.tone = count('outage') ? 'outage' : issues ? 'attention' : unknown || !healthy ? 'neutral' : 'healthy';
   $('nav-count').textContent = state.services.length; $('service-total').textContent = state.services.length;
 }
 function renderServices() {
@@ -47,8 +50,38 @@ function renderServices() {
     star.addEventListener('click', () => { state.favorites.has(s.id) ? state.favorites.delete(s.id) : state.favorites.add(s.id); store.set('favorites', [...state.favorites]); renderServices(); });
     card.append(button, star); return card;
   });
-  replace('service-grid', ...(cards.length ? cards : [el('p', 'empty', 'No services match this view. Try another filter.')]));
-  if (focus) document.querySelector(`[data-focus="${CSS.escape(focus)}"]`)?.focus({ preventScroll: true });
+  $('service-results-count').textContent = !state.rawSnapshot ? '' : cards.length < rows.length ? `Showing ${cards.length} of ${rows.length}` : `${rows.length} service${rows.length === 1 ? '' : 's'}`;
+  if (cards.length) {
+    replace('service-grid', ...cards);
+  } else {
+    let title = 'Waiting for service data';
+    let hint = 'The directory will appear when the first update arrives.';
+    let action;
+    if (state.rawSnapshot?.services.length && !state.services.length) {
+      title = 'All services are hidden';
+      hint = 'Choose which services appear on your dashboard.';
+      action = el('button', 'outline-button', 'Open settings');
+      action.onclick = () => $('settings-button').click();
+    } else if (state.services.length) {
+      const favorites = state.filter === 'favorites' && !state.search;
+      title = state.search ? 'No matching services' : favorites ? 'No starred services yet' : state.filter === 'attention' ? 'No services need attention' : 'No services in this view';
+      hint = favorites ? 'Use the star beside a service to keep it here.' : state.search ? 'Try a different name or view the full directory.' : 'You can still browse the full directory.';
+      action = el('button', 'outline-button', 'View all services');
+      action.onclick = () => {
+        $('service-search').value = state.search = '';
+        document.querySelector('[data-filter="all"]').click();
+        $('service-search').focus({ preventScroll: true });
+      };
+    }
+    const empty = el('div', 'directory-empty');
+    empty.append(el('strong', '', title), el('p', '', hint));
+    if (action) empty.append(action);
+    replace('service-grid', empty);
+  }
+  if (focus) {
+    const next = document.querySelector(`[data-focus="${CSS.escape(focus)}"]`) || document.querySelector('[data-filter][aria-pressed="true"]');
+    next?.focus({ preventScroll: true });
+  }
 }
 function showService(id) {
   const s = state.services.find(x => x.id === id); if (!s) return;
@@ -88,11 +121,11 @@ function connect() {
   });
   socket.addEventListener('error', () => socket.close());
 }
-function condition(code) { if (code === 0) return ['Clear sky', '☀']; if ([1, 2, 3].includes(code)) return ['Partly to mostly cloudy', '◒']; if ([45, 48].includes(code)) return ['Fog', '≋']; if (code >= 95) return ['Thunderstorms', 'ϟ']; if ([71, 73, 75, 77, 85, 86].includes(code)) return ['Snow', '❄']; if (Number.isFinite(code)) return ['Rain or showers', '☂']; return ['Conditions unavailable', '—']; }
 function renderWeather() {
   const w = state.forecast; if (!w) return;
   const c = w.conditions.current || {};
-  $('temperature').textContent = num(c.temperature_2m); $('weather-condition').textContent = condition(c.weather_code)[0]; $('feels-like').textContent = num(c.apparent_temperature, '°'); $('wind').textContent = num(c.wind_speed_10m, ' mph'); $('humidity').textContent = num(c.relative_humidity_2m, '%');
+  $('temperature').textContent = num(c.temperature_2m); $('weather-condition').textContent = weatherInfo(c.weather_code).label; $('feels-like').textContent = num(c.apparent_temperature, '°'); $('wind').textContent = num(c.wind_speed_10m, ' mph'); $('humidity').textContent = num(c.relative_humidity_2m, '%');
+  replace('weather-symbol', weatherIcon(c.weather_code, 'dashboard-weather-icon'));
   $('weather-freshness').textContent = w.conditions.error || `Model estimate · fetched ${age(w.conditions.fetchedAt)}`;
   replace('weather-alerts');
   if (!w.alerts.available) $('weather-alerts').append(el('p', 'fine-print', 'NWS alerts unavailable. This does not mean there are no alerts. Check weather.gov for official guidance.'));
@@ -100,7 +133,7 @@ function renderWeather() {
   const days = w.conditions.daily;
   replace('daily-forecast', ...(days?.time || []).slice(0, 5).map((stamp, i) => {
     const day = el('div', 'daily-row'); const range = el('span', '', num(days.temperature_2m_max?.[i], '°')); range.append(el('small', '', num(days.temperature_2m_min?.[i], '°')));
-    day.append(el('span', '', i === 0 ? 'Today' : new Date(stamp * 1000).toLocaleDateString([], { weekday: 'short', timeZone: w.conditions.timezone })), el('span', '', condition(days.weather_code?.[i])[1]), el('span', '', num(days.precipitation_probability_max?.[i], '% rain')), range); return day;
+    day.append(el('span', '', i === 0 ? 'Today' : new Date(stamp * 1000).toLocaleDateString([], { weekday: 'short', timeZone: w.conditions.timezone })), weatherIcon(days.weather_code?.[i], 'dashboard-weather-icon'), el('span', '', num(days.precipitation_probability_max?.[i], '% precip.')), range); return day;
   }));
   if (!days?.time?.length) replace('daily-forecast', el('p', 'empty', 'Daily forecast unavailable.'));
   renderChart(); enhancements.weatherDetails(w,state.place);
@@ -125,48 +158,97 @@ function renderChart() {
   for(let t=start;t<=end;t+=3*3600){const row=el('tr');row.append(el('th','',new Date(t*1000).toLocaleString([],{weekday:'short',hour:'numeric',timeZone:state.forecast.conditions.timezone||state.place.timezone})));for(const m of series)row.append(el('td','',num(m.points.find(p=>p[0]===t)?.[1],'°F')));body.append(row);}table.append(body);replace('forecast-table',table);
 }
 function validPlace(p) { return p && typeof p.latitude === 'number' && Number.isFinite(p.latitude) && Math.abs(p.latitude)<=90 && typeof p.longitude === 'number' && Number.isFinite(p.longitude) && Math.abs(p.longitude)<=180 && typeof p.label === 'string'; }
-async function choosePlace(place, persist = false) {
+let locationChoice = 0;
+async function choosePlace(place, { save = false, closeDialog = true } = {}) {
   if (!validPlace(place)) return;
-  state.place = { ...place, latitude: Math.round(place.latitude*100)/100, longitude: Math.round(place.longitude*100)/100 };
+  ++locationChoice;
+  const next = { ...place, latitude: Math.round(place.latitude*100)/100, longitude: Math.round(place.longitude*100)/100 };
+  if (next.latitude !== state.place?.latitude || next.longitude !== state.place?.longitude) clearWeather(true);
+  state.place = next;
   tv?.update({ place: state.place });
-  if (persist) store.set('place',state.place);
+  if (save) store.set('place',state.place);
+  else if (place.source !== 'manual') store.delete('place');
   $('location-name').textContent=place.label; $('weather-title').textContent=place.label;
   $('location-source').textContent=({cloudflare:'Approximate IP location · Cloudflare',manual:'Your saved location',device:'Device location · chosen by you',fallback:'Rhode Island default · IP location unavailable'})[place.source] || 'Selected location';
-  $('location-dialog').close(); await loadWeather();
+  if (closeDialog) $('location-dialog').close();
+  await loadWeather();
+}
+function clearWeather(loading) {
+  state.forecast = null;
+  document.getElementById('local-outlook')?.remove();
+  for (const id of ['temperature', 'feels-like', 'wind', 'humidity']) $(id).textContent = '—';
+  replace('weather-symbol');
+  $('weather-condition').textContent = loading ? 'Updating forecast…' : 'Weather unavailable';
+  $('weather-freshness').textContent = loading ? 'Waiting for local weather' : 'Could not retrieve forecast';
+  const message = loading ? 'Loading forecast…' : 'Forecast unavailable.';
+  for (const id of ['forecast-chart', 'daily-forecast']) replace(id, el('p', 'empty', message));
+  replace('model-notes'); replace('forecast-table');
+  replace('weather-alerts', el('p', 'fine-print', loading ? 'Checking local weather alerts…' : 'NWS alerts could not be checked.'));
+  $('weather-retry').hidden = loading;
 }
 async function loadWeather() {
-  if(!state.place)return; const version=++state.weatherVersion; const {latitude,longitude}=state.place;
-  $('weather-condition').textContent='Updating forecast…';
-  try { const data=await api(`/api/weather?lat=${latitude}&lon=${longitude}`);if(version!==state.weatherVersion)return;state.forecast=data;tv?.update({ forecast:data });renderWeather(); }
-  catch { if(version!==state.weatherVersion)return; state.forecast=null;tv?.update({ forecast:null });document.getElementById('local-outlook')?.remove();$('temperature').textContent='—';$('weather-condition').textContent='Weather unavailable';$('weather-freshness').textContent='Could not retrieve forecast';for(const id of ['feels-like','wind','humidity'])$(id).textContent='—';replace('forecast-chart',el('p','empty','Forecast unavailable. Retry by selecting your location.'));replace('model-notes');replace('forecast-table');replace('daily-forecast',el('p','empty','Forecast unavailable.'));replace('weather-alerts',el('p','fine-print','NWS alerts could not be checked.')); }
+  if (!state.place) return;
+  const version = ++state.weatherVersion;
+  const { latitude, longitude } = state.place;
+  const retry = $('weather-retry');
+  retry.disabled = true;
+  retry.textContent = 'Updating…';
+  try {
+    const data = await api(`/api/weather?lat=${latitude}&lon=${longitude}`);
+    if (version !== state.weatherVersion) return;
+    state.forecast = data;
+    renderWeather();
+    tv?.update({ forecast: data });
+    retry.hidden = !data.conditions.error;
+  } catch {
+    if (version === state.weatherVersion) clearWeather(false);
+  } finally {
+    if (version === state.weatherVersion) {
+      retry.disabled = false;
+      retry.textContent = 'Retry weather';
+    }
+  }
 }
-async function useIP() { store.delete('place'); try { await choosePlace(await api('/api/location')); } catch { await choosePlace({latitude:41.82,longitude:-71.41,label:'Providence, RI',source:'fallback',timezone:'America/New_York'}); } }
+async function useIP(closeDialog = true) {
+  const choice = ++locationChoice;
+  let place;
+  try { place = await api('/api/location'); }
+  catch { place = {latitude:41.82,longitude:-71.41,label:'Providence, RI',source:'fallback',timezone:'America/New_York'}; }
+  if (choice === locationChoice) await choosePlace(place, { closeDialog });
+}
+$('weather-retry').addEventListener('click', loadWeather);
 $('location-button').addEventListener('click',()=>$('location-dialog').showModal());
-$('use-ri').addEventListener('click',()=>choosePlace({latitude:41.82,longitude:-71.41,label:'Providence, RI',source:'manual',timezone:'America/New_York'},true));
-$('use-ip').addEventListener('click',useIP);
-$('use-gps').addEventListener('click',()=>{if(!navigator.geolocation){replace('place-results',el('p','fine-print','Device location is unavailable. Choose a city.'));return;}navigator.geolocation.getCurrentPosition(pos=>{store.delete('place');choosePlace({latitude:pos.coords.latitude,longitude:pos.coords.longitude,label:'Device location',source:'device',timezone:Intl.DateTimeFormat().resolvedOptions().timeZone});},()=>replace('place-results',el('p','fine-print','Device location was unavailable or permission was denied. Your current location choice is unchanged.')),{timeout:10000,maximumAge:0});});
-$('place-form').addEventListener('submit',async event=>{event.preventDefault();const button=event.target.querySelector('button');button.disabled=true;replace('place-results',el('p','fine-print','Searching…'));try{const d=await api(`/api/places?q=${encodeURIComponent($('place-query').value.trim())}`);replace('place-results',...d.results.map(p=>{const b=el('button','place-result',p.label);b.addEventListener('click',()=>choosePlace(p,true));return b;}));if(!d.results.length)replace('place-results',el('p','fine-print','No locations found. Try a nearby city.'));}catch(error){replace('place-results',el('p','fine-print',error.message));}finally{button.disabled=false;}});
+$('use-ri').addEventListener('click',()=>choosePlace({latitude:41.82,longitude:-71.41,label:'Providence, RI',source:'manual',timezone:'America/New_York'}, { save: true }));
+$('use-ip').addEventListener('click', () => useIP());
+$('use-gps').addEventListener('click', () => {
+  if (!navigator.geolocation) { replace('place-results', el('p','fine-print','Device location is unavailable. Choose a city.')); return; }
+  const choice = ++locationChoice;
+  navigator.geolocation.getCurrentPosition(pos => {
+    if (choice === locationChoice) choosePlace({latitude:pos.coords.latitude,longitude:pos.coords.longitude,label:'Device location',source:'device',timezone:Intl.DateTimeFormat().resolvedOptions().timeZone});
+  }, () => {
+    if (choice === locationChoice) replace('place-results', el('p','fine-print','Device location was unavailable or permission was denied.'));
+  }, {timeout:10000, maximumAge:0});
+});
+$('place-form').addEventListener('submit',async event=>{event.preventDefault();const button=event.target.querySelector('button');button.disabled=true;replace('place-results',el('p','fine-print','Searching…'));try{const d=await api(`/api/places?q=${encodeURIComponent($('place-query').value.trim())}`);replace('place-results',...d.results.map(p=>{const b=el('button','place-result',p.label);b.addEventListener('click',()=>choosePlace(p,{ save: true }));return b;}));if(!d.results.length)replace('place-results',el('p','fine-print','No locations found. Try a nearby city.'));}catch(error){replace('place-results',el('p','fine-print',error.message));}finally{button.disabled=false;}});
 $('services-more').addEventListener('click',()=>{state.expanded=!state.expanded;renderServices();});
 $('service-search').addEventListener('input',e=>{state.search=e.target.value.trim().toLowerCase();renderServices();});
 for(const b of document.querySelectorAll('[data-filter]'))b.addEventListener('click',()=>{state.filter=b.dataset.filter;for(const other of document.querySelectorAll('[data-filter]'))other.setAttribute('aria-pressed',String(other===b));renderServices();});
 const savedTheme=store.get('theme');document.documentElement.dataset.theme=['light','dark'].includes(savedTheme)?savedTheme:matchMedia('(prefers-color-scheme: light)').matches?'light':'dark';
 $('theme').addEventListener('click',()=>{const theme=document.documentElement.dataset.theme==='dark'?'light':'dark';document.documentElement.dataset.theme=theme;store.set('theme',theme);});
-// The theme control remains reachable on compact layouts through a keyboard shortcut-free button.
-const mobileTheme=$('theme').cloneNode(true);mobileTheme.id='mobile-theme';mobileTheme.className='outline-button';mobileTheme.textContent='◐';mobileTheme.setAttribute('aria-label','Switch theme');mobileTheme.addEventListener('click',()=>$('theme').click());document.querySelector('.top-actions').prepend(mobileTheme);
-function setBoard(on){document.dispatchEvent(new Event('request-radio-layout'));document.body.classList.toggle('board-mode',on);renderServices();$('board').setAttribute('aria-pressed',String(on));$('board').textContent=on?'↙ Exit board':'↗ Board view';if(on)tv.start();else tv.stop();}
+$('mobile-theme').addEventListener('click',()=>$('theme').click());
+function setBoard(on){document.dispatchEvent(new Event('request-radio-layout'));document.body.classList.toggle('board-mode',on);renderServices();$('board').setAttribute('aria-pressed',String(on));$('board-label').textContent=on?'Exit board':'Board view';if(on)tv.start();else tv.stop();}
 $('board').addEventListener('click',async()=>{const on=!document.body.classList.contains('board-mode');setBoard(on);if(on){try{await document.documentElement.requestFullscreen();}catch{}}else if(document.fullscreenElement){try{await document.exitFullscreen();}catch{}}});
 $('tv-exit').addEventListener('click',async()=>{setBoard(false);if(document.fullscreenElement){try{await document.exitFullscreen();}catch{}}});
 document.addEventListener('fullscreenchange',()=>{if(!document.fullscreenElement&&document.body.classList.contains('board-mode')&&!document.body.dataset.audioCapturePrompt)setBoard(false);});
-for(const a of document.querySelectorAll('.nav-link'))a.addEventListener('click',()=>{document.querySelector('.nav-link.selected')?.classList.remove('selected');a.classList.add('selected');});
 async function loadNetwork(){try{const d=await api('/api/network');tv?.update({network:d});replace('network-details',...[['Cloudflare edge',d.colo],['Network',d.asOrganization],['Protocol',d.protocol],['Encryption',d.tls]].map(([name,value])=>{const row=el('div','network-detail');row.append(el('span','',name),el('strong','',value||'Not available locally'));return row;}));}catch{replace('network-details',el('p','muted','Connection information unavailable.'));}}
 $('test-connection').addEventListener('click',async()=>{const b=$('test-connection');b.disabled=true;$('latency-result').textContent='Checking connection…';try{const samples=[];for(let i=0;i<5;i++){const start=performance.now();await api(`/api/ping?sample=${Date.now()}`);samples.push(performance.now()-start);}samples.sort((a,b)=>a-b);$('latency-result').textContent=`${Math.round(samples[2])} ms median · 5 requests · includes server time`;}catch{$('latency-result').textContent='Connection check failed. Try again.';}finally{b.disabled=false;}});
 const audio=$('audio');for(const s of STATIONS){const o=el('option','',s.name);o.value=s.id;$('station').append(o);}const savedStation=store.get('station','river');$('station').value=STATIONS.some(s=>s.id===savedStation)?savedStation:store.get('radioFallback','river');if(!$('station').value)$('station').value='river';
 function selectedStation(){return STATIONS.find(s=>s.id===$('station').value)||STATIONS[0];}
 let radioTrack=null,metadataBusy=false;
 function paintStation(){for(const option of $('station').options)option.textContent=option.value===selectedStation().id&&requestRadio.requestPlaying?'Song Request':STATIONS.find(s=>s.id===option.value).name;}
-function setStation(){const s=selectedStation();radioTrack=null;store.set('radioFallback',s.id);store.set('station',s.id);$('station-site').href=s.site;$('station-site').textContent='Station ↗';document.querySelector('.radio-art').replaceChildren(document.createTextNode(s.id==='river'?'r':'♫'),el('span','',s.frequency));requestRadio.changeStation();paintStation();if(!requestRadio.active)$('radio-state').textContent='Ready when you are';}
+function setStation(){const s=selectedStation();radioTrack=null;store.set('radioFallback',s.id);store.set('station',s.id);$('station-site').href=s.site;document.querySelector('.radio-art').replaceChildren(document.createTextNode(s.id==='river'?'r':'♫'),el('span','',s.frequency));requestRadio.changeStation();paintStation();if(!requestRadio.active)$('radio-state').textContent='Ready when you are';}
 const recovery=new RadioRecovery(audio,message=>{$('radio-state').textContent=message;document.querySelector('.radio-bar').dataset.playing=String(recovery.active);},{onConnecting:()=>requestRadio.radioConnecting(),onPlaying:()=>requestRadio.radioPlaying()});
-const requestRadio=initRequestRadio({onStation:id=>{$('station').value=id;setStation();},onVolume:value=>{store.set('volume',value);$('volume').value=value;},container:document.querySelector('.radio-bar'),audio,getRadio:()=>({station:selectedStation().id,title:radioTrack?.title||null,artist:radioTrack?.artist||null,song:radioTrack?.song||null,playing:!audio.paused}),startFallback:()=>{const s=selectedStation();paintStation();recovery.start(s);},stopFallback:()=>recovery.stop(),onState:(message,playing)=>{$('tv-queue-here').disabled=playing;$('radio-state').textContent=message;$('radio-play').textContent=playing?'Ⅱ':'▶';$('radio-play').setAttribute('aria-label',playing?'Stop playback':'Play radio and song requests');paintStation();}});
+const requestRadio=initRequestRadio({onStation:id=>{$('station').value=id;setStation();},onVolume:value=>{store.set('volume',value);$('volume').value=value;},container:document.querySelector('.radio-bar'),audio,getRadio:()=>({station:selectedStation().id,title:radioTrack?.title||null,artist:radioTrack?.artist||null,song:radioTrack?.song||null,playing:!audio.paused}),startFallback:()=>{const s=selectedStation();paintStation();recovery.start(s);},stopFallback:()=>recovery.stop(),onState:(message,playing)=>{$('tv-queue-here').disabled=playing;$('radio-state').textContent=message;$('radio-play').querySelector('use').setAttribute('href',playing?'/ui-icons.svg#stop':'/ui-icons.svg#play');$('radio-play').setAttribute('aria-label',playing?'Stop playback':'Play radio and song requests');paintStation();}});
 initAudioLeveler({button:$('tv-level-audio'),requestRadio});
 $('tv-queue-here').addEventListener('click',()=>requestRadio.takeover());
 $('radio-play').addEventListener('click',()=>requestRadio.toggle());
@@ -188,4 +270,4 @@ window.addEventListener('offline',()=>notify('You are offline. Displayed data ma
 window.addEventListener('online',()=>{notify('');loadStatus();connect();loadWeather();});
 const enhancements=initEnhancements({api,onChange:()=>{if(state.rawSnapshot)receive(state.rawSnapshot);connect();}});
 const tv=initTV({api,setAudioDuck:value=>requestRadio.setDuckGain(value)});
-loadStatus();connect();loadNetwork();const savedPlace=store.get('place');if(validPlace(savedPlace)&&savedPlace.source==='manual')choosePlace(savedPlace);else useIP();
+loadStatus();connect();loadNetwork();const savedPlace=store.get('place');if(validPlace(savedPlace)&&savedPlace.source==='manual')choosePlace(savedPlace,{closeDialog:false});else useIP(false);

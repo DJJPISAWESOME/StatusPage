@@ -68,7 +68,9 @@ export function initTV({ api, setAudioDuck }) {
     $('tv-overview').textContent = list.length ? `${list.filter(s => status(s) === 'operational').length} / ${list.length} services operational` : 'Services · connecting';
     $('tv-local-weather').textContent = forecast?.conditions?.current ? `${number(forecast.conditions.current.temperature_2m)}°F · ${condition(forecast.conditions.current.weather_code)}` : 'Weather · unavailable';
   }
-  function available() { return SCENES.filter(scene => scene.id !== 'power' || powerTest || power?.available && power.active); }
+  const powerVisible = () => powerTest || !!(power?.available && power.active);
+  function available() { return SCENES.filter(scene => scene.id !== 'power' || powerVisible()); }
+  function syncPowerChannel() { document.querySelector('[data-tv-channel="power"]').hidden = !powerVisible(); }
   function current() { return available().find(scene => scene.id === sceneId) || available()[0]; }
   const status = boardStatus;
   function title(text, subtext) { delete screen.dataset.conditions; const heading=node('div','tv-heading');heading.append(node('h1','tv-title',text),node('p','tv-subtitle',subtext));content.replaceChildren(heading); }
@@ -319,7 +321,8 @@ export function initTV({ api, setAudioDuck }) {
     const scene = current();
     ++probeVersion; networkPage=0;networkDeadline=Date.now()+45000;reportDeadline=Date.now()+15000;weatherPage = 0; weatherDeadline = Date.now() + channelStep('weather');
     screen.dataset.scene = scene.id;
-    document.querySelectorAll('[data-tv-channel]').forEach(el => { el.classList.toggle('selected',el.dataset.tvChannel===scene.id); el.hidden=el.dataset.tvChannel==='power'&&!powerTest&&!power?.active; });
+    document.querySelectorAll('[data-tv-channel]').forEach(el => el.classList.toggle('selected',el.dataset.tvChannel===scene.id));
+    syncPowerChannel();
     servicePage = 0; serviceTimelineSlot=0; ribbon();
     deadline = Date.now() + scene.ms;
     buildChannelProgress();
@@ -337,8 +340,14 @@ export function initTV({ api, setAudioDuck }) {
       const data = await api(`/api/power?lat=${WARREN.latitude}&lon=${WARREN.longitude}&region=RI`);
       if (!active || version !== powerVersion) return;
       power = data;
-      if (sceneId === 'power' && !powerTest && !data.active) { sceneId = 'network'; draw(); } else if(sceneId==='power') outage();
-    } catch { if (version === powerVersion) { power = null; if (active && sceneId === 'power') { if(powerTest)outage();else{sceneId = 'network'; draw();} } } }
+    } catch {
+      if (!active || version !== powerVersion) return;
+      power = null;
+    }
+    syncPowerChannel();
+    if (sceneId !== 'power') return;
+    if (powerVisible()) outage();
+    else { sceneId = 'network'; draw(); }
   }
   async function refreshWeather() {
     if(!active)return;
@@ -353,7 +362,24 @@ export function initTV({ api, setAudioDuck }) {
   }
   function start() { if (active) return; active = true; sound.start(); sceneId = 'services'; screen.hidden = false; $('tv-radio-dock').append(radio); radioState();wake(); draw(); ticker = setInterval(tick, 1000); void refreshPower(); void refreshWeather();void refreshWatch();watchRefresh=setInterval(refreshWatch,5*60_000); weatherRefresh=setInterval(refreshWeather,15*60_000); powerRefresh = setInterval(refreshPower, 5 * 60_000); }
   function stop() { powerTest=false;sound.stop();clearTimeout(nameTimer);clearTimeout(watchMoreTimer);++watchVersion;clearInterval(watchRefresh); ++weatherVersion;clearInterval(weatherRefresh);clearTimeout(idleTimer);clearTimeout(noticeTimer);screen.classList.remove('tv-idle');$('tv-notifications').replaceChildren();clearTransition(); radioHome.insertBefore(radio, radioAnchor.nextSibling); active = false; ++probeVersion; ++powerVersion; screen.hidden = true; clearTimeout(timer); clearInterval(ticker); clearInterval(powerRefresh); content.replaceChildren(); }
-  function update(data) { if ('snapshot' in data) { snapshot=data.snapshot;const result=boardChanges(previousStates,snapshot?.services||[]);previousStates=result.next;announce(result.changes); } if ('forecast' in data && place?.latitude===WARREN.latitude && place?.longitude===WARREN.longitude && Number.isFinite(localConditions(data.forecast?.conditions).current.temperature_2m)) forecast = data.forecast; if ('place' in data) { place = data.place; power = null; if (active) { if (sceneId === 'power') { sceneId = 'network'; draw(); } void refreshPower(); } } if ('network' in data) network = data.network; if (active && sceneId !== 'power') ({ services, weather, network: connection })[sceneId](); }
+  function update(data) {
+    if (data.place) place = data.place;
+    if (data.snapshot) {
+      snapshot = data.snapshot;
+      const result = boardChanges(previousStates, snapshot.services);
+      previousStates = result.next;
+      announce(result.changes);
+      if (active && sceneId === 'services') services();
+    }
+    if (data.forecast && place?.latitude === WARREN.latitude && place?.longitude === WARREN.longitude && Number.isFinite(localConditions(data.forecast.conditions).current.temperature_2m)) {
+      forecast = data.forecast;
+      if (active && sceneId === 'weather') weather();
+    }
+    if (data.network) {
+      network = data.network;
+      if (active && sceneId === 'network') connection();
+    }
+  }
   $('tv-test-power').addEventListener('click',()=>{powerTest=true;sceneId='power';wake();draw();void refreshPower();});
   $('tv-skip').addEventListener('click', next);
   return { start, stop, update };

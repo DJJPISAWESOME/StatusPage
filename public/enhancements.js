@@ -14,9 +14,24 @@ export function initEnhancements({api,onChange}) {
   let preferences=readPreferences(),raw=null,baseline=new Map(),historyData=null,historyRows=[],historyVersion=0;
   const backgroundAlerts=()=>preferences.alerts.enabled&&globalThis.Notification?.permission==='granted';
   function save(reset=true){preferences=savePreferences(preferences);if(reset)baseline.clear();applyLayout();onChange();}
+  function syncNavigation() {
+    const links = document.querySelectorAll('.sidebar .nav-link[href^="#"]');
+    const section = location.hash || '#overview';
+    for (const link of links) {
+      const current = !link.hidden && link.hash === section;
+      link.classList.toggle('selected', current);
+      if (current) link.setAttribute('aria-current', 'location');
+      else link.removeAttribute('aria-current');
+    }
+  }
+  window.addEventListener('hashchange', syncNavigation);
   function applyLayout(){
     const footer=document.querySelector('.page-footer');for(const id of preferences.panelOrder){const node=$(id);node.hidden=preferences.hiddenPanels.includes(id);footer.before(node);}
     document.body.dataset.density=preferences.density;
+    for (const link of document.querySelectorAll('.nav-link[href^="#"], .panel-footer a[href^="#"]')) {
+      link.hidden = !!$(link.hash.slice(1))?.closest('[hidden]');
+    }
+    syncNavigation();
   }
   async function sendNotification(service,previous,next){
     const action=async()=>{try{
@@ -28,7 +43,7 @@ export function initEnhancements({api,onChange}) {
     if(navigator.locks)await navigator.locks.request('signal-notifications',action);else await action();
   }
   function processSnapshot(snapshot){
-    raw=snapshot;renderHealth();
+    raw=snapshot;renderHealth();syncHistoryProviders();
     const services=snapshot.services.filter(s=>!preferences.hiddenServices.includes(s.id)).map(s=>scopeService(s,preferences.components[s.id]));
     for(const service of services){const next=service.checkedAt&&Date.now()-Date.parse(service.checkedAt)<=service.staleAfterMs?service.status:'unknown';const previous=baseline.get(service.id);baseline.set(service.id,next);
       if(!snapshot.demo&&backgroundAlerts()&&shouldNotify(previous,next,preferences.alerts))void sendNotification(service,previous,next);
@@ -41,7 +56,7 @@ export function initEnhancements({api,onChange}) {
     const body=$('settings-body');body.replaceChildren();
     const display=el('section');display.append(el('h3','Make it yours'));
     const density=select([['comfortable','Comfortable'],['compact','Compact']],preferences.density);density.onchange=()=>{preferences.density=density.value;save(false);};display.append(field('Density',density));
-    display.append(el('p','Board view cycles through services (5 minutes), weather (2 minutes), a regional power outage map when reported (2 minutes), and network connection (2 minutes).','fine-print'));
+    display.append(el('p','Board view rotates every three minutes through services, Warren weather, Warren and Bristol power outages when reported, and the network report.','fine-print'));
     for(const [index,id] of preferences.panelOrder.entries()){
       const row=el('div','','panel-setting');row.append(field(PANEL_NAMES[PANELS.indexOf(id)],check(!preferences.hiddenPanels.includes(id),enabled=>{if(!enabled&&preferences.hiddenPanels.length>=PANELS.length-1){settings();return;}preferences.hiddenPanels=enabled?preferences.hiddenPanels.filter(x=>x!==id):[...preferences.hiddenPanels,id];save(false);})));const up=button('↑',()=>{[preferences.panelOrder[index-1],preferences.panelOrder[index]]=[id,preferences.panelOrder[index-1]];save(false);settings();});up.disabled=index===0;up.setAttribute('aria-label',`Move ${PANEL_NAMES[PANELS.indexOf(id)]} up`);const down=button('↓',()=>{[preferences.panelOrder[index+1],preferences.panelOrder[index]]=[id,preferences.panelOrder[index+1]];save(false);settings();});down.disabled=index===PANELS.length-1;down.setAttribute('aria-label',`Move ${PANEL_NAMES[PANELS.indexOf(id)]} down`);row.append(up,down);display.append(row);
     }body.append(display);
@@ -67,15 +82,44 @@ export function initEnhancements({api,onChange}) {
   $('settings-button').onclick=()=>{settings();$('settings-dialog').showModal();};
   const historyService=select([['','All providers']],''),historyDays=select([['1','24 hours'],['7','7 days'],['30','30 days']],'7'),historyState=select([['','All states'],['operational','Operational'],['degraded','Degraded'],['outage','Outage'],['maintenance','Maintenance'],['unknown','Unknown']],'');
   historyService.id='history-service';historyState.id='history-state';$('history-controls').append(field('Provider',historyService),field('Period',historyDays),field('State',historyState));
-  async function loadHistory(more=false){const version=++historyVersion;const params=new URLSearchParams({service:historyService.value,days:historyDays.value,status:historyState.value});if(more&&historyData?.nextCursor)params.set('before',historyData.nextCursor);$('history-message').textContent='Loading observations…';
+  function syncHistoryProviders() {
+    const options = [['','All providers'], ...raw.services.map(s => [s.id, s.name]).sort((a,b) => a[1].localeCompare(b[1]))];
+    if (historyService.length === options.length && options.every(([id,name],i) => historyService.options[i].value === id && historyService.options[i].text === name)) return;
+    const selected = historyService.value;
+    historyService.replaceChildren(...options.map(([id,name]) => new Option(name,id)));
+    if (options.some(([id]) => id === selected)) historyService.value = selected;
+    else void loadHistory();
+  }
+  async function loadHistory(more=false){
+    if (more && (!historyData?.nextCursor || $('history-more').disabled)) return;
+    const version=++historyVersion;
+    const params=new URLSearchParams({service:historyService.value,days:historyDays.value,status:historyState.value});
+    if (more) params.set('before', historyData.nextCursor);
+    else {
+      historyData = null; historyRows = [];
+      $('history-results').replaceChildren();
+      $('history-more').hidden = true;
+      $('history-export').disabled = true;
+    }
+    $('history-refresh').disabled = $('history-more').disabled = true;
+    $('history-message').textContent='Loading observations…';
     try{const data=await api('/api/history?'+params);if(version!==historyVersion)return;historyData=data;historyRows=more?[...historyRows,...data.rows]:data.rows;const summary=historySummary(data,historyService.value?1:raw?.services.length||32);
-      $('history-message').textContent=`Confirmed coverage: ${amount(summary.coverage===null?null:summary.coverage*100,'% ',1)} · Operational share of confirmed time: ${amount(summary.operationalShare===null?null:summary.operationalShare*100,'%',1)}. Missing, stale and unknown time is not counted as operational. History starts at deployment and retains 30 days.`;
-      $('history-results').replaceChildren(scrollTable(table(['Provider','State','From','Duration','Evidence'],historyRows.map(r=>[raw?.services.find(s=>s.id===r.service_id)?.name||r.service_id,r.status,stamp(r.start_ms),amount(Math.max(0,r.effectiveEndMs-Math.max(r.start_ms,data.since))/60000,' min',1)+(r.ongoing?' · ongoing':''),r.reason.replaceAll('_',' ')])),'Observation history table'));
+      $('history-message').textContent=`${historyRows.length} observation${historyRows.length===1?'':'s'} loaded. Confirmed coverage: ${amount(summary.coverage===null?null:summary.coverage*100,'%',1)} · Operational share of confirmed time: ${amount(summary.operationalShare===null?null:summary.operationalShare*100,'%',1)}. Missing, stale and unknown time is not counted as operational. History starts at deployment and retains 30 days.`;
+      const result = historyRows.length ? scrollTable(table(['Provider','State','From','Duration','Evidence'],historyRows.map(r=>[raw?.services.find(s=>s.id===r.service_id)?.name||r.service_id,r.status,stamp(Math.max(r.start_ms,data.since)),amount(Math.max(0,r.effectiveEndMs-Math.max(r.start_ms,data.since))/60000,' min',1)+(r.ongoing?' · ongoing':''),r.reason.replaceAll('_',' ')])),'Observation history table') : el('p','No observations match these filters.','empty');
+      $('history-results').replaceChildren(result);
       $('history-more').hidden=!data.nextCursor;
-    }catch(error){if(version!==historyVersion)return;historyData=null;historyRows=[];$('history-results').replaceChildren();$('history-more').hidden=true;$('history-message').textContent=error.message;}
+    } catch(error) {
+      if(version!==historyVersion)return;
+      $('history-message').textContent = more ? "Couldn't load the next page. Your loaded observations are still available. Try Load more again." : error.message;
+    } finally {
+      if (version === historyVersion) {
+        $('history-refresh').disabled = $('history-more').disabled = false;
+        $('history-export').disabled = !historyRows.length;
+      }
+    }
   }
   for(const input of [historyService,historyDays,historyState])input.onchange=()=>loadHistory();
-  $('history-refresh').onclick=()=>{const selected=historyService.value;historyService.replaceChildren(...select([['','All providers'],...(raw?.services||[]).map(s=>[s.id,s.name])],selected).children);historyService.value=selected;loadHistory();};
+  $('history-refresh').onclick=()=>loadHistory();
   $('history-more').onclick=()=>loadHistory(true);
   $('history-export').onclick=()=>{if(!historyRows.length)return;const escape=v=>'"'+String(v).replaceAll('"','""')+'"';const csv=[['provider','status','start_utc','end_utc','reason'],...historyRows.map(r=>[r.service_id,r.status,new Date(Math.max(r.start_ms,historyData.since)).toISOString(),new Date(r.effectiveEndMs).toISOString(),r.reason])].map(row=>row.map(escape).join(',')).join('\r\n');const url=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));const a=el('a');a.href=url;a.download='signal-observations.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
   function weatherDetails(weather,place){
