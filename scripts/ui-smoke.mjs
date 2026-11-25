@@ -1,6 +1,7 @@
 import { verifyNetworkStates } from './network-ui.mjs';
 import {verifyAudio} from './audio-ui.mjs';
 import { verifyRequests } from './request-ui.mjs';
+import { verifyDashboardTransitions } from './dashboard-ui.mjs';
 import { fixtureStatus } from '../test/fixtures.mjs';
 import AxeBuilder from '@axe-core/playwright';
 import { chromium, firefox, webkit } from 'playwright';
@@ -107,6 +108,7 @@ try {
  await page.route('**/api/status',route=>route.fulfill({json:{services:[{id:'xss',name:'<img src=x onerror=alert(1)>',homepage:'https://example.com',status:'degraded',incidents:[],staleAfterMs:720000,checkedAt:new Date().toISOString()}],history:[]}}));
  await page.reload();await page.waitForSelector('.service-card');assert.equal(await page.locator('.service-card img').count(),0);
  await context.close();
+ await verifyDashboardTransitions(browser);
  const isolated=await browserType.launch({timeout:30000,headless:true,executablePath:process.env.CHROME_PATH||undefined,args:browserArgs});
  try{await verifyNetworkStates(isolated);}finally{await isolated.close();}
  await verifyRequests(browser);

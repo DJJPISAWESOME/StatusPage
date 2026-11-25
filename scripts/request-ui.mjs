@@ -1,6 +1,52 @@
 import assert from 'node:assert/strict';
 import AxeBuilder from '@axe-core/playwright';
+
+async function verifySlowPortal(browser) {
+ const page = await browser.newPage({ reducedMotion: 'reduce' });
+ try {
+  const queueStarted = Promise.withResolvers(), queueReady = Promise.withResolvers();
+  const oldSearchStarted = Promise.withResolvers(), oldSearchReady = Promise.withResolvers();
+  let reads = 0;
+  await page.route('**/api/requests', async route => {
+   ++reads;
+   queueStarted.resolve();
+   await queueReady.promise;
+   await route.fulfill({ json: {
+    current: { id: 'current', title: 'Current track', artist: 'Example artist' }, playerOnline: true, items: [],
+    transport: { paused: true }, playback: { position: 30, duration: 180, paused: true, at: Date.now() }, searchEnabled: true
+   } });
+  });
+  await page.route('**/api/requests/search?**', async route => {
+   const title = new URL(route.request().url()).searchParams.get('q');
+   if (title === 'First track') { oldSearchStarted.resolve(); await oldSearchReady.promise; }
+   await route.fulfill({ json: { results: [{ videoId: 'aaaaaaaaaaa', title, artist: 'Example artist' }] } });
+  });
+  await page.clock.install();
+  await page.goto('http://127.0.0.1:4173/requests.html');
+  await queueStarted.promise;
+  await page.clock.fastForward(10500);
+  queueReady.resolve();
+  await page.waitForFunction(() => document.getElementById('player-badge').textContent === 'PAUSED');
+  assert.equal(reads, 1, 'A slow queue read should survive later polling ticks');
+  assert.match(await page.locator('#request-online').textContent(), /paused/);
+  assert.equal(await page.locator('#request-elapsed').textContent(), '0:30');
+  await page.locator('#request-query').fill('First track');
+  await page.locator('#request-submit').click();
+  await oldSearchStarted.promise;
+  await page.locator('#request-query').fill('Second track');
+  assert.match(await page.locator('#request-youtube-search').getAttribute('href'), /Second%20track$/);
+  await page.locator('#request-submit').click();
+  await page.getByRole('heading', { name: 'Second track' }).waitFor();
+  const oldResponse = page.waitForResponse('**/search?q=First%20track');
+  oldSearchReady.resolve();
+  await (await oldResponse).finished();
+  await page.clock.runFor(100);
+  assert.deepEqual(await page.locator('#request-results h3').allTextContents(), ['Second track']);
+ } finally { await page.close(); }
+}
+
 export async function verifyRequests(browser){
+ await verifySlowPortal(browser);
  const context=await browser.newContext({viewport:{width:1440,height:1100}}),errors=[];let blockNextAdd=false,quotaMode='valid',submitted=0,current=null,items=[],online=false,transport=null,playback=null,remoteVolume=null,radioSettings={station:null,level:1,revision:0},radio=null,pollHandler=null,hourlyLimit=false;
  const song={videoId:'dQw4w9WgXcQ',title:'A requested song',artist:'Example artist'},second={videoId:'aaaaaaaaaaa',title:'Second request',artist:'Another artist'};
  await context.route('**/api/requests**',async route=>{
@@ -89,7 +135,9 @@ export async function verifyRequests(browser){
  await portal.getByRole('button',{name:'Skip',exact:false}).click();await portal.waitForFunction(()=>!document.getElementById('request-pause').disabled);await board.clock.fastForward(5100);await board.waitForFunction(()=>window.testYT.id==='aaaaaaaaaaa');assert.deepEqual(await board.evaluate(()=>window.testYT.starts),[0,0]);await board.evaluate(()=>window.testYT.finish());await board.waitForFunction(()=>!document.getElementById('audio').paused&&document.querySelector('.request-panel').hidden);assert.equal(current,null);assert.equal(await board.locator('#audio').evaluate(a=>a.paused),false);assert.equal(await board.locator('.request-panel').isVisible(),false);assert.equal(await board.locator('#station').inputValue(),'river');
  await board.clock.fastForward(5100);await portal.evaluate(()=>document.dispatchEvent(new Event('visibilitychange')));await portal.waitForFunction(()=>document.getElementById('request-online').textContent.includes('92.5 The River'));assert.equal(await board.locator('#station option:checked').innerText(),'92.5 The River');
  await board.clock.runFor(1200);assert.equal(await board.locator('#audio').evaluate(a=>a.volume),.125,'Radio returns at calibrated balance');
- await portal.locator('#request-station').selectOption('wror');await portal.waitForFunction(()=>!document.getElementById('request-station').disabled);await board.clock.fastForward(5100);await board.clock.runFor(1200);
+ await portal.locator('#request-station').selectOption('wror');await portal.waitForFunction(()=>!document.getElementById('request-station').disabled);await board.clock.fastForward(5100);
+ await board.waitForFunction(()=>document.getElementById('station').value==='wror' && !document.getElementById('audio').paused);
+ await board.clock.runFor(1200);
  assert.equal(await board.locator('#station').inputValue(),'wror');assert.equal(await board.locator('#audio').evaluate(a=>a.volume),.125);
  await portal.locator('#request-station').selectOption('river');await portal.waitForFunction(()=>!document.getElementById('request-station').disabled);await board.clock.fastForward(5100);
  await portal.reload();await portal.locator('#request-query').waitFor();await portal.locator('#mobile-player').click();await portal.locator('.request-radio-settings summary').click();assert.equal(await portal.locator('#request-radio-level').inputValue(),'0.5','Portal reload retains the saved balance');

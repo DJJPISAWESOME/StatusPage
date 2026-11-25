@@ -19,7 +19,7 @@
     "test:live": "node scripts/live-check.mjs"
   },
   "dependencies": {
-    "fast-xml-parser": "^5.3.0"
+    "fast-xml-parser": "^5.12.1"
   },
   "devDependencies": {
     "playwright": "^1.63.0",
